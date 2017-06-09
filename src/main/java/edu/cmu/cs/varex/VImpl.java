@@ -141,7 +141,7 @@ class VImpl<T> implements V<T> {
         map.put(value, condition);
     }
 
-    private static <U> V<U> createV(Map<U, FeatureExpr> map) {
+    protected static <U> V<U> createV(Map<U, FeatureExpr> map) {
         if (map.size() == 0)
             return VEmpty.instance();
         if (map.size() == 1) {
