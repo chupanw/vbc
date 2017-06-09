@@ -8,11 +8,13 @@ import org.objectweb.asm.{MethodVisitor, Type}
 
 object LiftUtils {
   //    val liftedPackagePrefixes = Set("edu.cmu.cs.vbc.test", "edu.cmu.cs.vbc.prog")
+  val vintclassname = "edu/cmu/cs/varex/Vint"
   val vclassname = "edu/cmu/cs/varex/V"
   val fexprclassname = "de/fosd/typechef/featureexpr/FeatureExpr"
   val fexprfactoryClassName = "de/fosd/typechef/featureexpr/FeatureExprFactory"
   val vopsclassname = "edu/cmu/cs/varex/VOps"
   val vclasstype = "L" + vclassname + ";"
+  val vintclasstype = "L" + vintclassname + ";"
   val fexprclasstype = "L" + fexprclassname + ";"
   val ctxParameterOffset = 1
 
@@ -96,6 +98,15 @@ object LiftUtils {
     mv.visitInsn(SWAP)
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "one", s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype", true)
   }
+  /**
+    * precondition: plain int on top of stack
+    * postcondition: Vint reference on top of stack
+    */
+  def callVintCreateOne(mv: MethodVisitor, loadCtx: (MethodVisitor) => Unit) = {
+    loadCtx(mv)
+    mv.visitInsn(SWAP);
+    mv.visitMethodInsn(INVOKESTATIC, vintclassname, "one", s"(${fexprclasstype}Ljava/lang/Object;)$vintclasstype", true)
+  }
 
   /**
     * precondition: feature expression and two V references on top of stack
@@ -103,6 +114,12 @@ object LiftUtils {
     */
   def callVCreateChoice(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "choice", "(Lde/fosd/typechef/featureexpr/FeatureExpr;Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Ledu/cmu/cs/varex/V;", true)
+  /**
+    * precondition: feature expression and two Vint references on top of stack
+    * postcondition: Vint reference on top of stack
+    */
+  def callVintCreateChoice(mv: MethodVisitor) =
+    mv.visitMethodInsn(INVOKESTATIC, vintclassname, "choice", "(Lde/fosd/typechef/featureexpr/FeatureExpr;Ledu/cmu/cs/varex/Vint;Ledu/cmu/cs/varex/Vint;)Ledu/cmu/cs/varex/Vint;", true)
 
   /**
     * Helper function to get the method descriptor
