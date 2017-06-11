@@ -398,7 +398,7 @@ case class InstrIUSHR() extends BinOpInstruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
     if (env.shouldLiftInstr(this)) {
       loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("iushr"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("iushr"), MethodDesc(s"($vintclasstype$vintclasstype$fexprclasstype)$vintclasstype"), false)
     }
     else
       mv.visitInsn(IUSHR)
