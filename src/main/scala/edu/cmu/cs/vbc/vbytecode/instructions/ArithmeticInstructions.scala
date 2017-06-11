@@ -45,7 +45,7 @@ case class InstrIADD() extends BinOpInstruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IADD", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IADD", s"(Ledu/cmu/cs/varex/Vint;Ledu/cmu/cs/varex/Vint;$fexprclasstype)Ledu/cmu/cs/varex/Vint;", false)
     }
     else
       mv.visitInsn(IADD)
