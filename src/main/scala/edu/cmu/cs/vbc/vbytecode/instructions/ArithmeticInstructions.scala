@@ -413,7 +413,7 @@ case class InstrIREM() extends BinOpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("irem"), MethodDesc(s"($vclasstype$vclasstype)$vclasstype"), false)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("irem"), MethodDesc(s"($vintclasstype$vintclasstype)$vintclasstype"), false)
     else
       mv.visitInsn(IREM)
 }
