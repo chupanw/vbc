@@ -25,7 +25,7 @@ case class InstrISTORE(variable: Variable) extends Instruction {
       mv.visitInsn(SWAP)
       loadV(mv, env, variable)
       //now ctx, newvalue, oldvalue on stack
-      callVCreateChoice(mv)
+      callVintCreateChoice(mv)
       //now new choice value on stack combining old and new value
       storeV(mv, env, variable)
     }
