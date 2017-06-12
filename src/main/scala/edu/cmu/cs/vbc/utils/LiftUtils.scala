@@ -105,7 +105,7 @@ object LiftUtils {
   def callVintCreateOne(mv: MethodVisitor, loadCtx: (MethodVisitor) => Unit) = {
     loadCtx(mv)
     mv.visitInsn(SWAP);
-    mv.visitMethodInsn(INVOKESTATIC, vintclassname, "one", s"(${fexprclasstype}Ljava/lang/Object;)$vintclasstype", true)
+    mv.visitMethodInsn(INVOKESTATIC, vintclassname, "one", s"(${fexprclasstype}I;)$vintclasstype", true)
   }
 
   /**

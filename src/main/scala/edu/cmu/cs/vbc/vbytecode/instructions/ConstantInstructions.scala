@@ -24,7 +24,6 @@ case class InstrICONST(v: Int) extends Instruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       pushConstant(mv, v)
-//      mv.visitMethodInsn(INVOKESTATIC, IntClass, "valueOf", s"(I)$IntType", false)
       callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
     }
     else {
