@@ -135,7 +135,7 @@ case class InstrI2C() extends Instruction {
 
     if (env.shouldLiftInstr(this)) {
       loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "i2c", s"($vclasstype$fexprclasstype)$vclasstype", false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "i2c", s"($vintclasstype$fexprclasstype)$vintclasstype", false)
     }
     else {
       mv.visitInsn(I2C)
