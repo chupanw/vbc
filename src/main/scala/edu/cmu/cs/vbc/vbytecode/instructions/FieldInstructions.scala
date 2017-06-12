@@ -121,14 +121,24 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val fieldIsInt = (desc.desc == "I")
     if (env.shouldLiftInstr(this))
-      getFieldFromV(mv, env, block, owner, name, desc)
+      if (fieldIsInt) {
+        getFieldFromVint(mv, env, block, owner, name, desc)
+      } else {
+        getFieldFromV(mv, env, block, owner, name, desc)
+      }
     else
-      mv.visitFieldInsn(GETFIELD, owner, name, "Ledu/cmu/cs/varex/V;")
+      mv.visitFieldInsn(GETFIELD, owner, name,
+        "Ledu/cmu/cs/varex/V" + (if (fieldIsInt) "int" else "") + ";")
 
     //select V to current context
     loadCurrentCtx(mv, env, block)
-    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "select", s"($fexprclasstype)$vclasstype", true)
+    if (fieldIsInt) {
+      mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "select", s"($fexprclasstype)$vintclasstype", true)
+    } else {
+      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "select", s"($fexprclasstype)$vclasstype", true)
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
@@ -150,6 +160,17 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         val label = new Label()
         visitor.visitVarInsn(ALOAD, 1) //obj ref
         visitor.visitFieldInsn(GETFIELD, owner, name, vclasstype)
+        visitor.visitInsn(ARETURN)
+      }
+    }
+  }
+  def getFieldFromVint(mv: MethodVisitor, env: VMethodEnv, block: Block, owner: String, name: String, desc: String): Unit = {
+    val ownerType = Type.getObjectType(owner)
+    InvokeDynamicUtils.invoke(VCall.sflatMap, mv, env, loadCurrentCtx(_, env, block), "getfield", s"$ownerType()$vintclasstype") {
+      (visitor: MethodVisitor) => {
+        val label = new Label()
+        visitor.visitVarInsn(ALOAD, 1) //obj ref
+        visitor.visitFieldInsn(GETFIELD, owner, name, vintclasstype)
         visitor.visitInsn(ARETURN)
       }
     }
