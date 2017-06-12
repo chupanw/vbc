@@ -372,7 +372,7 @@ case class InstrIOR() extends BinOpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("ior"), MethodDesc(s"($vclasstype$vclasstype)$vclasstype"), false)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("ior"), MethodDesc(s"($vintclasstype$vintclasstype)$vintclasstype"), false)
     else
       mv.visitInsn(IOR)
 }
