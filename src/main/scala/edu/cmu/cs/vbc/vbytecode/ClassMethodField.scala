@@ -393,8 +393,13 @@ case class VBCFieldNode(
   def toVByteCode(cv: ClassVisitor) = {
     def wrap(s: String) = "Ledu/cmu/cs/varex/V<" + s + ">;"
 
+    val fieldIsInt = (desc == "I")
     // initial value will be set in InstrINIT_CONDITIONAL_FIELDS
-    val fv = cv.visitField(access, name, vclasstype, wrap(TypeDesc(desc).toObject), null)
+    val fv =
+      if (fieldIsInt)
+        cv.visitField(access, name, vintclasstype, "Ledu/cmu/cs/varex/Vint", null)
+      else
+        cv.visitField(access, name, vclasstype, wrap(TypeDesc(desc).toObject), null)
 
     commonToByteCode(fv)
 
