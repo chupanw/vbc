@@ -62,8 +62,7 @@ case class InstrBIPUSH(value: Int) extends Instruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       pushConstant(mv, value)
-      mv.visitMethodInsn(INVOKESTATIC, IntClass, "valueOf", s"(I)$IntType", false)
-      callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
     }
     else
       toByteCode(mv, env, block)
@@ -93,14 +92,7 @@ case class InstrSIPUSH(value: Int) extends Instruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       mv.visitIntInsn(SIPUSH, value)
-      mv.visitMethodInsn(
-        INVOKESTATIC,
-        IntClass,
-        "valueOf",
-        genSign("I", TypeDesc.getInt.toModel),
-        false
-      )
-      callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
     }
     else
       toByteCode(mv, env, block)
