@@ -153,23 +153,20 @@ case class InstrISHL() extends Instruction {
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      InvokeDynamicUtils.invoke(
+      InvokeDynamicUtils.invokeVint(
         VCall.sflatMap,
         mv,
         env,
         loadCtx = loadCurrentCtx(_, env, block),
         lambdaName = "ISHL",
-        desc = TypeDesc.getInt + "(" + TypeDesc.getInt + ")" + vclasstype,
+        desc = "I(I)" + vintclasstype,
         nExplodeArgs = 1
       ) {
         (mv: MethodVisitor) => {
-          mv.visitVarInsn(ALOAD, 0) // Integer
-          Integer2int(mv)  // int
-          mv.visitVarInsn(ALOAD, 2) // Integer
-          Integer2int(mv) // int
+          mv.visitVarInsn(ILOAD, 0) // Integer
+          mv.visitVarInsn(ILOAD, 2) // Integer
           mv.visitInsn(ISHL)
-          int2Integer(mv)
-          callVCreateOne(mv, m => m.visitVarInsn(ALOAD, 1))
+          callVintCreateOne(mv, m => m.visitVarInsn(ILOAD, 1))
           mv.visitInsn(ARETURN)
         }
       }
@@ -303,17 +300,14 @@ case class InstrISHR() extends Instruction {
         env,
         loadCtx = loadCurrentCtx(_, env, block),
         lambdaName = "ishr",
-        desc = TypeDesc.getInt + s"(${TypeDesc.getInt})" + vclasstype,
+        desc = "I(I)" + vintclasstype,
         nExplodeArgs = 1
       ) {
         (mv: MethodVisitor) => {
-          mv.visitVarInsn(ALOAD, 0) // value1
-          Integer2int(mv)
-          mv.visitVarInsn(ALOAD, 2) // value2
-          Integer2int(mv)
+          mv.visitVarInsn(ILOAD, 0) // value1
+          mv.visitVarInsn(ILOAD, 2) // value2
           mv.visitInsn(ISHR)
-          int2Integer(mv)
-          callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, 1))
+          callVintCreateOne(mv, (m) => m.visitVarInsn(ILOAD, 1))
           mv.visitInsn(ARETURN)
         }
       }
