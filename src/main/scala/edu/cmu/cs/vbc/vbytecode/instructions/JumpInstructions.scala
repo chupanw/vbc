@@ -85,7 +85,7 @@ case class InstrIFEQ(targetBlockIdx: Int) extends JumpInstruction {
       */
 
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenEQ", "(Ledu/cmu/cs/varex/V;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenEQ", "(Ledu/cmu/cs/varex/Vint;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
     //only evaluate condition, jump in block implementation
     else
       mv.visitJumpInsn(IFEQ, env.getBlockLabel(env.getBlock(targetBlockIdx)))
@@ -112,7 +112,7 @@ case class InstrIFNE(targetBlockIdx: Int) extends JumpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenNE", "(Ledu/cmu/cs/varex/V;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenNE", "(Ledu/cmu/cs/varex/Vint;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
     else
       mv.visitJumpInsn(IFNE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -204,7 +204,7 @@ case class InstrIFGE(targetBlockIdx: Int) extends JumpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenGE", genSign(vclasstype, fexprclasstype), false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenGE", genSign(vintclasstype, fexprclasstype), false)
     else
       mv.visitJumpInsn(IFGE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -270,7 +270,7 @@ case class InstrIFGT(targetBlockIdx: Int) extends JumpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenGT", genSign(vclasstype, fexprclasstype), false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenGT", genSign(vintclasstype, fexprclasstype), false)
     else
       mv.visitJumpInsn(IFGT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -323,7 +323,7 @@ case class InstrIFLT(targetBlockIdx: Int) extends JumpInstruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenLT", genSign(vclasstype, fexprclasstype), false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenLT", genSign(vintclasstype, fexprclasstype), false)
     else
       mv.visitJumpInsn(IFLT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -383,7 +383,7 @@ case class InstrIFLE(targetBlockIdx: Int) extends JumpInstruction {
   }
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenLE", genSign(vclasstype, fexprclasstype), false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenLE", genSign(vintclasstype, fexprclasstype), false)
     else
       mv.visitJumpInsn(IFLE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
