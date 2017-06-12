@@ -110,13 +110,13 @@ case class InstrIINC(variable: Variable, increment: Int) extends Instruction {
       loadV(mv, env, variable)
       pushConstant(mv, increment)
       loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IINC", s"(Ledu/cmu/cs/varex/V;I$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IINC", s"(Ledu/cmu/cs/varex/Vint;I$fexprclasstype)Ledu/cmu/cs/varex/Vint;", false)
 
       //create a choice with the original value
       loadFExpr(mv, env, env.getVBlockVar(block))
       mv.visitInsn(SWAP)
       loadV(mv, env, variable)
-      callVCreateChoice(mv)
+      callVintCreateChoice(mv)
 
       storeV(mv, env, variable)
     }
