@@ -54,9 +54,14 @@ case class InstrLDC(o: Object) extends Instruction {
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, blockA: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
+      var createdOne = false
       o match {
         case s: String => mv.visitLdcInsn(o); wrapString(mv)
-        case i: Integer => mv.visitLdcInsn(o); int2Integer(mv)
+        case i: Integer => {
+          mv.visitLdcInsn(o)
+          callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, blockA))
+          createdOne = true
+        }
         case l: java.lang.Long => mv.visitLdcInsn(o); long2Long(mv)
         case t: Type =>
           if (t.getSort == Type.ARRAY) {
@@ -67,7 +72,10 @@ case class InstrLDC(o: Object) extends Instruction {
             mv.visitLdcInsn(o)
         case _ => throw new UnsupportedOperationException("Unsupported LDC type")
       }
-      callVCreateOne(mv, (m) => loadCurrentCtx(m, env, blockA))
+
+      if (!createdOne) {
+        callVCreateOne(mv, (m) => loadCurrentCtx(m, env, blockA))
+      }
     }
     else {
       mv.visitLdcInsn(o)
