@@ -32,14 +32,20 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val shouldLiftField = LiftingPolicy.shouldLiftField(owner, name, desc)
     if (env.shouldLiftInstr(this)) {
+      val fieldIsInt = (desc.desc == "I")
       if (shouldLiftField) {
         // fields are lifted, the desc should be V
-        mv.visitFieldInsn(GETSTATIC, owner.toModel, name, vclasstype)
+        mv.visitFieldInsn(GETSTATIC, owner.toModel, name,
+          (if (fieldIsInt) vintclasstype else vclasstype))
       }
       else {
         // fields are not lifted but we need a V, so we wrap it into a V
         mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toObject.toModel)
-        callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+        if (fieldIsInt) {
+          callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+        } else {
+          callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+        }
       }
     }
     else {
@@ -87,9 +93,15 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
       if (env.shouldLiftInstr(this)) {
         loadCurrentCtx(mv, env, block)
         mv.visitInsn(SWAP)
-        mv.visitFieldInsn(GETSTATIC, owner, name, vclasstype)
-        callVCreateChoice(mv)
-        mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/V;")
+        if (desc.desc == "I") {
+          mv.visitFieldInsn(GETSTATIC, owner, name, vintclasstype)
+          callVintCreateChoice(mv)
+          mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/Vint;")
+        } else {
+          mv.visitFieldInsn(GETSTATIC, owner, name, vclasstype)
+          callVCreateChoice(mv)
+          mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/V;")
+        }
       }
       else
         mv.visitFieldInsn(PUTSTATIC, owner, name, desc)
