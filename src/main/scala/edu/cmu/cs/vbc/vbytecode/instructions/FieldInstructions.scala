@@ -231,9 +231,9 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         mv.visitInsn(DUP_X2) // stack: ..., this, ctx, val, oldval, ctx
         mv.visitInsn(POP) // stack: ..., this, ctx, val, oldval
         if (fieldIsInt) {
-          callVCreateChoice(mv) // stack: ..., this, newval
+          callVintCreateChoice(mv) // stack: ..., this, newval
         } else {
-          callVintCreateChoice(mv)
+          callVCreateChoice(mv)
         }
 
         //        mv.visitInsn(DUP)
@@ -255,9 +255,9 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
 
       if (env.shouldLiftInstr(this)) {
         if (fieldIsInt) {
-          callPutOnV(mv, env, loadContext, putOperation)
-        } else {
           callPutOnVint(mv, env, loadContext, putOperation)
+        } else {
+          callPutOnV(mv, env, loadContext, putOperation)
         }
       }
       else {
