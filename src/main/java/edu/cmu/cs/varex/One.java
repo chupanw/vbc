@@ -13,6 +13,14 @@ public class One<T> implements V<T> {
     final FeatureExpr configSpace;
     final T value;
 
+    @Override
+    public Vint toVint() {
+        if (value instanceof Integer)
+            return Vint.one(configSpace, ((Integer) value).intValue());
+        else
+            throw new RuntimeException("blag");
+    }
+
     public One(FeatureExpr configSpace, T v) {
         this.configSpace = configSpace;
         this.value = v;

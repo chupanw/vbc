@@ -23,6 +23,8 @@ public interface V<T> {
         return select(ctx).getOne();
     }
 
+    Vint toVint();
+
 
     /**
      * maps over a V describing a (possibly partial) configuration space.

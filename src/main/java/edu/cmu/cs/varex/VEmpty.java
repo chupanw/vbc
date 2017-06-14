@@ -16,6 +16,10 @@ public class VEmpty<T> implements V<T> {
         return new VEmpty<>();
     }
 
+    public Vint toVint(){
+        return new VintEmpty();
+    }
+
     @Override
     public String toString() {
         return "VEmpty()";

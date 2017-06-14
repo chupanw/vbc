@@ -2,6 +2,7 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
+import gnu.trove.map.hash.TIntObjectHashMap;
 
 import javax.annotation.Nonnull;
 import java.util.*;
@@ -11,6 +12,15 @@ import java.util.function.*;
  * internal implementation of V
  */
 class VImpl<T> implements V<T> {
+
+    @Override
+    public Vint toVint(){
+        TIntObjectHashMap<FeatureExpr> convertedValues = new TIntObjectHashMap<>();
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
+            convertedValues.put(((Integer) e.getKey()).intValue(), e.getValue());
+        }
+        return VintImpl.createV(convertedValues);
+    }
 
     static <U> V<? extends U> choice(FeatureExpr condition, U a, U b) {
         Map<U, FeatureExpr> result = new HashMap<>(2);
