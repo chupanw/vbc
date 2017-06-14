@@ -97,34 +97,53 @@ object InvokeDynamicUtils {
             )
             (lambdaOp: MethodVisitor => Unit): Unit = {
 
+    def descIsInt(d: String): Boolean = (d == "I" || d == vintclasstype)
+    val (invokeObjectDesc, argsDesc, retDesc) = decomposeDesc(desc)
+    val lambdaRetDesc = if (retDesc == "V") "V" else if (descIsInt(retDesc)) vintclasstype else vclasstype
+
+    val argTypes: Array[Type] = Type.getArgumentTypes(s"($argsDesc)")
+    val nArg = argTypes.size
+
+    val argTypeStr = ((for (t <- argTypes.take(nExplodeArgs))
+                       yield (if (t.getSort == Type.INT) vintclasstype else vclasstype)) ++
+                     (for (t <- argTypes.drop(nExplodeArgs))
+                       yield t.toString)).mkString("")
+
     //////////////////////////////////////////////////
     // Init
     //////////////////////////////////////////////////
-    val (invokeDynamicName, vCallDesc, funType, isReturnVoid) = vCall match {
-      case VCall.smap => ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false)
-      case VCall.sforeach => ("accept", s"($biConsumerType$fexprclasstype)V", biConsumerType, true)
-      case VCall.sflatMap => ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false)
+    val firstArgType = if (nArg == 0) None else Some(argTypes(0).getSort)
+    val (invokeDynamicName, vCallDesc, funType, isReturnVoid) = (vCall, firstArgType, retDesc) match {
+      case (VCall.smap, _, ret) if descIsInt(ret) =>
+        ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false)
+      case (VCall.sflatMap, _, ret) if descIsInt(ret) =>
+        ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false)
+      case (VCall.smap, _, _) | (VCall.sflatMap, _, _) =>
+        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false)
+
+      case (VCall.sforeach, Some(Type.INT), _) =>
+        ("accept", s"($objIntConsumerType$fexprclasstype)V", objIntConsumerType, true)
+      case (VCall.sforeach, Some(Type.OBJECT), _) if descIsInt(argTypes(0).toString) =>
+        ("accept", s"($objIntConsumerType$fexprclasstype)V", objIntConsumerType, true)
+      case (VCall.sforeach, _, _) =>
+        ("accept", s"($biConsumerType$fexprclasstype)V", biConsumerType, true)
+
       case _ => throw new RuntimeException("Unsupported dynamic invoke type: " + vCall)
     }
 
     //////////////////////////////////////////////////
     // Call INVOKEDYNAMIC
     //////////////////////////////////////////////////
-    val (invokeObjectDesc, argsDesc, retDesc) = decomposeDesc(desc)
-    val lambdaRetDesc = if (retDesc == "V") "V" else vclasstype
 
-    val argTypes: Array[Type] = Type.getArgumentTypes(s"($argsDesc)")
-    val nArg = argTypes.size
 
-    val invokeDynamicType = "(" +
-      vclasstype * nExplodeArgs + (for (t <- argTypes.drop(nExplodeArgs)) yield t.toString).mkString("") +
-      s")$funType"
+    val invokeDynamicType = "(" + argTypeStr + s")$funType"
 
-    val newInvokeObjDesc: String = if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded) s"[$vclasstype" else invokeObjectDesc
-    val lambdaDesc = "(" +
-      vclasstype * nExplodeArgs + (for (t <- argTypes.drop(nExplodeArgs)) yield t.toString).mkString("") +
-      s"$fexprclasstype" + newInvokeObjDesc +
-      s")$lambdaRetDesc"
+    val newInvokeObjDesc: String =
+      if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded)
+        (if (invokeObjectDesc.startsWith("[I")) s"[$vintclasstype" else s"[$vclasstype")
+      else invokeObjectDesc
+    val isIntArray = (newInvokeObjDesc == s"[$vintclasstype")
+    val lambdaDesc = "(" + argTypeStr + s"$fexprclasstype" + newInvokeObjDesc + s")$lambdaRetDesc"
 
     val n = env.clazz.lambdaMethods.size
     val lambdaMtdName: String = "lambda$" + lambdaName + "$" + n
@@ -143,7 +162,13 @@ object InvokeDynamicUtils {
     else {
       loadFE(mv, loadCtx, None)
     }
-    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, vCall.toString, vCallDesc, true)
+
+    // this logic is insufficient: need to rather invoke a method of V that maps to Vint
+    if (lambdaRetDesc == vintclasstype){
+      mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, vCall.toString, vCallDesc, true)
+    } else {
+      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, vCall.toString, vCallDesc, true)
+    }
 
     //////////////////////////////////////////////////
     // helper methods for expanding arrays
@@ -182,126 +207,8 @@ object InvokeDynamicUtils {
       env.clazz.lambdaMethods += (helperName -> helper)
       mv.visitMethodInsn(INVOKESTATIC, Owner(env.clazz.name), MethodName(helperName), MethodDesc(helperDesc), false)
     }
-
-    //////////////////////////////////////////////////
-    // Generate lambda method body
-    //////////////////////////////////////////////////
-    val lambda =
-      if (nExplodeArgs != 0) (cv: ClassVisitor) => {
-        val mv: MethodVisitor = cv.visitMethod(
-          ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
-          lambdaMtdName,
-          lambdaDesc,
-          lambdaDesc,
-          Array[String]() // Empty exception list
-        )
-        mv.visitCode()
-
-        if (shouldExpandArray) {
-          expandArray(mv)
-        }
-        else {
-          mv.visitVarInsn(ALOAD, 0) // this is the next V to be exploded
-          /* load arguments */
-          for (i <- 1 until nArg) mv.visitVarInsn(ALOAD, i)
-          mv.visitVarInsn(ALOAD, nArg + 1) // last argument of lambda method, the V that just got exploded
-          invoke(vCall, mv, env, loadCtx, "explodeArg", shiftDesc(desc), nExplodeArgs - 1, isExploding = true, expandArgArray)(lambdaOp)
-        }
-
-        if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
-        mv.visitMaxs(10, 10)
-        mv.visitEnd()
-      }
-      else (cv: ClassVisitor) => {
-        val mv: MethodVisitor = cv.visitMethod(
-          ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
-          lambdaMtdName,
-          lambdaDesc,
-          lambdaDesc,
-          Array[String]() // Empty exception list
-        )
-        mv.visitCode()
-        if (shouldExpandArray) {
-          expandArray(mv)
-          if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
-        }
-        else
-          lambdaOp(mv)
-        mv.visitMaxs(10, 10)
-        mv.visitEnd()
-      }
-    env.clazz.lambdaMethods += (lambdaMtdName -> lambda)
-
-  }
-  def invokeVint(
-              vCall: VCall.Value,
-              mv: MethodVisitor,
-              env: VMethodEnv,
-              loadCtx: MethodVisitor => Unit,
-              lambdaName: String,
-              desc: String,
-              nExplodeArgs: Int = 0,
-              isExploding: Boolean = false,
-              expandArgArray: Boolean = false,
-              isArrayExpanded: Boolean = false  //todo: avoid this parameter
-            )
-            (lambdaOp: MethodVisitor => Unit): Unit = {
-
-    //////////////////////////////////////////////////
-    // Init
-    //////////////////////////////////////////////////
-    val (invokeDynamicName, vCallDesc, funType, isReturnVoid) = vCall match {
-      case VCall.smap => ("applyAsInt", s"($toIntBiFuncType$fexprclasstype)$vintclasstype", toIntBiFuncType, false)
-      case VCall.sforeach => ("accept", s"($objIntConsumerType$fexprclasstype)Vint", objIntConsumerType, true)
-      case VCall.sflatMap => ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false)
-      case _ => throw new RuntimeException("Unsupported dynamic invoke type: " + vCall)
-    }
-
-    //////////////////////////////////////////////////
-    // Call INVOKEDYNAMIC
-    //////////////////////////////////////////////////
-    val (invokeObjectDesc, argsDesc, retDesc) = decomposeDesc(desc)
-    val lambdaRetDesc = if (retDesc == "Vint") "Vint" else vintclasstype
-
-    val argTypes: Array[Type] = Type.getArgumentTypes(s"($argsDesc)")
-    val nArg = argTypes.size
-
-    val invokeDynamicType = "(" +
-      vintclasstype * nExplodeArgs + (for (t <- argTypes.drop(nExplodeArgs)) yield t.toString).mkString("") +
-      s")$funType"
-
-    val newInvokeObjDesc: String = if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded) s"[$vintclasstype" else invokeObjectDesc
-    val lambdaDesc = "(" +
-      vintclasstype * nExplodeArgs + (for (t <- argTypes.drop(nExplodeArgs)) yield t.toString).mkString("") +
-      s"$fexprclasstype" + newInvokeObjDesc +
-      s")$lambdaRetDesc"
-
-    val n = env.clazz.lambdaMethods.size
-    val lambdaMtdName: String = "lambda$" + lambdaName + "$" + n
-    mv.visitInvokeDynamicInsn(
-      invokeDynamicName,
-      invokeDynamicType,
-      new Handle(H_INVOKESTATIC, lamdaFactoryOwner, lamdaFactoryMethod, lamdaFactoryDesc),
-      // Arguments:
-      Type.getType("(Ljava/lang/Object;Ljava/lang/Object;)" + (if (isReturnVoid) "Vint" else "Ljava/lang/Object;")),
-      new Handle(H_INVOKESTATIC, env.clazz.name, lambdaMtdName, lambdaDesc),
-      Type.getType(s"($fexprclasstype$newInvokeObjDesc)$lambdaRetDesc")
-    )
-    if (isExploding) {
-      loadFE(mv, loadCtx, Some(lambdaDesc))
-    }
-    else {
-      loadFE(mv, loadCtx, None)
-    }
-    mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, vCall.toString, vCallDesc, true)
-
-    //////////////////////////////////////////////////
-    // helper methods for expanding arrays
-    //////////////////////////////////////////////////
-    val currentInvokeObjType = TypeDesc(invokeObjectDesc)
-    def shouldExpandArray: Boolean = expandArgArray && currentInvokeObjType.isArray && !isArrayExpanded
-    def expandArray(mv: MethodVisitor) = {
-      mv.visitVarInsn(ALOAD, nArg + 1)  // [V
+    def expandIntArray(mv: MethodVisitor) = {
+      mv.visitVarInsn(ALOAD, nArg + 1)  // [Vint
       0 until nArg foreach {i => mv.visitVarInsn(ALOAD, i)}
       mv.visitVarInsn(ALOAD, nArg)
       val baseType = currentInvokeObjType.getArrayBaseType
@@ -348,7 +255,11 @@ object InvokeDynamicUtils {
         mv.visitCode()
 
         if (shouldExpandArray) {
-          expandArray(mv)
+          if (isIntArray) {
+            expandIntArray(mv)
+          } else {
+            expandArray(mv)
+          }
         }
         else {
           mv.visitVarInsn(ALOAD, 0) // this is the next V to be exploded
@@ -372,7 +283,11 @@ object InvokeDynamicUtils {
         )
         mv.visitCode()
         if (shouldExpandArray) {
-          expandArray(mv)
+          if (isIntArray){
+            expandIntArray(mv)
+          } else {
+            expandArray(mv)
+          }
           if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
         }
         else
@@ -381,8 +296,8 @@ object InvokeDynamicUtils {
         mv.visitEnd()
       }
     env.clazz.lambdaMethods += (lambdaMtdName -> lambda)
-  }
 
+  }
 
   /**
     * Extract three different parts from desc

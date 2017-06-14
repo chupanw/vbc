@@ -35,7 +35,7 @@ trait MethodInstruction extends Instruction {
     }.mkString("(", "", ")")
 
     val isReturnVoid = desc.isReturnVoid
-    val retType = if (isReturnVoid) "V" else vclasstype
+    val retType = if (isReturnVoid) "V" else desc.getReturnTypeAsV
     val vCall = if (isReturnVoid) VCall.sforeach else VCall.sflatMap
 
     val invokeType = getInvokeType
@@ -64,10 +64,15 @@ trait MethodInstruction extends Instruction {
         // would need to push nulls if invoking <init>, but this is strange
         assert(name != MethodName("<init>"), "calling <init> on a V object")
         mv.visitMethodInsn(invokeType, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
-        // Box primitive type
-        boxReturnValue(liftedCall.desc, mv)
-        if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
-          callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
+        if (liftedCall.desc.getReturnType.contains("I")) {
+          if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
+            callVintCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
+        } else {
+          // Box primitive type
+          boxReturnValue(liftedCall.desc, mv)
+          if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
+            callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
+        }
         //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for not just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }

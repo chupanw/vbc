@@ -128,7 +128,7 @@ case class InstrINEG() extends Instruction {
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      InvokeDynamicUtils.invokeVint(VCall.smap, mv, env, loadCurrentCtx(_, env, block), "INEG", s"I()I") {
+      InvokeDynamicUtils.invoke(VCall.smap, mv, env, loadCurrentCtx(_, env, block), "INEG", s"I()I") {
         (visitor: MethodVisitor) => {
           visitor.visitInsn(INEG)
           visitor.visitInsn(IRETURN)
@@ -153,7 +153,7 @@ case class InstrISHL() extends Instruction {
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      InvokeDynamicUtils.invokeVint(
+      InvokeDynamicUtils.invoke(
         VCall.sflatMap,
         mv,
         env,
