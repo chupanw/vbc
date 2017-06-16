@@ -73,6 +73,12 @@ trait MethodInstruction extends Instruction {
           if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
             callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         }
+
+        if (owner.name != "I") {
+          // This is a method call - method call lambdas MUST return V because they are maps over V<Object>
+          mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true) // LLADDED
+        }
+
         //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for not just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }
@@ -383,7 +389,8 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
 
     if (env.shouldLiftInstr(this)) {
-      invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
+      InvokeDynamicUtils.callWithVConversion(mv, desc, () =>
+        invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block)))
     }
     else {
       val hasVArgs = env.getTag(this, env.TAG_HAS_VARG)
@@ -484,7 +491,8 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
+      InvokeDynamicUtils.callWithVConversion(mv, desc, () =>
+        invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block)))
     }
     else {
       val liftedCall = liftCall(owner, name, desc)

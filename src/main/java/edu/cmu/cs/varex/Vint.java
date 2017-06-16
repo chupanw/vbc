@@ -13,6 +13,10 @@ public interface Vint {
 
     V<Integer> toV();
 
+    default Vint toVint() {
+        return this;
+    }
+
     /**
      * map and flatMap support (int -> int) and (int -> Vint) operations
      * only.

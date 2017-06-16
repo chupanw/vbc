@@ -1,5 +1,7 @@
 package edu.cmu.cs.vbc.prog;
 
+import edu.cmu.cs.varex.Vint;
+
 /**
  * Created by lukas on 6/13/17.
  */
@@ -8,7 +10,7 @@ public class Simple {
         Simple s = new Simple();
         int x = 1;
         int y = x + 1;
-        s.foo(y);
+        int z  = s.foo(y);
     }
 
     public int foo(int x){

@@ -25,6 +25,10 @@ public interface V<T> {
 
     Vint toVint();
 
+    default V<T> toV() {
+        return this;
+    }
+
 
     /**
      * maps over a V describing a (possibly partial) configuration space.
