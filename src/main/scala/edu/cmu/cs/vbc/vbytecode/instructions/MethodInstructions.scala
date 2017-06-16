@@ -74,7 +74,7 @@ trait MethodInstruction extends Instruction {
             callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         }
 
-        if (owner.name != "I") {
+        if (owner.name != "I" && !isReturnVoid) {
           // This is a method call - method call lambdas MUST return V because they are maps over V<Object>
           mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true) // LLADDED
         }

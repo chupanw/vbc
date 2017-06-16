@@ -11,6 +11,7 @@ public class Simple {
         int x = 1;
         int y = x + 1;
         int z  = s.foo(y);
+        System.out.println(z);
     }
 
     public int foo(int x){
