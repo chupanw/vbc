@@ -14,7 +14,11 @@ public class Simple {
         System.out.println(z);
     }
 
-    public int foo(int x){
+    public int foo(int x) {
+        return bar(x)*2;
+    }
+
+    private int bar(int x) {
         return x*2;
     }
 }
