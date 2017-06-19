@@ -65,8 +65,10 @@ trait MethodInstruction extends Instruction {
         assert(name != MethodName("<init>"), "calling <init> on a V object")
         mv.visitMethodInsn(invokeType, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
         if (liftedCall.desc.getReturnType.contains("I") || liftedCall.desc.getReturnType.contains("Z")) {
-          if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
+          if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid) {
             callVintCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
+            mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
+          }
         } else {
           // Box primitive type
           boxReturnValue(liftedCall.desc, mv)
@@ -74,11 +76,10 @@ trait MethodInstruction extends Instruction {
             callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         }
 
-        if (owner.name != "I" && owner.name != "Z" && !isReturnVoid) {
-          // This is a method call - method call lambdas MUST return V because they are maps over V<Object>
+        if (retType == vintclasstype) {
+          // method calls cannot return Vint because they are maps over the object
           mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
         }
-
         //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for not just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }

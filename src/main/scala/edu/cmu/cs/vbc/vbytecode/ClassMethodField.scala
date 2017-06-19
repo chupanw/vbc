@@ -397,7 +397,7 @@ case class VBCFieldNode(
     // initial value will be set in InstrINIT_CONDITIONAL_FIELDS
     val fv =
       if (fieldIsIntOrBool)
-        cv.visitField(access, name, vintclasstype, "Ledu/cmu/cs/varex/Vint", null)
+        cv.visitField(access, name, vintclasstype, "Ledu/cmu/cs/varex/Vint;", null)
       else
         cv.visitField(access, name, vclasstype, wrap(TypeDesc(desc).toObject), null)
 
