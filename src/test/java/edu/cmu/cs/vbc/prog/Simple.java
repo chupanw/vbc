@@ -11,7 +11,10 @@ public class Simple {
         int x = 1;
         int y = x + 1;
         int z  = s.foo(y);
-        System.out.println(z);
+        z = z + 1;
+        boolean a = s.even(1);
+        nop(z);
+        int b = s.toN(a);
     }
 
     public int foo(int x) {
@@ -20,5 +23,18 @@ public class Simple {
 
     private int bar(int x) {
         return x*2;
+    }
+
+    public boolean even(int x) {
+        return x%2 == 0;
+    }
+
+    public static void nop(int x) {
+        assert true;
+    }
+
+
+    public int toN(boolean b) {
+        return 1;
     }
 }

@@ -32,16 +32,16 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val shouldLiftField = LiftingPolicy.shouldLiftField(owner, name, desc)
     if (env.shouldLiftInstr(this)) {
-      val fieldIsInt = (desc.desc == "I")
+      val fieldIsIntOrBool = (desc.desc == "I" || desc.desc == "Z")
       if (shouldLiftField) {
         // fields are lifted, the desc should be V
         mv.visitFieldInsn(GETSTATIC, owner.toModel, name,
-          (if (fieldIsInt) vintclasstype else vclasstype))
+          (if (fieldIsIntOrBool) vintclasstype else vclasstype))
       }
       else {
         // fields are not lifted but we need a V, so we wrap it into a V
         mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toObject.toModel)
-        if (fieldIsInt) {
+        if (fieldIsIntOrBool) {
           callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
         } else {
           callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
@@ -93,7 +93,7 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
       if (env.shouldLiftInstr(this)) {
         loadCurrentCtx(mv, env, block)
         mv.visitInsn(SWAP)
-        if (desc.desc == "I") {
+        if (desc.desc == "I" || desc.desc == "Z") {
           mv.visitFieldInsn(GETSTATIC, owner, name, vintclasstype)
           callVintCreateChoice(mv)
           mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/Vint;")
@@ -133,20 +133,20 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    val fieldIsInt = (desc.desc == "I")
+    val fieldIsIntOrBool = (desc.desc == "I" || desc.desc == "Z")
     if (env.shouldLiftInstr(this))
-      if (fieldIsInt) {
+      if (fieldIsIntOrBool) {
         getFieldFromVint(mv, env, block, owner, name, desc)
       } else {
         getFieldFromV(mv, env, block, owner, name, desc)
       }
     else
       mv.visitFieldInsn(GETFIELD, owner, name,
-        "Ledu/cmu/cs/varex/V" + (if (fieldIsInt) "int" else "") + ";")
+        "Ledu/cmu/cs/varex/V" + (if (fieldIsIntOrBool) "int" else "") + ";")
 
     //select V to current context
     loadCurrentCtx(mv, env, block)
-    if (fieldIsInt) {
+    if (fieldIsIntOrBool) {
       mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "select", s"($fexprclasstype)$vintclasstype", true)
     } else {
       mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "select", s"($fexprclasstype)$vclasstype", true)
@@ -211,7 +211,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       /* At this point, stack should contain object reference and new value.
        * the object reference is variational if `env.shouldLiftInstr(this)` */
 
-      val fieldIsInt = (desc.desc == "I");
+      val fieldIsIntOrBool = (desc.desc == "I" || desc.desc == "Z")
 
       // put operation is what we perform on a nonvariational `this` and
       // a variational value on the stack;
@@ -224,13 +224,13 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         mv.visitInsn(SWAP) // stack: ..., val, this
         mv.visitInsn(DUP_X1) // stack: .., this, val, this
         mv.visitFieldInsn(GETFIELD, owner, name,
-          "Ledu/cmu/cs/varex/V" + (if (fieldIsInt) "int" else "") + ";") // stack: ..., this, val, oldval OR null
+          "Ledu/cmu/cs/varex/V" + (if (fieldIsIntOrBool) "int" else "") + ";") // stack: ..., this, val, oldval OR null
 
         /* put FE, new value and old value */
         loadContext(mv) // stack: ..., this, val, oldval, ctx
         mv.visitInsn(DUP_X2) // stack: ..., this, ctx, val, oldval, ctx
         mv.visitInsn(POP) // stack: ..., this, ctx, val, oldval
-        if (fieldIsInt) {
+        if (fieldIsIntOrBool) {
           callVintCreateChoice(mv) // stack: ..., this, newval
         } else {
           callVCreateChoice(mv)
@@ -246,7 +246,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
 
         // finally put the new variational value (`this` is not variational here)
         mv.visitFieldInsn(PUTFIELD, owner, name,
-          "Ledu/cmu/cs/varex/V" + (if (fieldIsInt) "int" else "") + ";") // stack: ...
+          "Ledu/cmu/cs/varex/V" + (if (fieldIsIntOrBool) "int" else "") + ";") // stack: ...
 
       }
 
@@ -254,7 +254,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       val loadContext = (m: MethodVisitor) => loadCurrentCtx(m, env, block)
 
       if (env.shouldLiftInstr(this)) {
-        if (fieldIsInt) {
+        if (fieldIsIntOrBool) {
           callPutOnVint(mv, env, loadContext, putOperation)
         } else {
           callPutOnV(mv, env, loadContext, putOperation)

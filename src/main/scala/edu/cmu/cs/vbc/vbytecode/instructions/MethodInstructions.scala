@@ -64,7 +64,7 @@ trait MethodInstruction extends Instruction {
         // would need to push nulls if invoking <init>, but this is strange
         assert(name != MethodName("<init>"), "calling <init> on a V object")
         mv.visitMethodInsn(invokeType, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
-        if (liftedCall.desc.getReturnType.contains("I")) {
+        if (liftedCall.desc.getReturnType.contains("I") || liftedCall.desc.getReturnType.contains("Z")) {
           if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
             callVintCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         } else {
@@ -74,14 +74,19 @@ trait MethodInstruction extends Instruction {
             callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         }
 
-        if (owner.name != "I" && !isReturnVoid) {
+        if (owner.name != "I" && owner.name != "Z" && !isReturnVoid) {
           // This is a method call - method call lambdas MUST return V because they are maps over V<Object>
-          mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true) // LLADDED
+          mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
         }
 
         //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for not just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }
+    }
+
+    if (desc.descString.endsWith("I") || desc.endsWith("Z")) {
+      // Convert funcs that return int to Vint
+      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "toVint", s"()$vintclasstype", true)
     }
   }
 
@@ -130,9 +135,12 @@ trait MethodInstruction extends Instruction {
     */
   def invokeOnNonV(owner: Owner, name: MethodName, desc: MethodDesc, itf: Boolean, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val helperName = "helper$invokeOnNonV$" + env.clazz.lambdaMethods.size
+    def descIsIntOrBool(d: String) = (d == "I" || d == "Z" || d == vintclasstype)
     val helperDesc: String =
-      "(" + owner.getTypeDesc.desc + vclasstype * desc.getArgCount + fexprclasstype + ")" +
-        (if (desc.isReturnVoid) "V" else vclasstype)
+      "(" + owner.getTypeDesc.desc +
+        (for (arg <- desc.getArgs) yield (if (descIsIntOrBool(arg)) vintclasstype else vclasstype)).mkString("") +
+        fexprclasstype + ")" +
+        (if (desc.isReturnVoid) "V" else desc.getReturnTypeAsV)
     val helper = (cv: ClassVisitor) => {
       val m: MethodVisitor = cv.visitMethod(
         ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
@@ -389,8 +397,7 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
 
     if (env.shouldLiftInstr(this)) {
-      InvokeDynamicUtils.callWithVConversion(mv, desc, () =>
-        invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block)))
+      invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     }
     else {
       val hasVArgs = env.getTag(this, env.TAG_HAS_VARG)
@@ -491,8 +498,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      InvokeDynamicUtils.callWithVConversion(mv, desc, () =>
-        invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block)))
+      invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     }
     else {
       val liftedCall = liftCall(owner, name, desc)

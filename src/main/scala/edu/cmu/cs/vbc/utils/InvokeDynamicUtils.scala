@@ -98,6 +98,7 @@ object InvokeDynamicUtils {
             (lambdaOp: MethodVisitor => Unit): Unit = {
 
     def descIsInt(d: String): Boolean = (d == "I" || d == vintclasstype)
+    def descIsBool(d: String): Boolean = (d == "Z")
     val (invokeObjectDesc, argsDesc, retDesc) = decomposeDesc(desc)
     val lambdaRetDesc =
       if (retDesc == "V") "V"
@@ -108,7 +109,7 @@ object InvokeDynamicUtils {
     val nArg = argTypes.size
 
     val argTypeStr = ((for (t <- argTypes.take(nExplodeArgs))
-                       yield (if (t.getSort == Type.INT) vintclasstype else vclasstype)) ++
+                       yield (if (t.getSort == Type.INT || t.getSort == Type.BOOLEAN) vintclasstype else vclasstype)) ++
                      (for (t <- argTypes.drop(nExplodeArgs))
                        yield t.toString)).mkString("")
 
@@ -125,7 +126,8 @@ object InvokeDynamicUtils {
       case (VCall.smap, _, ret) if descIsInt(invokeObjectDesc) =>
         ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
       // V.smap(U -> int) : Convert V -> Vint after mapping
-      case (VCall.smap, _, ret) if descIsInt(ret) =>
+      // if returning a boolean, also need to convert to Vint because it's actually an integer
+      case (VCall.smap, _, ret) if descIsInt(ret) || descIsBool(ret) =>
         ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
       // Vint.smap(int -> int) : No conversion
@@ -135,7 +137,8 @@ object InvokeDynamicUtils {
       case (VCall.sflatMap, _, ret) if descIsInt(invokeObjectDesc) =>
         ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
       // V.smap(U -> int) : Convert V -> Vint after mapping
-      case (VCall.sflatMap, _, ret) if descIsInt(ret) =>
+      // if returning a boolean, also need to convert to Vint because it's actually an integer
+      case (VCall.sflatMap, _, ret) if descIsInt(ret) || descIsBool(ret) =>
         ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
         // V.s{map, flatMap}(U -> T) : No conversion
@@ -387,27 +390,6 @@ object InvokeDynamicUtils {
     }
     else {
       defaultLoadFE(mv)
-    }
-  }
-
-  /**
-    * Invoke INVOCATION, which is assumed to call invokeDynamic using OWNER and DESC
-    * First check OWNER and DESC to determine if the function being invoked requires V <-> Vint
-    * conversion. If so, convert before calling.
-    * Then check if conversion is necessary after calling; if so, do the conversion.
-    * @param mv
-    * @param desc
-    * @param invocation
-    */
-  def callWithVConversion(mv: MethodVisitor, desc: MethodDesc, invocation: () => Unit): Unit = {
-    val (_, argTypes, retType) = decomposeDesc(desc)
-    invocation()
-    (argTypes, retType) match {
-      case (t, "I") if t != "I" => {
-        // Must convert V to Vint after
-        mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "toVint", s"$vclasstype()$vintclasstype", true)
-      }
-      case _ => {}
     }
   }
 }

@@ -186,11 +186,13 @@ case class MethodDesc(descString: String) extends TypeVerifier {
   def getReturnType: Option[TypeDesc] = if (isReturnVoid) None else Some(TypeDesc(Type.getReturnType(descString).getDescriptor))
 
   // Get the return type as a V or Vint, as appropriate
-  def getReturnTypeAsV: String = if (getReturnType.getOrElse("") == "I") vintclasstype else vclasstype
+  def getReturnTypeAsV: String = if (isReturnIntOrBool) vintclasstype else vclasstype
 
   def getReturnTypeSort: Int = mt.getReturnType.getSort
 
   def isReturnVoid: Boolean = Type.getReturnType(descString).getDescriptor == "V"
+
+  def isReturnIntOrBool: Boolean = getReturnType.getOrElse("") == "I" || getReturnType.getOrElse("") == "Z"
 
   def getArgs: Array[TypeDesc] = Type.getMethodType(descString).getArgumentTypes.map(t => TypeDesc(t.getDescriptor))
 
@@ -242,7 +244,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     */
   def toVs: MethodDesc = {
     val args = Type.getArgumentTypes(descString)
-    val vArgs = args.map(t => if (t.getSort == Type.INT) vintclasstype else vclasstype)
+    val vArgs = args.map(t => if (t.getSort == Type.INT || t.getSort == Type.BOOLEAN) vintclasstype else vclasstype)
     val argsString = vArgs.mkString("(", "", ")")
     val retString: String = if (isReturnVoid) "V" else getReturnTypeAsV
     MethodDesc(argsString + retString)
@@ -317,7 +319,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case _ => this
   }
 
-  def toV: TypeDesc = TypeDesc("Ledu/cmu/cs/varex/V" + (if (desc == "I") "int" else "") + ";")
+  def toV: TypeDesc = TypeDesc("Ledu/cmu/cs/varex/V" + (if (desc == "I" || desc == "Z") "int" else "") + ";")
 
   def isArray: Boolean = desc(0) == '['
 

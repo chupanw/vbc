@@ -393,10 +393,10 @@ case class VBCFieldNode(
   def toVByteCode(cv: ClassVisitor) = {
     def wrap(s: String) = "Ledu/cmu/cs/varex/V<" + s + ">;"
 
-    val fieldIsInt = (desc == "I")
+    val fieldIsIntOrBool = (desc == "I" || desc == "Z")
     // initial value will be set in InstrINIT_CONDITIONAL_FIELDS
     val fv =
-      if (fieldIsInt)
+      if (fieldIsIntOrBool)
         cv.visitField(access, name, vintclasstype, "Ledu/cmu/cs/varex/Vint", null)
       else
         cv.visitField(access, name, vclasstype, wrap(TypeDesc(desc).toObject), null)
