@@ -123,6 +123,7 @@ object InvokeDynamicUtils {
       case (VCall.smap, _, ret) if descIsInt(ret) && descIsInt(invokeObjectDesc) =>
         ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false, false, false)
       // Vint.smap(int -> U) : Convert Vint -> V before mapping
+      // note that these case orderings are significant (e.g: this case being met implies !descIsInt(ret))
       case (VCall.smap, _, ret) if descIsInt(invokeObjectDesc) =>
         ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
       // V.smap(U -> int) : Convert V -> Vint after mapping
