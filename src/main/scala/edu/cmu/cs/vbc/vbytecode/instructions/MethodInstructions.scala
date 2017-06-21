@@ -64,11 +64,17 @@ trait MethodInstruction extends Instruction {
         // would need to push nulls if invoking <init>, but this is strange
         assert(name != MethodName("<init>"), "calling <init> on a V object")
         mv.visitMethodInsn(invokeType, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
-        if (liftedCall.desc.getReturnType.contains("I") || liftedCall.desc.getReturnType.contains("Z")) {
+        val maybeRetDesc = liftedCall.desc.getReturnType
+        if (maybeRetDesc.exists(t => t.isPrimitiveWithV)) {
+          val retDesc = maybeRetDesc.get
+
           if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid) {
-            callVintCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
-            mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
+            callVPrimCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs), retDesc)
+            mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVPrimName, "toV", s"()$vclasstype", true)
           }
+
+          // method calls cannot return VPrim because they are maps over the object
+          mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVPrimName, "toV", s"()$vclasstype", true)
         } else {
           // Box primitive type
           boxReturnValue(liftedCall.desc, mv)
@@ -76,18 +82,16 @@ trait MethodInstruction extends Instruction {
             callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         }
 
-        if (retType == vintclasstype) {
-          // method calls cannot return Vint because they are maps over the object
-          mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
-        }
         //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for not just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }
     }
 
-    if (desc.descString.endsWith("I") || desc.endsWith("Z")) {
-      // Convert funcs that return int to Vint
-      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "toVint", s"()$vintclasstype", true)
+
+    if (desc.getReturnType.exists(t => t.isPrimitiveWithV)) {
+      val retDesc = desc.getReturnType.get
+      // Convert funcs that return primitive to VPrim
+      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, retDesc.toVPrimFunction, s"()${retDesc.toVPrimType}", true)
     }
   }
 
@@ -136,10 +140,9 @@ trait MethodInstruction extends Instruction {
     */
   def invokeOnNonV(owner: Owner, name: MethodName, desc: MethodDesc, itf: Boolean, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val helperName = "helper$invokeOnNonV$" + env.clazz.lambdaMethods.size
-    def descIsIntOrBool(d: String) = (d == "I" || d == "Z" || d == vintclasstype)
     val helperDesc: String =
       "(" + owner.getTypeDesc.desc +
-        (for (arg <- desc.getArgs) yield (if (descIsIntOrBool(arg)) vintclasstype else vclasstype)).mkString("") +
+        (for (arg <- desc.getArgs) yield TypeDesc(arg).toVType).mkString("") +
         fexprclasstype + ")" +
         (if (desc.isReturnVoid) "V" else desc.getReturnTypeAsV)
     val helper = (cv: ClassVisitor) => {

@@ -8,7 +8,9 @@ import edu.cmu.cs.varex.Vint;
 public class Simple {
     int f1 = 5;
     boolean f2 = false;
-    char f3 = 'a';
+//    char f3 = 'a';
+//    byte f4 = 1;
+
 //    static int sf1;
     public static void main(String[] args){
         Simple s = new Simple();
@@ -19,23 +21,29 @@ public class Simple {
         // methods, int -> int
         int z  = s.foo(y);
         z = z + 1;
-        boolean a = s.even(1);
 
         // static methods
         nop(z);
 
         // methods, U -> int or int -> U
+        boolean a = s.even(1);
         int b = s.toN(a);
         String g = s.toS(1);
         int c = s.toI("");
+//        char p = s.toC(1);
+//        int q = s.toI(p);
+//        byte r = s.toB(1);
+//        int t = s.toI(r);
 
         // fields
         int o = s.f1;
         s.f1 = 1;
         boolean l = s.f2;
         s.f2 = true;
-        char m = s.f3;
-        s.f3 = 'a';
+//        char m = s.f3;
+//        s.f3 = 'a';
+//        byte n = s.f4;
+//        s.f4 = 5;
     }
 
     public int foo(int x) {
@@ -65,4 +73,20 @@ public class Simple {
     public int toI(String s) {
         return 1;
     }
+//
+//    public char toC(int x) {
+//        return 'a';
+//    }
+//
+//    public int toI(char c) {
+//        return 1;
+//    }
+////
+//    public byte toB(int x) {
+//        return 1;
+//    }
+//
+//    public int toI(byte b) {
+//        return 1;
+//    }
 }
