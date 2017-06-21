@@ -31,7 +31,7 @@ trait MethodInstruction extends Instruction {
     val liftedCall = liftCall(owner, name, desc)
     val objType = Type.getObjectType(liftedCall.owner).toString
     val argTypeDesc: String = desc.getArgs.map {
-      t => if (liftedCall.isLifting) t.toV.desc else t.castInt.toObject.desc
+      t => if (liftedCall.isLifting) t.toVType.desc else t.castInt.toObject.desc
     }.mkString("(", "", ")")
 
     val isReturnVoid = desc.isReturnVoid

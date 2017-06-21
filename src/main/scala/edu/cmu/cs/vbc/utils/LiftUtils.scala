@@ -99,6 +99,15 @@ object LiftUtils {
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "one", s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype", true)
   }
   /**
+    * precondition: plain primitive on top of stack
+    * postcondition: Vprim reference on top of stack
+    */
+  def callVPrimCreateOne(mv: MethodVisitor, loadCtx: (MethodVisitor) => Unit, primType: TypeDesc) = {
+    loadCtx(mv)
+    mv.visitInsn(SWAP)
+    mv.visitMethodInsn(INVOKESTATIC, primType.toVPrimName, "one", new MethodDesc(s"(${fexprclasstype}${primType.castInt.desc})${primType.toVPrimType}"), true)
+  }
+  /**
     * precondition: plain int on top of stack
     * postcondition: Vint reference on top of stack
     */
@@ -114,6 +123,12 @@ object LiftUtils {
     */
   def callVCreateChoice(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "choice", "(Lde/fosd/typechef/featureexpr/FeatureExpr;Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Ledu/cmu/cs/varex/V;", true)
+  /**
+    * precondition: feature expression and two Vprim references on top of stack
+    * postcondition: Vprim reference on top of stack
+    */
+  def callVPrimCreateChoice(mv: MethodVisitor, primType: TypeDesc) =
+    mv.visitMethodInsn(INVOKESTATIC, primType.toVPrimName, "choice", new MethodDesc(s"(Lde/fosd/typechef/featureexpr/FeatureExpr;${primType.toVPrimType*2})${primType.toVPrimType}"), true)
   /**
     * precondition: feature expression and two Vint references on top of stack
     * postcondition: Vint reference on top of stack

@@ -109,7 +109,7 @@ object InvokeDynamicUtils {
     val nArg = argTypes.size
 
     val argTypeStr = ((for (t <- argTypes.take(nExplodeArgs))
-                       yield new TypeDesc(t).toV.desc) ++
+                       yield new TypeDesc(t).toVType.desc) ++
                      (for (t <- argTypes.drop(nExplodeArgs))
                        yield t.toString)).mkString("")
 

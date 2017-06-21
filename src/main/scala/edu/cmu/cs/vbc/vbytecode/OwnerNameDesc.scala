@@ -302,7 +302,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     desc == "J" || desc == "D"
 
   def toVPrimType: String = desc match {
-    case "I" | "Z" => vintclasstype
+    case "I" | "Z" | "C" | "B" => vintclasstype
     case d => d
   }
 
@@ -331,7 +331,14 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case _ => this
   }
 
-  def toV: TypeDesc = TypeDesc(if (isPrimitive) toVPrimType else vclasstype)
+  def toVType: TypeDesc = TypeDesc(if (isPrimitive) toVPrimType else vclasstype)
+
+  def toVName: String = if (isPrimitive) toVPrimName else vclassname
+
+  def toVPrimFunction: String = desc match {
+    case "I" | "Z" | "C" | "B" => "toVint"
+    case _ => ???
+  }
 
   def isArray: Boolean = desc(0) == '['
 
