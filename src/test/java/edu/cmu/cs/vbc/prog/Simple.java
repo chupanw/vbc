@@ -7,19 +7,31 @@ import edu.cmu.cs.varex.Vint;
  */
 public class Simple {
     int f1 = 5;
+    boolean f2 = false;
     public static void main(String[] args){
         Simple s = new Simple();
+        // arithmetic
         int x = 1;
         int y = x + 1;
+
+        // methods, int -> int
         int z  = s.foo(y);
         z = z + 1;
         boolean a = s.even(1);
+
+        // static methods
         nop(z);
+
+        // methods, U -> int or int -> U
         int b = s.toN(a);
         String g = s.toS(1);
         int c = s.toI("");
+
+        // fields
         int o = s.f1;
         s.f1 = 1;
+        boolean l = s.f2;
+        s.f2 = true;
     }
 
     public int foo(int x) {
