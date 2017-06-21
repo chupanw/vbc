@@ -32,18 +32,17 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val shouldLiftField = LiftingPolicy.shouldLiftField(owner, name, desc)
     if (env.shouldLiftInstr(this)) {
-      val fieldIsIntOrBool = (desc.desc == "I" || desc.desc == "Z")
       if (shouldLiftField) {
         // fields are lifted, the desc should be V
-        mv.visitFieldInsn(GETSTATIC, owner.toModel, name,
-          (if (fieldIsIntOrBool) vintclasstype else vclasstype))
+        mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toVType)
       }
       else {
         // fields are not lifted but we need a V, so we wrap it into a V
         mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toObject.toModel)
-        if (fieldIsIntOrBool) {
-          callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
-        } else {
+        if (desc.isPrimitive) {
+          callVPrimCreateOne(mv, (m) => loadCurrentCtx(m, env, block), desc)
+        }
+        else {
           callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
         }
       }
@@ -93,15 +92,15 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
       if (env.shouldLiftInstr(this)) {
         loadCurrentCtx(mv, env, block)
         mv.visitInsn(SWAP)
-        if (desc.desc == "I" || desc.desc == "Z") {
-          mv.visitFieldInsn(GETSTATIC, owner, name, vintclasstype)
-          callVintCreateChoice(mv)
-          mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/Vint;")
-        } else {
-          mv.visitFieldInsn(GETSTATIC, owner, name, vclasstype)
-          callVCreateChoice(mv)
-          mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/V;")
+
+        mv.visitFieldInsn(GETSTATIC, owner, name, desc.toVType)
+        if (desc.isPrimitive) {
+          callVPrimCreateChoice(mv, desc)
         }
+        else {
+          callVCreateChoice(mv)
+        }
+        mv.visitFieldInsn(PUTSTATIC, owner, name, desc.toVType)
       }
       else
         mv.visitFieldInsn(PUTSTATIC, owner, name, desc)
@@ -170,10 +169,10 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       }
     }
     if (desc.isPrimitive)
-      // Once we are out of the map to get the field, convert it back to VPrim
+    // Once we are out of the map to get the field, convert it back to VPrim
       mv.visitMethodInsn(INVOKEINTERFACE, vclassname, desc.toVPrimFunction, s"()${desc.toVPrimType}", true)
   }
-
+}
 
 /**
   * PUTFIELD
