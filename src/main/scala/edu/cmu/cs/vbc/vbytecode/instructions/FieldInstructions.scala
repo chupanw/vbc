@@ -195,8 +195,6 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       /* At this point, stack should contain object reference and new value.
        * the object reference is variational if `env.shouldLiftInstr(this)` */
 
-      val fieldIsIntOrBool = (desc.desc == "I" || desc.desc == "Z")
-
       // put operation is what we perform on a nonvariational `this` and
       // a variational value on the stack;
       // if `this` is variational, we execute this operation on every this using `sforeach`
@@ -207,15 +205,14 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         /* get the old value (all configurations, no select!) */
         mv.visitInsn(SWAP) // stack: ..., val, this
         mv.visitInsn(DUP_X1) // stack: .., this, val, this
-        mv.visitFieldInsn(GETFIELD, owner, name,
-          "Ledu/cmu/cs/varex/V" + (if (fieldIsIntOrBool) "int" else "") + ";") // stack: ..., this, val, oldval OR null
+        mv.visitFieldInsn(GETFIELD, owner, name, desc.toVType) // stack: ..., this, val, oldval OR null
 
         /* put FE, new value and old value */
         loadContext(mv) // stack: ..., this, val, oldval, ctx
         mv.visitInsn(DUP_X2) // stack: ..., this, ctx, val, oldval, ctx
         mv.visitInsn(POP) // stack: ..., this, ctx, val, oldval
-        if (fieldIsIntOrBool) {
-          callVintCreateChoice(mv) // stack: ..., this, newval
+        if (desc.isPrimitiveWithV) {
+          callVPrimCreateChoice(mv, desc) // stack: ..., this, newval
         } else {
           callVCreateChoice(mv)
         }
@@ -229,8 +226,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         //        mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/Object;)V", false)
 
         // finally put the new variational value (`this` is not variational here)
-        mv.visitFieldInsn(PUTFIELD, owner, name,
-          "Ledu/cmu/cs/varex/V" + (if (fieldIsIntOrBool) "int" else "") + ";") // stack: ...
+        mv.visitFieldInsn(PUTFIELD, owner, name, desc.toVType) // stack: ...
 
       }
 
