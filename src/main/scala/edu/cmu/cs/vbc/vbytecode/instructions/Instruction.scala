@@ -132,7 +132,7 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
       env.clazz.fields.filter(f => !f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
         TypeDesc(f.desc) match {
-          case t if t.isPrimitive =>
+          case t if t.isPrimitiveWithV =>
             createPrimChoice(f, mv, env, block)
             mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, t.toVPrimType)
           case _ =>
@@ -143,7 +143,7 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
       env.clazz.fields.filter(f => !f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
         TypeDesc(f.desc) match {
-          case t if t.isPrimitive =>
+          case t if t.isPrimitiveWithV =>
             createPrimOne(f, mv, env, block)
             mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, t.toVPrimType)
           case _ =>

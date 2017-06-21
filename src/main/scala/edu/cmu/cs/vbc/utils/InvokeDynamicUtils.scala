@@ -120,24 +120,24 @@ object InvokeDynamicUtils {
     val (invokeDynamicName, vCallDesc, funType, isReturnVoid, convertBefore, convertAfter) =
       (vCall, firstArgType, TypeDesc(lambdaRetDesc)) match {
           // VPrim.smap(P -> P) where (P in Prim) : No conversion
-        case (VCall.smap, _, ret) if ret.isPrimitive && ret.toVPrimType == invokeObjectDesc =>
+        case (VCall.smap, _, ret) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDesc =>
           ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
         // VPrim.smap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
         // note that these case orderings are significant (e.g: this case being met implies !descIsPrim(ret.desc))
         case (VCall.smap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
           ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
         // V.smap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
-        case (VCall.smap, _, ret) if ret.isPrimitive =>
+        case (VCall.smap, _, ret) if ret.isPrimitiveWithV =>
           ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
           // VPrim.sflatMap(P -> P) where (P in Prim) : No conversion
-        case (VCall.sflatMap, _, ret) if ret.isPrimitive && ret.toVPrimType == invokeObjectDesc =>
+        case (VCall.sflatMap, _, ret) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDesc =>
           ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
           // VPrim.sflatMap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
         case (VCall.sflatMap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
           ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
         // V.sflatMap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
-        case (VCall.sflatMap, _, ret) if ret.isPrimitive =>
+        case (VCall.sflatMap, _, ret) if ret.isPrimitiveWithV =>
           ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
         // V.s{map, flatMap}(U -> T) : No conversion
@@ -164,10 +164,10 @@ object InvokeDynamicUtils {
     val invokeObjectArrayType = (if (invokeObjectDesc.startsWith("[")) Some(TypeDesc(invokeObjectDesc.drop(1))) else None)
     val newInvokeObjDesc: String =
       if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded)
-        ("[" + (if (invokeObjectArrayType.get.isPrimitive) invokeObjectArrayType.get.toVPrimType else vclasstype))
+        ("[" + (if (invokeObjectArrayType.get.isPrimitiveWithV) invokeObjectArrayType.get.toVPrimType else vclasstype))
       else if (convertBefore) vclasstype
       else invokeObjectDesc
-    val isPrimArray = (newInvokeObjDesc.startsWith("[") && invokeObjectArrayType.get.isPrimitive)
+    val isPrimArray = (newInvokeObjDesc.startsWith("[") && invokeObjectArrayType.get.isPrimitiveWithV)
     val lambdaDesc = "(" + argTypeStr + s"$fexprclasstype" + newInvokeObjDesc + s")$lambdaRetDesc"
 
     val n = env.clazz.lambdaMethods.size

@@ -39,7 +39,7 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
       else {
         // fields are not lifted but we need a V, so we wrap it into a V
         mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toObject.toModel)
-        if (desc.isPrimitive) {
+        if (desc.isPrimitiveWithV) {
           callVPrimCreateOne(mv, (m) => loadCurrentCtx(m, env, block), desc)
         }
         else {
@@ -94,7 +94,7 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
         mv.visitInsn(SWAP)
 
         mv.visitFieldInsn(GETSTATIC, owner, name, desc.toVType)
-        if (desc.isPrimitive) {
+        if (desc.isPrimitiveWithV) {
           callVPrimCreateChoice(mv, desc)
         }
         else {
@@ -161,14 +161,14 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         val label = new Label()
         visitor.visitVarInsn(ALOAD, 1) //obj ref
         visitor.visitFieldInsn(GETFIELD, owner, name, desc.toVType)
-        if (desc.isPrimitive) {
+        if (desc.isPrimitiveWithV) {
           // Can only get fields from objects (i.e. map over V<Object>, so fields must be returned as V<PrimitiveWrapper>)
           visitor.visitMethodInsn(INVOKEINTERFACE, desc.toVName, "toV", s"()$vclasstype", true)
         }
         visitor.visitInsn(ARETURN)
       }
     }
-    if (desc.isPrimitive)
+    if (desc.isPrimitiveWithV)
     // Once we are out of the map to get the field, convert it back to VPrim
       mv.visitMethodInsn(INVOKEINTERFACE, vclassname, desc.toVPrimFunction, s"()${desc.toVPrimType}", true)
   }
