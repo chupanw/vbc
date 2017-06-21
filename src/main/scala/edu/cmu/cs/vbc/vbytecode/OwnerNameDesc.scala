@@ -290,6 +290,8 @@ object MethodDesc {
 case class TypeDesc(desc: String) extends TypeVerifier {
   require(isValidType(desc), s"Invalid field descriptor: $desc")
 
+  def this(t: Type) = this(t.getDescriptor)
+
   override def equals(obj: scala.Any): Boolean = obj match {
     case t: TypeDesc => desc == t.desc
     case s: String => desc == s
@@ -298,6 +300,16 @@ case class TypeDesc(desc: String) extends TypeVerifier {
 
   def isPrimitive: Boolean = desc == "Z" || desc == "C" || desc == "B" || desc == "S" || desc == "I" || desc == "F" ||
     desc == "J" || desc == "D"
+
+  def toVPrimType: String = desc match {
+    case "I" | "Z" => vintclasstype
+    case d => d
+  }
+
+  def toVPrimName: String = toVPrimType match {
+    case `vintclasstype` => vintclassname
+    case d => d
+  }
 
   def toObject: TypeDesc = desc match {
     case "Z" => TypeDesc("Ljava/lang/Boolean;")
@@ -319,7 +331,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case _ => this
   }
 
-  def toV: TypeDesc = TypeDesc("Ledu/cmu/cs/varex/V" + (if (desc == "I" || desc == "Z") "int" else "") + ";")
+  def toV: TypeDesc = TypeDesc(if (isPrimitive) toVPrimType else vclasstype)
 
   def isArray: Boolean = desc(0) == '['
 

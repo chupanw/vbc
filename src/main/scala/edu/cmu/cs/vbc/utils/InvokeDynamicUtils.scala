@@ -98,7 +98,7 @@ object InvokeDynamicUtils {
             (lambdaOp: MethodVisitor => Unit): Unit = {
 
     def descIsInt(d: String): Boolean = (d == "I" || d == vintclasstype)
-    def descIsBool(d: String): Boolean = (d == "Z")
+
     val (invokeObjectDesc, argsDesc, retDesc) = decomposeDesc(desc)
     val lambdaRetDesc =
       if (retDesc == "V") "V"
@@ -109,7 +109,7 @@ object InvokeDynamicUtils {
     val nArg = argTypes.size
 
     val argTypeStr = ((for (t <- argTypes.take(nExplodeArgs))
-                       yield (if (t.getSort == Type.INT || t.getSort == Type.BOOLEAN) vintclasstype else vclasstype)) ++
+                       yield new TypeDesc(t).toV.desc) ++
                      (for (t <- argTypes.drop(nExplodeArgs))
                        yield t.toString)).mkString("")
 
@@ -118,29 +118,27 @@ object InvokeDynamicUtils {
     //////////////////////////////////////////////////
     val firstArgType = if (nArg == 0) None else Some(argTypes(0))
     val (invokeDynamicName, vCallDesc, funType, isReturnVoid, convertBefore, convertAfter) =
-      (vCall, firstArgType, lambdaRetDesc) match {
-        // Vint.smap(int -> int) : No conversion
-      case (VCall.smap, _, ret) if descIsInt(ret) && descIsInt(invokeObjectDesc) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false, false, false)
-      // Vint.smap(int -> U) : Convert Vint -> V before mapping
-      // note that these case orderings are significant (e.g: this case being met implies !descIsInt(ret))
-      case (VCall.smap, _, ret) if descIsInt(invokeObjectDesc) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
-      // V.smap(U -> int) : Convert V -> Vint after mapping
-      // if returning a boolean, also need to convert to Vint because it's actually an integer
-      case (VCall.smap, _, ret) if descIsInt(ret) || descIsBool(ret) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
+      (vCall, firstArgType, TypeDesc(lambdaRetDesc)) match {
+          // VPrim.smap(P -> P) where (P in Prim) : No conversion
+        case (VCall.smap, _, ret) if ret.isPrimitive && ret.toVPrimType == invokeObjectDesc =>
+          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
+        // VPrim.smap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
+        // note that these case orderings are significant (e.g: this case being met implies !descIsPrim(ret.desc))
+        case (VCall.smap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
+        // V.smap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
+        case (VCall.smap, _, ret) if ret.isPrimitive =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
-      // Vint.smap(int -> int) : No conversion
-      case (VCall.sflatMap, _, ret) if descIsInt(ret) && descIsInt(invokeObjectDesc) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vintclasstype", biFuncType, false, false, false)
-      // Vint.smap(int -> U) : Convert Vint -> V before mapping
-      case (VCall.sflatMap, _, ret) if descIsInt(invokeObjectDesc) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
-      // V.smap(U -> int) : Convert V -> Vint after mapping
-      // if returning a boolean, also need to convert to Vint because it's actually an integer
-      case (VCall.sflatMap, _, ret) if descIsInt(ret) || descIsBool(ret) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
+          // VPrim.sflatMap(P -> P) where (P in Prim) : No conversion
+        case (VCall.sflatMap, _, ret) if ret.isPrimitive && ret.toVPrimType == invokeObjectDesc =>
+          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
+          // VPrim.sflatMap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
+        case (VCall.sflatMap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
+        // V.sflatMap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
+        case (VCall.sflatMap, _, ret) if ret.isPrimitive =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
 
         // V.s{map, flatMap}(U -> T) : No conversion
       case (VCall.smap, _, _) | (VCall.sflatMap, _, _) =>
@@ -163,12 +161,13 @@ object InvokeDynamicUtils {
 
     val invokeDynamicType = "(" + argTypeStr + s")$funType"
 
+    val invokeObjectArrayType = (if (invokeObjectDesc.startsWith("[")) Some(TypeDesc(invokeObjectDesc.drop(1))) else None)
     val newInvokeObjDesc: String =
       if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded)
-        (if (invokeObjectDesc.startsWith("[I")) s"[$vintclasstype" else s"[$vclasstype")
+        ("[" + (if (invokeObjectArrayType.get.isPrimitive) invokeObjectArrayType.get.toVPrimType else vclasstype))
       else if (convertBefore) vclasstype
       else invokeObjectDesc
-    val isIntArray = (newInvokeObjDesc == s"[$vintclasstype")
+    val isPrimArray = (newInvokeObjDesc.startsWith("[") && invokeObjectArrayType.get.isPrimitive)
     val lambdaDesc = "(" + argTypeStr + s"$fexprclasstype" + newInvokeObjDesc + s")$lambdaRetDesc"
 
     val n = env.clazz.lambdaMethods.size
@@ -190,6 +189,7 @@ object InvokeDynamicUtils {
       loadFE(mv, loadCtx, None)
     }
 
+    // LLTODO: Need to change this to be generic by the primitive type -- probably using invokeObjectDesc?
     if (convertBefore) { // Mapping a Vint to a different type, convert to V first
       mv.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
       mv.visitMethodInsn(INVOKEINTERFACE, vclassname, vCall.toString, vCallDesc, true)
@@ -243,7 +243,7 @@ object InvokeDynamicUtils {
       env.clazz.lambdaMethods += (helperName -> helper)
       mv.visitMethodInsn(INVOKESTATIC, Owner(env.clazz.name), MethodName(helperName), MethodDesc(helperDesc), false)
     }
-    def expandIntArray(mv: MethodVisitor) = {
+    def expandPrimArray(mv: MethodVisitor) = {
       mv.visitVarInsn(ALOAD, nArg + 1)  // [Vint
       0 until nArg foreach {i => mv.visitVarInsn(ALOAD, i)}
       mv.visitVarInsn(ALOAD, nArg)
@@ -291,8 +291,8 @@ object InvokeDynamicUtils {
         mv.visitCode()
 
         if (shouldExpandArray) {
-          if (isIntArray) {
-            expandIntArray(mv)
+          if (isPrimArray) {
+            expandPrimArray(mv)
           } else {
             expandArray(mv)
           }
@@ -330,8 +330,8 @@ object InvokeDynamicUtils {
         )
         mv.visitCode()
         if (shouldExpandArray) {
-          if (isIntArray){
-            expandIntArray(mv)
+          if (isPrimArray){
+            expandPrimArray(mv)
           } else {
             expandArray(mv)
           }
