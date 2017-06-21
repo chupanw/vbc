@@ -128,15 +128,28 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
       })
     }
     else {
+      import edu.cmu.cs.vbc.utils.LiftUtils._
       env.clazz.fields.filter(f => !f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
-        createChoice(f.name, mv, env, block)
-        mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+        f.desc match {
+          case "I" | "Z" =>
+            createPrimChoice(f.name, mv, env, block)
+            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vintclasstype)
+          case _ =>
+            createChoice(f.name, mv, env, block)
+            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vclasstype)
+        }
       })
       env.clazz.fields.filter(f => !f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
-        createOne(f, mv, env, block)
-        mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+        f.desc match {
+          case "I" | "Z" =>
+            createPrimOne(f, mv, env, block)
+            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vintclasstype)
+          case _ =>
+            createOne(f, mv, env, block)
+            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vclasstype)
+        }
       })
     }
   }
@@ -177,5 +190,30 @@ case object InstrINIT_CONDITIONAL_FIELDS {
         ???
     }
     callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+  }
+
+  def createPrimChoice(fName: String, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitLdcInsn(fName)
+    mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "createDefinedExternal", "(Ljava/lang/String;)Lde/fosd/typechef/featureexpr/SingleFeatureExpr;", false)
+    mv.visitInsn(ICONST_1)
+    callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+    mv.visitInsn(ICONST_0)
+    callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+    callVintCreateChoice(mv)
+  }
+
+  def createPrimOne(f: VBCFieldNode, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    Type.getType(f.desc).getSort match {
+      case Type.INT => // change this
+        if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
+      case Type.BOOLEAN => // change this
+        if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
+      case Type.LONG =>
+        if (f.value == null) mv.visitInsn(LCONST_0) else pushLongConstant(mv, f.value.asInstanceOf[Long])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, "valueOf", s"(J)${Owner.getLong.getTypeDesc}", false)
+      case _ =>
+        ???
+    }
+    callVintCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
   }
 }

@@ -6,7 +6,7 @@ import edu.cmu.cs.varex.Vint;
  * Created by lukas on 6/13/17.
  */
 public class Simple {
-//    int f1;
+    int f1 = 5;
     public static void main(String[] args){
         Simple s = new Simple();
         int x = 1;
@@ -18,8 +18,8 @@ public class Simple {
         int b = s.toN(a);
         String g = s.toS(1);
         int c = s.toI("");
-//        int o = s.f1;
-//        s.f1 = 1;
+        int o = s.f1;
+        s.f1 = 1;
     }
 
     public int foo(int x) {

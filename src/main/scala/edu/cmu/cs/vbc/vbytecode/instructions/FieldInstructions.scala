@@ -178,14 +178,16 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   }
   def getFieldFromVint(mv: MethodVisitor, env: VMethodEnv, block: Block, owner: String, name: String, desc: String): Unit = {
     val ownerType = Type.getObjectType(owner)
-    InvokeDynamicUtils.invoke(VCall.sflatMap, mv, env, loadCurrentCtx(_, env, block), "getfield", s"$ownerType()$vintclasstype") {
+    InvokeDynamicUtils.invoke(VCall.sflatMap, mv, env, loadCurrentCtx(_, env, block), "getfield", s"$ownerType()$vclasstype") {
       (visitor: MethodVisitor) => {
         val label = new Label()
         visitor.visitVarInsn(ALOAD, 1) //obj ref
         visitor.visitFieldInsn(GETFIELD, owner, name, vintclasstype)
+        visitor.visitMethodInsn(INVOKEINTERFACE, vintclassname, "toV", s"()$vclasstype", true)
         visitor.visitInsn(ARETURN)
       }
     }
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "toVint", s"()$vintclasstype", true)
   }
 }
 
@@ -254,11 +256,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       val loadContext = (m: MethodVisitor) => loadCurrentCtx(m, env, block)
 
       if (env.shouldLiftInstr(this)) {
-        if (fieldIsIntOrBool) {
-          callPutOnVint(mv, env, loadContext, putOperation)
-        } else {
-          callPutOnV(mv, env, loadContext, putOperation)
-        }
+        callPutOnV(mv, env, loadContext, putOperation)
       }
       else {
         putOperation(mv, loadContext)
@@ -294,61 +292,6 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       Type.getType(s"(Ljava/lang/Object;Ljava/lang/Object;)V"),
       new Handle(H_INVOKESTATIC, env.clazz.name, getLambdaFunName, getLambdaFunDesc),
       Type.getType(s"($fexprclasstype${Type.getObjectType(owner)})V")
-    )
-    loadCurrentCtx(mv)
-    mv.visitMethodInsn(INVOKEINTERFACE, flatMapOwner, flatMapName, flatMapDesc, true)
-
-    /**
-      * this function should be unique for an owner-name combination. create only once
-      *
-      * TODO: actually, this method should probably be in the class that contains the
-      * field, not redundantly in every class that accesses this field
-      */
-    if (!(env.clazz.lambdaMethods contains getLambdaFunName)) {
-      val lambda = (cv: ClassVisitor) => {
-        val mv: MethodVisitor = cv.visitMethod(
-          ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
-          getLambdaFunName,
-          getLambdaFunDesc,
-          getLambdaFunDesc,
-          Array[String]() // TODO: handle exception list
-        )
-        mv.visitCode()
-        mv.visitVarInsn(ALOAD, 2) // load obj
-        mv.visitVarInsn(ALOAD, 0)
-        val loadContext = (mv: MethodVisitor) => mv.visitVarInsn(ALOAD, 1)
-        putOperation(mv, loadContext)
-        mv.visitInsn(RETURN)
-        mv.visitMaxs(5, 5)
-        mv.visitEnd()
-      }
-
-      env.clazz.lambdaMethods += (getLambdaFunName -> lambda)
-    }
-  }
-  private def callPutOnVint(mv: MethodVisitor,
-                            env: VMethodEnv,
-                            loadCurrentCtx: (MethodVisitor) => Unit,
-                            putOperation: (MethodVisitor, (MethodVisitor) => Unit) => Unit): Unit = {
-    val invokeName = "accept"
-    val flatMapDesc = s"(Ljava/util/function/ObjIntConsumer;$fexprclasstype)Vint"
-    val flatMapOwner = "edu/cmu/cs/varex/Vint"
-    val flatMapName = "sforeach"
-
-    val n = env.clazz.lambdaMethods.size
-    def getLambdaFunName = "lambda$PUT" + owner.replace("/", "$") + "$" + name
-    def getLambdaFunDesc = s"($vintclasstype$fexprclasstype${Type.getObjectType(owner)})Vint"
-    def getInvokeType = s"($vintclasstype)Ljava/util/function/ObjIntConsumer;"
-
-
-    mv.visitInvokeDynamicInsn(
-      invokeName, // Method to invoke
-      getInvokeType, // Descriptor for call site
-      new Handle(H_INVOKESTATIC, lamdaFactoryOwner, lamdaFactoryMethod, lamdaFactoryDesc), // Default LambdaFactory
-      // Arguments:
-      Type.getType(s"(Ljava/lang/Object;Ljava/lang/Object;)Vint"),
-      new Handle(H_INVOKESTATIC, env.clazz.name, getLambdaFunName, getLambdaFunDesc),
-      Type.getType(s"($fexprclasstype${Type.getObjectType(owner)})Vint")
     )
     loadCurrentCtx(mv)
     mv.visitMethodInsn(INVOKEINTERFACE, flatMapOwner, flatMapName, flatMapDesc, true)
