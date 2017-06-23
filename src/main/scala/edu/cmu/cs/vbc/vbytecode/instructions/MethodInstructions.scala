@@ -65,17 +65,17 @@ trait MethodInstruction extends Instruction {
         assert(name != MethodName("<init>"), "calling <init> on a V object")
         mv.visitMethodInsn(invokeType, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
         val maybeRetDesc = liftedCall.desc.getReturnType
-        if (maybeRetDesc.exists(t => t.isPrimitiveWithV)) {
+        if (maybeRetDesc.exists(t => t.isPrimitiveWithV || t.isVPrim)) {
           val retDesc = maybeRetDesc.get
 
-          if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid) {
+          if (!retDesc.isVPrim && !LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid) {
             callVPrimCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs), retDesc)
-            mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVPrimName, "toV", s"()$vclasstype", true)
           }
 
           // method calls cannot return VPrim because they are maps over the object
           mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVPrimName, "toV", s"()$vclasstype", true)
-        } else {
+        }
+        else {
           // Box primitive type
           boxReturnValue(liftedCall.desc, mv)
           if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)

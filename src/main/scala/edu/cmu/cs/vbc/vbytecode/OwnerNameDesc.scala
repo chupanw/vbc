@@ -308,6 +308,10 @@ case class TypeDesc(desc: String) extends TypeVerifier {
 
   def isPrimitiveWithV: Boolean = isPrimitive && hasVPrim
 
+  def VPrimTypes: Set[String] = Set(vintclasstype)
+
+  def isVPrim: Boolean = VPrimTypes.contains(desc)
+
   def toVPrimType: String = desc match {
     case "I" | "Z" | "C" | "B" => vintclasstype
     case d => d
@@ -343,7 +347,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
   def toVName: String = if (isPrimitiveWithV) toVPrimName else vclassname
 
   def toVPrimFunction: String = desc match {
-    case "I" | "Z" | "C" | "B" => "toVint"
+    case "I" | "Z" | "C" | "B" | `vintclasstype` => "toVint"
     case _ => ???
   }
 

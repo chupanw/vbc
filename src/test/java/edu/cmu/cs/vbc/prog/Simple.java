@@ -1,7 +1,5 @@
 package edu.cmu.cs.vbc.prog;
 
-import edu.cmu.cs.varex.Vint;
-
 /**
  * Created by lukas on 6/13/17.
  */
@@ -81,7 +79,7 @@ public class Simple {
 //    public int toI(char c) {
 //        return 1;
 //    }
-////
+//
 //    public byte toB(int x) {
 //        return 1;
 //    }
