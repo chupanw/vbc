@@ -399,7 +399,7 @@ case class VBCFieldNode(
       if (d.isPrimitiveWithV)
         cv.visitField(access, name, d.toVPrimType, d.toVPrimType, null)
       else
-        cv.visitField(access, name, vclasstype, wrap(TypeDesc(desc).toObject), null)
+        cv.visitField(access, name, vclasstype, wrap(d.toObject), null)
 
     commonToByteCode(fv)
 

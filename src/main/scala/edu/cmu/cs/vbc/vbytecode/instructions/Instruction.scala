@@ -119,37 +119,36 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
 
     if (env.method.name == "___clinit___") {
       env.clazz.fields.filter(f => f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
-        createChoice(f.name, mv, env, block)
-        mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+        val d = TypeDesc(f.desc)
+        if (d.isPrimitiveWithV) createPrimChoice(f, mv, env, block)
+        else                    createChoice(f.name, mv, env, block)
+
+        mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, d.toVType)
       })
       env.clazz.fields.filter(f => f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
-        createOne(f, mv, env, block)
-        mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+        val d = TypeDesc(f.desc)
+        if (d.isPrimitiveWithV) createPrimOne(f, mv, env, block)
+        else                    createOne(f, mv, env, block)
+
+        mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, d.toVType)
       })
     }
     else {
-      import edu.cmu.cs.vbc.utils.LiftUtils._
       env.clazz.fields.filter(f => !f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
-        TypeDesc(f.desc) match {
-          case t if t.isPrimitiveWithV =>
-            createPrimChoice(f, mv, env, block)
-            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, t.toVPrimType)
-          case _ =>
-            createChoice(f.name, mv, env, block)
-            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vclasstype)
-        }
+        val d = TypeDesc(f.desc)
+        if (d.isPrimitiveWithV) createPrimChoice(f, mv, env, block)
+        else                    createChoice(f.name, mv, env, block)
+
+        mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, d.toVType)
       })
       env.clazz.fields.filter(f => !f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
-        TypeDesc(f.desc) match {
-          case t if t.isPrimitiveWithV =>
-            createPrimOne(f, mv, env, block)
-            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, t.toVPrimType)
-          case _ =>
-            createOne(f, mv, env, block)
-            mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, vclasstype)
-        }
+        val d = TypeDesc(f.desc)
+        if (d.isPrimitiveWithV) createPrimOne(f, mv, env, block)
+        else                    createOne(f, mv, env, block)
+
+        mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, d.toVType)
       })
     }
   }
@@ -207,9 +206,6 @@ case object InstrINIT_CONDITIONAL_FIELDS {
     Type.getType(f.desc).getSort match {
       case Type.INT | Type.BOOLEAN | Type.CHAR | Type.BYTE =>
         if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
-      case Type.LONG =>
-        if (f.value == null) mv.visitInsn(LCONST_0) else pushLongConstant(mv, f.value.asInstanceOf[Long])
-        mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, "valueOf", s"(J)${Owner.getLong.getTypeDesc}", false)
       case _ =>
         ???
     }

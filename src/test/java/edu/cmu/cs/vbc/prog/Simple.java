@@ -9,8 +9,15 @@ public class Simple {
     char f3 = 'a';
     byte f4 = 1;
 
-//    static int sf1;
+    static int sf1 = 1;
+    static char sf2 = 'h';
+    static byte sf3 = 1;
     public static void main(String[] args){
+        boolean a;
+        int b;
+        String g;
+        char p;
+        byte r;
         Simple s = new Simple();
         // arithmetic
         int x = 1;
@@ -24,24 +31,32 @@ public class Simple {
         nop(z);
 
         // methods, U -> int or int -> U
-        boolean a = s.even(1);
-        int b = s.toN(a);
-        String g = s.toS(1);
-        int c = s.toI("");
-        char p = s.toC(1);
-        int q = s.toI(p);
-        byte r = s.toB(1);
-        int t = s.toI(r);
+        a = s.even(1);
+        b = s.toN(a);
+        g = s.toS(1);
+        b = s.toI("");
+        p = s.toC(1);
+        b = s.toI(p);
+        r = s.toB(1);
+        b = s.toI(r);
 
         // fields
-        int o = s.f1;
+        b = s.f1;
         s.f1 = 1;
-        boolean l = s.f2;
+        a = s.f2;
         s.f2 = true;
-        char m = s.f3;
+        p = s.f3;
         s.f3 = 'a';
-        byte n = s.f4;
+        r = s.f4;
         s.f4 = 5;
+
+        // static fields
+        b = sf1;
+        sf1 = 5;
+        p = sf2;
+        sf2 = 'c';
+        r = sf3;
+        sf3 = s.toB(1);
     }
 
     public int foo(int x) {
