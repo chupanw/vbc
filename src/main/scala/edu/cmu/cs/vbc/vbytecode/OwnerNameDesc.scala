@@ -185,14 +185,14 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     */
   def getReturnType: Option[TypeDesc] = if (isReturnVoid) None else Some(TypeDesc(Type.getReturnType(descString).getDescriptor))
 
-  // Get the return type as a V or Vint, as appropriate
-  def getReturnTypeAsV: String = if (isReturnIntOrBool) vintclasstype else vclasstype
+  // Get the return type as a V or VPrim, as appropriate
+  def getReturnTypeAsV: String = if (isReturnPrimWithV) getReturnType.get.toVPrimType else vclasstype
 
   def getReturnTypeSort: Int = mt.getReturnType.getSort
 
   def isReturnVoid: Boolean = Type.getReturnType(descString).getDescriptor == "V"
 
-  def isReturnIntOrBool: Boolean = getReturnType.getOrElse("") == "I" || getReturnType.getOrElse("") == "Z"
+  def isReturnPrimWithV: Boolean = getReturnType.exists(t => t.isPrimitiveWithV)
 
   def getArgs: Array[TypeDesc] = Type.getMethodType(descString).getArgumentTypes.map(t => TypeDesc(t.getDescriptor))
 

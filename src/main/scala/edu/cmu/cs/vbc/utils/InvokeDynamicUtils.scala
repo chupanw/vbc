@@ -170,7 +170,6 @@ object InvokeDynamicUtils {
         ("[" + (if (invokeObjectArrayType.get.isPrimitiveWithV) invokeObjectArrayType.get.toVPrimType else vclasstype))
       else if (convertBefore) vclasstype
       else invokeObjectDesc
-    val isPrimArray = (newInvokeObjDesc.startsWith("[") && invokeObjectArrayType.get.isPrimitiveWithV)
     val lambdaDesc = s"($argTypeStr$fexprclasstype$newInvokeObjDesc)$lambdaRetDesc"
 
     val n = env.clazz.lambdaMethods.size
@@ -272,10 +271,10 @@ object InvokeDynamicUtils {
         // retDesc: what the function being invoked returns
         // lambdaRetDesc: what this lambda needs to return
         if (retDesc != lambdaRetDesc) {
-          if (lambdaRetDesc == vclasstype) { // => retDesc == VPrim
+          if (lambdaRetDesc == vclasstype) { // => retDesc == VPrim, so need to convert VPrim to V before returning
             mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVName, "toV", s"()$vclasstype", true)
           }
-          else { // => retDesc == V
+          else { // => retDesc == V, so need to convert V to VPrim before returning
             mv.visitMethodInsn(INVOKEINTERFACE, vclassname, lambdaRetDesc.toVPrimFunction, s"()$lambdaRetDesc", true)
           }
         }
