@@ -244,7 +244,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     */
   def toVs: MethodDesc = {
     val args = Type.getArgumentTypes(descString)
-    val vArgs = args.map(t => if (t.getSort == Type.INT || t.getSort == Type.BOOLEAN) vintclasstype else vclasstype)
+    val vArgs = args.map(t => TypeDesc(t.getDescriptor).toVType)
     val argsString = vArgs.mkString("(", "", ")")
     val retString: String = if (isReturnVoid) "V" else getReturnTypeAsV
     MethodDesc(argsString + retString)
@@ -334,6 +334,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case _ => this
   }
 
+  def toObjectUnlessHasVPrim: TypeDesc = if (hasVPrim) this else toObject
+
   def castInt: TypeDesc = this match {
     case TypeDesc("Z") => TypeDesc("I")
     case TypeDesc("C") => TypeDesc("I")
@@ -356,6 +358,22 @@ case class TypeDesc(desc: String) extends TypeVerifier {
   def getArrayBaseType: TypeDesc = {
     assert(isArray, "Can't get base type from non-array type")
     TypeDesc(desc.tail)
+  }
+
+  def getLoadInsn: Int = desc match {
+    case "I" | "Z" | "C" | "B" => org.objectweb.asm.Opcodes.ILOAD
+    case "J" => org.objectweb.asm.Opcodes.LLOAD
+    case "F" => org.objectweb.asm.Opcodes.FLOAD
+    case "D" => org.objectweb.asm.Opcodes.DLOAD
+    case _ => org.objectweb.asm.Opcodes.ALOAD
+  }
+
+  def getConsumerType: String = {
+    import edu.cmu.cs.vbc.utils.InvokeDynamicUtils._
+    desc match {
+      case "I" | "Z" | "C" | "B" => objIntConsumerType
+      case _ => biConsumerType
+    }
   }
 
   /** Get the owner (if exists) of this type.

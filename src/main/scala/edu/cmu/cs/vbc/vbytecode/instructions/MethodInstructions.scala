@@ -31,7 +31,7 @@ trait MethodInstruction extends Instruction {
     val liftedCall = liftCall(owner, name, desc)
     val objType = Type.getObjectType(liftedCall.owner).toString
     val argTypeDesc: String = desc.getArgs.map {
-      t => if (liftedCall.isLifting) t.toVType.desc else t.castInt.toObject.desc
+      t => if (liftedCall.isLifting) t.toVType.desc else t.castInt.toObjectUnlessHasVPrim.desc
     }.mkString("(", "", ")")
 
     val isReturnVoid = desc.isReturnVoid
@@ -117,14 +117,10 @@ trait MethodInstruction extends Instruction {
   }
 
   def loadVar(index: Int, desc: MethodDesc, indexInDesc: Int, mv: MethodVisitor): Unit = {
-    mv.visitVarInsn(ALOAD, index)
     val args = desc.getArgs
-    args(indexInDesc) match {
-      case TypeDesc("Z") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, MethodName("intValue"), MethodDesc("()I"), false)
-      case TypeDesc("C") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, MethodName("intValue"), MethodDesc("()I"), false)
-      case TypeDesc("B") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, MethodName("intValue"), MethodDesc("()I"), false)
-      case TypeDesc("S") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, MethodName("intValue"), MethodDesc("()I"), false)
-      case TypeDesc("I") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, MethodName("intValue"), MethodDesc("()I"), false)
+    val a = args(indexInDesc)
+    mv.visitVarInsn(if (a.isPrimitiveWithV) a.getLoadInsn else ALOAD, index)
+    a match {
       case TypeDesc("F") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getFloat, MethodName("intValue"), MethodDesc("()F"), false)
       case TypeDesc("J") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getLong, MethodName("longValue"), MethodDesc("()J"), false)
       case TypeDesc("D") => mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getDouble, MethodName("doubleValue"), MethodDesc("()D"), false)

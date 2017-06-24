@@ -101,12 +101,15 @@ object InvokeDynamicUtils {
     def areSamePrimitive(t1: TypeDesc, t2: TypeDesc): Boolean =
       t1.isPrimitiveWithV && t2.isPrimitiveWithV && t1.toVType == t2.toVType
 
-    val (invokeObjectDesc, argsDesc, retDescStr) = decomposeDesc(desc)
-    val retDesc = TypeDesc(retDescStr)
-    val lambdaRetDesc = TypeDesc(
-      if (retDesc == "V") "V"
-      else if (areSamePrimitive(TypeDesc(invokeObjectDesc), retDesc)) retDesc.toVPrimType
-      else vclasstype)
+    val (invokeObjectDescStr, argsDesc, retDescStr) = decomposeDesc(desc)
+    val invokeObjectDesc = TypeDesc(invokeObjectDescStr)
+    val retDescIsVoid = retDescStr == "V"
+    val retDesc = if (!retDescIsVoid) Some(TypeDesc(retDescStr)) else None
+    val lambdaRetDescStr =
+      if (retDescIsVoid) "V"
+      else if (areSamePrimitive(invokeObjectDesc, retDesc.get)) retDesc.get.toVPrimType
+      else vclasstype
+    val lambdaRetDesc = if (!retDescIsVoid) Some(TypeDesc(lambdaRetDescStr)) else None
 
     val argTypes: Array[Type] = Type.getArgumentTypes(s"($argsDesc)")
     val nArg = argTypes.size
@@ -120,39 +123,36 @@ object InvokeDynamicUtils {
     // Init
     //////////////////////////////////////////////////
     val firstArgType = if (nArg == 0) None else Some(argTypes(0))
-    val (invokeDynamicName, vCallDesc, funType, isReturnVoid, convertBefore, convertAfter) =
-      (vCall, firstArgType, TypeDesc(lambdaRetDesc)) match {
+    val (invokeDynamicName, vCallDesc, funType, isReturnVoid, convertBefore, convertAfter, lambda2ndArg) =
+      (vCall, invokeObjectDesc, lambdaRetDesc) match {
           // VPrim.smap(P -> P) where (P in Prim) : No conversion
-        case (VCall.smap, _, ret) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDesc =>
-          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
+        case (VCall.smap, _, Some(ret)) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDescStr =>
+          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false, "Ljava/lang/Object;")
         // VPrim.smap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
         // note that these case orderings are significant (e.g: this case being met implies !descIsPrim(ret.desc))
-        case (VCall.smap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
-          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
+        case (VCall.smap, _, Some(ret)) if ret.toVPrimType == invokeObjectDescStr =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false, "Ljava/lang/Object;")
         // V.smap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
-        case (VCall.smap, _, ret) if ret.isPrimitiveWithV =>
-          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
+        case (VCall.smap, _, Some(ret)) if ret.isPrimitiveWithV =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true, "Ljava/lang/Object;")
 
           // VPrim.sflatMap(P -> P) where (P in Prim) : No conversion
-        case (VCall.sflatMap, _, ret) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDesc =>
-          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false)
+        case (VCall.sflatMap, _, Some(ret)) if ret.isPrimitiveWithV && ret.toVPrimType == invokeObjectDescStr =>
+          ("apply", s"($biFuncType$fexprclasstype)${ret.toVPrimType}", biFuncType, false, false, false, "Ljava/lang/Object;")
           // VPrim.sflatMap(P -> U) where (P in Prim) (U not in Prim) : Convert VPrim -> V before mapping
-        case (VCall.sflatMap, _, ret) if ret.toVPrimType == invokeObjectDesc =>
-          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false)
+        case (VCall.sflatMap, _, Some(ret)) if ret.toVPrimType == invokeObjectDescStr =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, true, false, "Ljava/lang/Object;")
         // V.sflatMap(U -> P) where (P in Prim) (U not in Prim) : Convert V -> VPrim after mapping
-        case (VCall.sflatMap, _, ret) if ret.isPrimitiveWithV =>
-          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true)
+        case (VCall.sflatMap, _, Some(ret)) if ret.isPrimitiveWithV =>
+          ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, true, "Ljava/lang/Object;")
 
         // V.s{map, flatMap}(U -> T) : No conversion
       case (VCall.smap, _, _) | (VCall.sflatMap, _, _) =>
-        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, false)
+        ("apply", s"($biFuncType$fexprclasstype)$vclasstype", biFuncType, false, false, false, "Ljava/lang/Object;")
 
-        // Vint.sforeach : No conversion (?)
-      case (VCall.sforeach, Some(t), _) if t.getSort == Type.OBJECT && descIsInt(t.toString) =>
-        ("accept", s"($objIntConsumerType$fexprclasstype)V", objIntConsumerType, true, false, false)
-        // V.sforeach : No conversion
-      case (VCall.sforeach, _, _) =>
-        ("accept", s"($biConsumerType$fexprclasstype)V", biConsumerType, true, false, false)
+      case (VCall.sforeach, t, _) =>
+        ("accept", s"(${t.getConsumerType}$fexprclasstype)V", t.getConsumerType, true, false, false,
+          if (t.isPrimitiveWithV) t.desc else "Ljava/lang/Object;")
 
       case _ => throw new RuntimeException("Unsupported dynamic invoke type: " + vCall)
     }
@@ -164,13 +164,13 @@ object InvokeDynamicUtils {
 
     val invokeDynamicType = "(" + argTypeStr + s")$funType"
 
-    val invokeObjectArrayType = (if (invokeObjectDesc.startsWith("[")) Some(TypeDesc(invokeObjectDesc.drop(1))) else None)
+    val invokeObjectArrayType = (if (invokeObjectDescStr.startsWith("[")) Some(TypeDesc(invokeObjectDescStr.drop(1))) else None)
     val newInvokeObjDesc: String =
-      if (expandArgArray && invokeObjectDesc.startsWith("[") && !isArrayExpanded)
+      if (expandArgArray && invokeObjectDescStr.startsWith("[") && !isArrayExpanded)
         ("[" + (if (invokeObjectArrayType.get.isPrimitiveWithV) invokeObjectArrayType.get.toVPrimType else vclasstype))
       else if (convertBefore) vclasstype
-      else invokeObjectDesc
-    val lambdaDesc = s"($argTypeStr$fexprclasstype$newInvokeObjDesc)$lambdaRetDesc"
+      else invokeObjectDescStr
+    val lambdaDesc = s"($argTypeStr$fexprclasstype$newInvokeObjDesc)$lambdaRetDescStr"
 
     val n = env.clazz.lambdaMethods.size
     val lambdaMtdName: String = "lambda$" + lambdaName + "$" + n
@@ -180,9 +180,9 @@ object InvokeDynamicUtils {
       invokeDynamicType,
       new Handle(H_INVOKESTATIC, lamdaFactoryOwner, lamdaFactoryMethod, lamdaFactoryDesc),
       // Arguments:
-      Type.getType("(Ljava/lang/Object;Ljava/lang/Object;)" + (if (isReturnVoid) "V" else "Ljava/lang/Object;")),
+      Type.getType(s"(Ljava/lang/Object;$lambda2ndArg)" + (if (isReturnVoid) "V" else "Ljava/lang/Object;")),
       new Handle(H_INVOKESTATIC, env.clazz.name, lambdaMtdName, lambdaDesc),
-      Type.getType(s"($fexprclasstype$newInvokeObjDesc)$lambdaRetDesc")
+      Type.getType(s"($fexprclasstype$newInvokeObjDesc)$lambdaRetDescStr")
     )
     if (isExploding) {
       loadFE(mv, loadCtx, Some(lambdaDesc))
@@ -191,22 +191,23 @@ object InvokeDynamicUtils {
       loadFE(mv, loadCtx, None)
     }
 
-    val invokeObj = TypeDesc(invokeObjectDesc)
+    val invokeObj = TypeDesc(invokeObjectDescStr)
     if (convertBefore) {
       // mapping VPrim to something else, convert to V first
       mv.visitMethodInsn(INVOKEINTERFACE, invokeObj.toVName, "toV", s"()$vclasstype", true)
     }
     mv.visitMethodInsn(INVOKEINTERFACE, invokeObj.toVName, vCall.toString, vCallDesc, true)
-    if (convertAfter) {
+    if (convertAfter && !retDescIsVoid) {
       // mapping V to Prim, convert to VPrim afterwards
-      mv.visitMethodInsn(INVOKEINTERFACE, invokeObj.toVName, lambdaRetDesc.toVPrimFunction, s"()${lambdaRetDesc.toVPrimType}", true)
+      mv.visitMethodInsn(INVOKEINTERFACE, invokeObj.toVName, lambdaRetDesc.get.toVPrimFunction,
+        s"()${lambdaRetDesc.get.toVPrimType}", true)
     }
 
 
     //////////////////////////////////////////////////
     // helper methods for expanding arrays
     //////////////////////////////////////////////////
-    val currentInvokeObjType = TypeDesc(invokeObjectDesc)
+    val currentInvokeObjType = TypeDesc(invokeObjectDescStr)
     def shouldExpandArray: Boolean = expandArgArray && currentInvokeObjType.isArray && !isArrayExpanded
     def expandArray(mv: MethodVisitor) = {
       mv.visitVarInsn(ALOAD, nArg + 1)  // [V
@@ -217,7 +218,7 @@ object InvokeDynamicUtils {
       val baseTypeVType = baseType.toVType.desc
       val helperName = "helper$expandArray$" + env.clazz.lambdaMethods.size
       val helperDesc = s"([$baseTypeVType" + baseTypeVType * nExplodeArgs +
-        argTypes.drop(nExplodeArgs).map(_.toString).mkString("") + fexprclasstype + ")" + lambdaRetDesc
+        argTypes.drop(nExplodeArgs).map(_.toString).mkString("") + fexprclasstype + ")" + lambdaRetDescStr
       val helper = (cv: ClassVisitor) => {
         val mv: MethodVisitor = cv.visitMethod(ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC, helperName, helperDesc, null, Array[String]())
         mv.visitVarInsn(ALOAD, 0)  // [V
@@ -227,7 +228,7 @@ object InvokeDynamicUtils {
         mv.visitVarInsn(ALOAD, nArg + 2)
         (1 to nArg) foreach {i => mv.visitVarInsn(ALOAD, i)}
         invoke(vCall, mv, env, (m) => m.visitVarInsn(ALOAD, nArg + 1), "explodeArg", desc, nExplodeArgs, isExploding = false, expandArgArray = expandArgArray, isArrayExpanded = true)(lambdaOp)
-        if (!isReturnVoid && retDesc.isArray) {
+        if (!isReturnVoid && retDesc.get.isArray) {
           mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, s"compress${baseTypeStr}Array", MethodDesc(s"($baseTypeVType)[$baseTypeVType"), false)
           callVCreateOne(mv, (mm) => mm.visitVarInsn(ALOAD, nArg + 1))
         }
@@ -269,13 +270,13 @@ object InvokeDynamicUtils {
         }
 
         // retDesc: what the function being invoked returns
-        // lambdaRetDesc: what this lambda needs to return
-        if (retDesc != lambdaRetDesc) {
-          if (lambdaRetDesc == vclasstype) { // => retDesc == VPrim, so need to convert VPrim to V before returning
-            mv.visitMethodInsn(INVOKEINTERFACE, retDesc.toVName, "toV", s"()$vclasstype", true)
+        // lambdaRetDescStr: what this lambda needs to return
+        if (retDesc != lambdaRetDescStr) {
+          if (lambdaRetDescStr == vclasstype) { // => retDesc == VPrim, so need to convert VPrim to V before returning
+            mv.visitMethodInsn(INVOKEINTERFACE, retDesc.get.toVName, "toV", s"()$vclasstype", true)
           }
-          else { // => retDesc == V, so need to convert V to VPrim before returning
-            mv.visitMethodInsn(INVOKEINTERFACE, vclassname, lambdaRetDesc.toVPrimFunction, s"()$lambdaRetDesc", true)
+          else if (!retDescIsVoid) { // => retDesc == V, so need to convert V to VPrim before returning
+            mv.visitMethodInsn(INVOKEINTERFACE, vclassname, lambdaRetDesc.get.toVPrimFunction, s"()$lambdaRetDescStr", true)
           }
         }
 
