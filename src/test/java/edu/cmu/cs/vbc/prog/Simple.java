@@ -18,7 +18,7 @@ public class Simple {
 //    static char sf2 = 'h';
 //    static byte sf3 = 1;
     public static void main(String[] args){
-//        boolean a = false;
+        boolean a = false;
         int b = 20;
 //        String g;
 //        char p;
@@ -56,7 +56,7 @@ public class Simple {
 //        s.f3 = 'a';
 //        r = s.f4;
 //        s.f4 = 5;
-//
+
 //        // static fields
 //        b = sf1;
 //        sf1 = 5;
@@ -70,13 +70,14 @@ public class Simple {
 //        System.out.println(1);
 
         // variability
+        b = 1;
         if (feature) {
             b = 1000;
         }
-//        a = s.even(b);
-        System.out.println(b);
+        a = s.even(b);
+//        System.out.println(b);
     }
-
+//
 //    public int foo(int x) {
 //        return bar(x)*2;
 //    }
@@ -85,9 +86,9 @@ public class Simple {
 //        return x*2;
 //    }
 //
-//    public boolean even(int x) {
-//        return x%2 == 0;
-//    }
+    public boolean even(int x) {
+        return x%2 == 0;
+    }
 //
 //    public static void nop(int x) {
 //        assert true;

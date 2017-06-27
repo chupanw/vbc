@@ -248,6 +248,16 @@ public interface V<T> {
             return VImpl.choice(condition, a, b);
     }
 
+    static <U> Vint choice(@Nonnull FeatureExpr condition, @Nonnull Vint a, @Nonnull V<? extends U> b) {
+        assert b instanceof One;
+        assert b.getOne() == null;
+        assert a != null;
+        return Vint.choice(condition, a, new VintEmpty());
+    }
+    static <U> Vint choice(@Nonnull FeatureExpr condition, @Nonnull V<? extends U> a, @Nonnull Vint b) {
+        return choice(condition, b, a);
+    }
+
     /**
      * Compares equality of the wrapped value.
      *

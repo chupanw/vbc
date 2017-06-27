@@ -97,7 +97,6 @@ object InvokeDynamicUtils {
             )
             (lambdaOp: MethodVisitor => Unit): Unit = {
 
-    def descIsInt(d: String): Boolean = (d == "I" || d == vintclasstype)
     def areSamePrimitive(t1: TypeDesc, t2: TypeDesc): Boolean =
       t1.isPrimitiveWithV && t2.isPrimitiveWithV && t1.toVType == t2.toVType
 
