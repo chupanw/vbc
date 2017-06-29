@@ -17,6 +17,50 @@ object Rewrite {
   def rewrite(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
     initializeConditionalFields(m, cls)
 
+  /** Insert INIT_CONDITIONAL_FIELDS in init
+    *
+    * Current rewriting assumes following sequence is in the first block of init:
+    *
+    * ALOAD 0
+    * {load arguments}
+    * INVOKESPECIAL superclass's init
+    *
+    */
+  private def initializeConditionalFields(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
+    if (m.isInit) {
+      val firstBlock = m.body.blocks.head
+      val firstBlockInstructions = firstBlock.instr
+
+      val nopPrefix = firstBlockInstructions.takeWhile(_.isInstanceOf[EmptyInstruction])
+      val restInstrs = firstBlockInstructions.drop(nopPrefix.length).toList
+      // this is a stronger assumption
+      assert(restInstrs.head.isALOAD0, "first instruction in <init> is NOT ALOAD 0")
+      val (initSeq, nonInitSeq) = extractSuperInit(restInstrs, cls)
+
+      val newInstrs = nopPrefix ++ (InstrINIT_CONDITIONAL_FIELDS() :: initSeq ::: nonInitSeq)
+      val newBlocks = Block(newInstrs, Nil) +: m.body.blocks.drop(1)
+      m.copy(body = CFG(newBlocks))
+    } else m
+
+  private def extractSuperInit(instrs: List[Instruction], cls: VBCClassNode): (List[Instruction], List[Instruction]) = {
+    val invokeSpecialInit = instrs.filter(isInvokeSpecialInit(_, cls))
+    assert(invokeSpecialInit.size == 1, "Suspicious number of <init> call: " + invokeSpecialInit.size)
+    val (prefix, postfix) = instrs.splitAt(instrs.indexOf(invokeSpecialInit.head))
+    val aload0 = prefix.reverse.find(_.isALOAD0)
+    assert(aload0.nonEmpty, "No ALOAD 0 before calling <init>")
+    val (beforeALOAD0, afterALOAD0) = prefix.splitAt(prefix.indexOf(aload0.get))
+    val initSeq: List[Instruction] = afterALOAD0 ::: invokeSpecialInit.head :: Nil
+    val nonInitSeq: List[Instruction] = beforeALOAD0 ::: postfix.tail
+    (initSeq, nonInitSeq)
+  }
+
+  private def isInvokeSpecialInit(i: Instruction, cls: VBCClassNode): Boolean = i match {
+    case invokespecial: InstrINVOKESPECIAL =>
+      invokespecial.name.contentEquals("<init>") &&
+        (invokespecial.owner.contentEquals(cls.superName) || invokespecial.owner.contentEquals(cls.name))
+    case _ => false
+  }
+
   def rewriteV(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
     if (m.body.blocks.nonEmpty) {
       initializeConditionalFields(
@@ -51,7 +95,6 @@ object Rewrite {
     m.copy(body = CFG(rewrittenBlocks))
   }
 
-
   private def ensureUniqueReturnInstr(m: VBCMethodNode): VBCMethodNode = {
     //if the last instruction in the last block is the only return statement, we are happy
     val returnInstr = for (block <- m.body.blocks; instr <- block.instr if instr.isReturnInstr) yield instr
@@ -63,22 +106,35 @@ object Rewrite {
     if (returnInstr.size == 1 && returnInstr.head == m.body.blocks.last.instr.last)
       m
     else {
-      unifyReturnInstr(m: VBCMethodNode, if (m.name == "<init>") InstrRETURN() else InstrARETURN())
+      val isReturningInt = MethodDesc(m.desc).isReturnPrimWithV
+      val returnInst = if (m.name == "<init>") InstrRETURN() else if (isReturningInt) InstrIRETURN() else InstrARETURN()
+      unifyReturnInstr(m: VBCMethodNode, returnInst)
     }
   }
 
   private def unifyReturnInstr(method: VBCMethodNode, returnInstr: Instruction): VBCMethodNode = {
-    //TODO technically, all methods will always return type V, so we should not have
-    //to worry really about what kind of store/load/return instruction we generate here
-    val returnVariable = new LocalVar("$result", LiftUtils.vclasstype)
+    // Need to distinguish V and VInt (and potentiall VFloat, VDouble...)
+    val isReturningInt = returnInstr match {
+      case _: InstrIRETURN => true
+      case _ => false
+    }
+    val returnVariable = new LocalVar(
+      name = "$result",
+      desc = if (isReturningInt) LiftUtils.vintclasstype else LiftUtils.vclasstype,
+      vinitialize = if (isReturningInt) LocalVar.initOneintZero else LocalVar.initOneNull
+    )
 
-    var newReturnBlockInstr = List(returnInstr)
+    var newReturnBlockInstrs = List(returnInstr)
+    val newReturnInstr = if (isReturningInt) InstrILOAD(returnVariable) else InstrALOAD(returnVariable)
     if (!returnInstr.isRETURN)
-      newReturnBlockInstr ::= InstrALOAD(returnVariable)
-    val newReturnBlock = Block(newReturnBlockInstr, Nil)
+      newReturnBlockInstrs ::= newReturnInstr
+    val newReturnBlock = Block(newReturnBlockInstrs, Nil)
     val newReturnBlockIdx = method.body.blocks.size
 
-    def storeAndGoto: List[Instruction] = List(InstrASTORE(returnVariable), InstrGOTO(newReturnBlockIdx))
+    def storeAndGoto: List[Instruction] = List(
+      if (isReturningInt) InstrISTORE(returnVariable) else InstrASTORE(returnVariable),
+      InstrGOTO(newReturnBlockIdx)
+    )
     def storeNullAndGoto: List[Instruction] = InstrACONST_NULL() :: storeAndGoto
 
     val rewrittenBlocks = method.body.blocks.map(block =>
@@ -96,49 +152,5 @@ object Rewrite {
       )
     )
 
-  }
-
-
-  /** Insert INIT_CONDITIONAL_FIELDS in init
-    *
-    * Current rewriting assumes following sequence is in the first block of init:
-    *
-    * ALOAD 0
-    * {load arguments}
-    * INVOKESPECIAL superclass's init
-    *
-    */
-  private def initializeConditionalFields(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
-    if (m.isInit) {
-      val firstBlock = m.body.blocks.head
-      val firstBlockInstructions = firstBlock.instr
-
-      val nopPrefix = firstBlockInstructions.takeWhile(_.isInstanceOf[EmptyInstruction])
-      val restInstrs = firstBlockInstructions.drop(nopPrefix.length).toList
-      // this is a stronger assumption
-      assert(restInstrs.head.isALOAD0, "first instruction in <init> is NOT ALOAD 0")
-      val (initSeq, nonInitSeq) = extractSuperInit(restInstrs, cls)
-
-      val newInstrs = nopPrefix ++ (InstrINIT_CONDITIONAL_FIELDS() :: initSeq ::: nonInitSeq)
-      val newBlocks = Block(newInstrs, Nil) +: m.body.blocks.drop(1)
-      m.copy(body = CFG(newBlocks))
-    } else m
-
-  private def isInvokeSpecialInit(i: Instruction, cls: VBCClassNode): Boolean = i match {
-    case invokespecial: InstrINVOKESPECIAL =>
-      invokespecial.name.contentEquals("<init>") &&
-        (invokespecial.owner.contentEquals(cls.superName) || invokespecial.owner.contentEquals(cls.name))
-    case _ => false
-  }
-  private def extractSuperInit(instrs: List[Instruction], cls: VBCClassNode): (List[Instruction], List[Instruction]) = {
-    val invokeSpecialInit = instrs.filter(isInvokeSpecialInit(_, cls))
-    assert(invokeSpecialInit.size == 1, "Suspicious number of <init> call: " + invokeSpecialInit.size)
-    val (prefix, postfix) = instrs.splitAt(instrs.indexOf(invokeSpecialInit.head))
-    val aload0 = prefix.reverse.find(_.isALOAD0)
-    assert(aload0.nonEmpty, "No ALOAD 0 before calling <init>")
-    val (beforeALOAD0, afterALOAD0) = prefix.splitAt(prefix.indexOf(aload0.get))
-    val initSeq: List[Instruction] = afterALOAD0 ::: invokeSpecialInit.head :: Nil
-    val nonInitSeq: List[Instruction] = beforeALOAD0 ::: postfix.tail
-    (initSeq, nonInitSeq)
   }
 }

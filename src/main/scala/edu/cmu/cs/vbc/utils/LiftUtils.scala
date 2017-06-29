@@ -21,6 +21,14 @@ object LiftUtils {
   val lamdaFactoryOwner = "java/lang/invoke/LambdaMetafactory"
   val lamdaFactoryMethod = "metafactory"
   val lamdaFactoryDesc = "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"
+  val IntClass = "java/lang/Integer"
+  val IntType = "Ljava/lang/Integer;"
+  val BooleanClass = "java/lang/Boolean"
+  val BooleanType = "Ljava/lang/Boolean;"
+  val StringClass = "java/lang/String"
+  val StringType = "Ljava/lang/String;"
+  val ObjectClass = "java/lang/Object"
+  val ObjectType = "Ljava/lang/Object;"
 
   def liftMethodSignature(desc: String, sig: Option[String]): Option[String] = {
     val sigReader = new SignatureReader(sig.getOrElse(MethodDesc(desc).toObjects.toModels))
@@ -77,17 +85,22 @@ object LiftUtils {
   def storeFExpr(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))
 
+  @deprecated
+  def loadCurrentCtx(mv: MethodVisitor, env: VMethodEnv, block: Block) =
+  /*if (env.isMain) pushConstantTRUE(mv) else*/ loadFExpr(mv, env, env.getVBlockVar(block))
+
   def loadFExpr(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ALOAD, env.getVarIdx(v))
-
-  def loadCurrentCtx(mv: MethodVisitor, env: VMethodEnv, block: Block) =
-    if (env.isMain) pushConstantTRUE(mv) else loadFExpr(mv, env, env.getVBlockVar(block))
 
   def storeV(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))
 
   def loadV(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ALOAD, env.getVarIdx(v))
+
+  //////////////////////////////////////////////////
+  // Model class related utils
+  //////////////////////////////////////////////////
 
   /**
     * precondition: plain reference on top of stack
@@ -98,6 +111,7 @@ object LiftUtils {
     mv.visitInsn(SWAP)
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "one", s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype", true)
   }
+
   /**
     * precondition: plain primitive on top of stack
     * postcondition: Vprim reference on top of stack
@@ -107,6 +121,7 @@ object LiftUtils {
     mv.visitInsn(SWAP)
     mv.visitMethodInsn(INVOKESTATIC, primType.toVPrimName, "one", new MethodDesc(s"(${fexprclasstype}${primType.castInt.desc})${primType.toVPrimType}"), true)
   }
+
   /**
     * precondition: plain int on top of stack
     * postcondition: Vint reference on top of stack
@@ -123,12 +138,14 @@ object LiftUtils {
     */
   def callVCreateChoice(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, vclassname, "choice", "(Lde/fosd/typechef/featureexpr/FeatureExpr;Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Ledu/cmu/cs/varex/V;", true)
+
   /**
     * precondition: feature expression and two Vprim references on top of stack
     * postcondition: Vprim reference on top of stack
     */
   def callVPrimCreateChoice(mv: MethodVisitor, primType: TypeDesc) =
     mv.visitMethodInsn(INVOKESTATIC, primType.toVPrimName, "choice", new MethodDesc(s"(Lde/fosd/typechef/featureexpr/FeatureExpr;${primType.toVPrimType*2})${primType.toVPrimType}"), true)
+
   /**
     * precondition: feature expression and two Vint references on top of stack
     * postcondition: Vint reference on top of stack
@@ -148,22 +165,9 @@ object LiftUtils {
   def replaceArgsWithObject(desc: String): String =
     "(" + "Ljava/lang/Object;" * Type.getArgumentTypes(desc).length + ")" + Type.getReturnType(desc)
 
-  //////////////////////////////////////////////////
-  // Model class related utils
-  //////////////////////////////////////////////////
-
   def vCls(cls: String) = s"edu/cmu/cs/vbc/model/$cls"
 
   def vClsType(cls: String) = s"Ledu/cmu/cs/vbc/model/$cls;"
-
-  val IntClass = "java/lang/Integer"
-  val IntType = "Ljava/lang/Integer;"
-  val BooleanClass = "java/lang/Boolean"
-  val BooleanType = "Ljava/lang/Boolean;"
-  val StringClass = "java/lang/String"
-  val StringType = "Ljava/lang/String;"
-  val ObjectClass = "java/lang/Object"
-  val ObjectType = "Ljava/lang/Object;"
 
   def int2Integer(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", MethodDesc(s"(I)${TypeDesc.getInt}"), false)

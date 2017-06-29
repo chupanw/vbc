@@ -72,9 +72,14 @@ public class Simple {
         b = 1;
         if (feature) {
             b = 1000;
+            System.out.println(b);
+        } else {
+            b = 3;
         }
-        a = s.even(b);
         System.out.println(b);
+
+        p = s.toC(b);
+        g = s.toS(b);
     }
 
     public static void nop(int x) {
@@ -122,7 +127,11 @@ public class Simple {
     }
 
     public byte toB(int x) {
-        return 1;
+        if (even(x)) {
+            return 1;
+        } else {
+            return 2;
+        }
     }
 
     public int toI(byte b) {
