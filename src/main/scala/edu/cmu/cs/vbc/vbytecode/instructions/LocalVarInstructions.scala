@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{REF_TYPE, VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{REF_TYPE, VBCFrame, VInt_TYPE, V_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
@@ -42,14 +42,14 @@ case class InstrISTORE(variable: Variable) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     // Now we assume all blocks are executed under some ctx other than method ctx,
-    // meaning that all local variables should be a V, and so all ISTORE instructions
+    // meaning that all local variables should be V type, and so all ISTORE instructions
     // should be lifted
     env.setLift(this)
     val (value, prev, frame) = s.pop()
     // For now, all local variables are V. Later, this could be relaxed with more careful tagV analysis
-    val newFrame = frame.setLocal(variable, V_TYPE(), Set(this))
+    val newFrame = frame.setLocal(variable, VInt_TYPE(), Set(this))
     val backtrack =
-      if (value != V_TYPE())
+      if (value != VInt_TYPE())
         prev
       else
         Set[Instruction]()
@@ -84,9 +84,9 @@ case class InstrILOAD(variable: Variable) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     env.setLift(this)
-    val newFrame = s.push(V_TYPE(), Set(this))
+    val newFrame = s.push(VInt_TYPE(), Set(this))
     val backtrack =
-      if (s.localVar(variable)._1 != V_TYPE())
+      if (s.localVar(variable)._1 != VInt_TYPE())
         s.localVar(variable)._2
       else
         Set[Instruction]()
@@ -102,9 +102,6 @@ case class InstrILOAD(variable: Variable) extends Instruction {
   * @param increment
   */
 case class InstrIINC(variable: Variable, increment: Int) extends Instruction {
-  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit =
-    mv.visitIincInsn(env.getVarIdx(variable), increment)
-
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       loadV(mv, env, variable)
@@ -123,6 +120,9 @@ case class InstrIINC(variable: Variable, increment: Int) extends Instruction {
     else
       toByteCode(mv, env, block)
   }
+
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit =
+    mv.visitIincInsn(env.getVarIdx(variable), increment)
 
   override def getVariables() = {
     variable match {

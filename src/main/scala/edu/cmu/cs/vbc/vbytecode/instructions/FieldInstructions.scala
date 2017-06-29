@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, VInt_TYPE, V_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.utils.{InvokeDynamicUtils, LiftingPolicy, VCall}
 import edu.cmu.cs.vbc.vbytecode._
@@ -59,7 +59,7 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
     if (LiftingPolicy.shouldLiftField(owner, name, desc)) {
       // This field should be lifted (e.g. fields that are not from java.lang)
       env.setLift(this)
-      (s.push(V_TYPE(), Set(this)), Set())
+      (s.push(if (desc.isPrimitiveWithV) VInt_TYPE() else V_TYPE(), Set(this)), Set())
     }
     else {
       if (env.shouldLiftInstr(this)) {
@@ -110,8 +110,9 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (v, prev, newFrame) = s.pop()
     env.setLift(this)
+    val expectedType = if (desc.isPrimitiveWithV) VInt_TYPE() else V_TYPE()
     val backtrack =
-      if (v != V_TYPE())
+      if (v != expectedType)
         prev
       else
         Set[Instruction]()
@@ -142,18 +143,6 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
     mv.visitMethodInsn(INVOKEINTERFACE, desc.toVName, "select", s"($fexprclasstype)${desc.toVType}", true)
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    val (v, prev, frame) = s.pop()
-    if (v == V_TYPE()) env.setLift(this)
-    val newFrame = frame.push(V_TYPE(), Set(this))
-    (newFrame, Set())
-  }
-
-  override def doBacktrack(env: VMethodEnv): Unit = {
-    // if backtracked, do nothing
-    // lifting or not will be set in updateStack()
-  }
-
   def getFieldFromV(mv: MethodVisitor, env: VMethodEnv, block: Block, owner: String, name: String, desc: TypeDesc): Unit = {
     val ownerType = Type.getObjectType(owner)
     InvokeDynamicUtils.invoke(VCall.sflatMap, mv, env, loadCurrentCtx(_, env, block), "getfield", s"$ownerType()$vclasstype") {
@@ -171,6 +160,18 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
     if (desc.isPrimitiveWithV)
     // Once we are out of the map to get the field, convert it back to VPrim
       mv.visitMethodInsn(INVOKEINTERFACE, vclassname, desc.toVPrimFunction, s"()${desc.toVPrimType}", true)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE()) env.setLift(this)
+    val newFrame = frame.push(if (desc.isPrimitiveWithV) VInt_TYPE() else V_TYPE(), Set(this))
+    (newFrame, Set())
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    // if backtracked, do nothing
+    // lifting or not will be set in updateStack()
   }
 }
 
@@ -306,7 +307,8 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (value, prev1, frame) = s.pop()
     val (ref, prev2, newFrame) = frame.pop()
-    if (value != V_TYPE()) return (newFrame, prev1)
+    val expectedType = if (desc.isPrimitiveWithV) VInt_TYPE() else V_TYPE()
+    if (value != expectedType) return (newFrame, prev1)
     if (ref == V_TYPE()) env.setLift(this)
     (newFrame, Set())
   }

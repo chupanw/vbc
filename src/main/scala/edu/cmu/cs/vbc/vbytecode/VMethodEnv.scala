@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.analysis.{VBCAnalyzer, VBCFrame}
+import edu.cmu.cs.vbc.analysis.{VBCAnalyzer, VBCFrame, VInt_TYPE}
 import edu.cmu.cs.vbc.utils.{LiftUtils, Statistics}
 import edu.cmu.cs.vbc.vbytecode.instructions.{InstrGOTO, Instruction, JumpInstruction}
 import org.objectweb.asm.Type
@@ -23,13 +23,7 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
   //////////////////////////////////////////////////
   // tagV
   //////////////////////////////////////////////////
-
-  // Note: long and double are wrapped into objects, so no need to consider the fact that
-  // each long or double takes two slots.
-  override def parameterCount: Int = Type.getArgumentTypes(method.desc).size + (if (method.isStatic) 0 else 1)
-
   val blockTags = new Array[Boolean](blocks.length)
-
   /**
     * For each instruction, mark whether or not we need to lift it
     *
@@ -64,6 +58,16 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     * INVOKESPECIAL only. Handle special case like NEW DUP INVOKESPECIAL sequence.
     */
   val TAG_WRAP_DUPLICATE = 8
+  val analyzer = new VBCAnalyzer(this)
+  val framesBefore: Array[VBCFrame] = analyzer.computeBeforeFrames
+  val framesAfter: Array[VBCFrame] = analyzer.computeAfterFrames(framesBefore)
+  val expectingVars: Map[Block, List[Variable]] = blocks.map(computeExpectingVars(_)).toMap
+  // allocate a variable for each VBlock, except for the first, which can reuse the parameter slot
+  // EBlocks have variables that do not need to be initialized (we cannot jump there directly)
+  val vblockVars: Map[VBlock, Variable] =
+  (for ((vblock, vblockidx) <- (vblocks zip vblocks.indices).tail) yield
+    vblock -> freshLocalVar("$blockctx" + vblockidx, LiftUtils.fexprclasstype, LocalVar.initFalse)).toMap +
+    (vblocks.head -> ctxParameter) //TODO should not reuse ctxParameter if we want to access that value later on, e.g., in VInstrRETURN
 
   def setTag(instr: Instruction, tag: Int): Unit = {
     assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE)
@@ -75,10 +79,13 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     (instructionTags(getInsnIdx(instr)) & tag) != 0
   }
 
-  // by default all elements are false
-  def getInsnIdx(instr: Instruction) = instructions.indexWhere(_ eq instr)
-
   def shouldLiftInstr(instr: Instruction): Boolean = (instructionTags(getInsnIdx(instr)) & TAG_LIFT) != 0
+
+  def getMergePoint(b1: Block, b2: Block): Int = {
+    val l1: List[Int] = getOrderedSuccessorsIndexes(b1)
+    val l2: List[Int] = getOrderedSuccessorsIndexes(b2)
+    l1.find(l2.contains(_)).get
+  }
 
   def getOrderedSuccessorsIndexes(b: Block): List[Int] = {
     var idxSet = Set[Int]()
@@ -99,12 +106,6 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     idxSet.toList sortWith (_ < _)
   }
 
-  def getMergePoint(b1: Block, b2: Block): Int = {
-    val l1: List[Int] = getOrderedSuccessorsIndexes(b1)
-    val l2: List[Int] = getOrderedSuccessorsIndexes(b2)
-    l1.find(l2.contains(_)).get
-  }
-
   def setLift(instr: Instruction): Unit = {
     instructionTags(getInsnIdx(instr)) |= TAG_LIFT
   }
@@ -114,12 +115,18 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     blockTags(blockIdx)
   }
 
+  //////////////////////////////////////////////////
+  // unbalanced stack
+  //////////////////////////////////////////////////
+
   def getBlockForInstruction(i: Instruction): Block = blocks.find(_.instr contains i).get
 
   def isNonStaticL0(variable: Variable): Boolean = {
     if (method.isStatic) false
     else getVarIdxNoCtx(variable) == 0
   }
+
+  def getVarIdxNoCtx(variable: Variable) = super.getVarIdx(variable)
 
   /**
     * determines whether a CFJ edge between two blocks could be executed
@@ -151,15 +158,6 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     }
   }
 
-  //////////////////////////////////////////////////
-  // unbalanced stack
-  //////////////////////////////////////////////////
-
-  val analyzer = new VBCAnalyzer(this)
-  val framesBefore: Array[VBCFrame] = analyzer.computeBeforeFrames
-  val framesAfter: Array[VBCFrame] = analyzer.computeAfterFrames(framesBefore)
-  val expectingVars: Map[Block, List[Variable]] = blocks.map(computeExpectingVars(_)).toMap
-
   def getLeftVars(block: Block): List[Set[Variable]] = {
     val afterFrame = framesAfter(getInsnIdx(block.instr.last))
     val (succ1, succ2) = getJumpTargets(block)
@@ -190,7 +188,7 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
 
   def computeExpectingVars(block: Block): (Block, List[Variable]) = {
     val beforeFrame = framesBefore(getInsnIdx(block.instr.head))
-    val newVars: List[Variable] = createNewVars(Nil, beforeFrame.getStackSize)
+    val newVars: List[Variable] = createNewVars(beforeFrame)
     (block, newVars)
   }
 
@@ -198,20 +196,16 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
   // Block management
   //////////////////////////////////////////////////
 
-  // allocate a variable for each VBlock, except for the first, which can reuse the parameter slot
-  // EBlocks have variables that do not need to be initialized (we cannot jump there directly)
-  val vblockVars: Map[VBlock, Variable] =
-  (for ((vblock, vblockidx) <- (vblocks zip vblocks.indices).tail) yield
-    vblock -> freshLocalVar("$blockctx" + vblockidx, LiftUtils.fexprclasstype, LocalVar.initFalse)).toMap +
-    (vblocks.head -> ctxParameter) //TODO should not reuse ctxParameter if we want to access that value later on, e.g., in VInstrRETURN
+  // by default all elements are false
+  def getInsnIdx(instr: Instruction) = instructions.indexWhere(_ eq instr)
+
+  def createNewVars(bFrame: VBCFrame): List[Variable] =
+    bFrame.stack.map {
+      case (VInt_TYPE(), _) => freshLocalVar("$unbalancedStack", LiftUtils.vintclasstype, init = LocalVar.initOneintZero)
+      case _ => freshLocalVar("$unbalancedStack", LiftUtils.vclasstype, init = LocalVar.initOneNull)
+    }
 
   def getVBlockVar(vblock: VBlock): Variable = vblockVars(vblock)
-
-  def getVBlockVar(block: Block): Variable = {
-    val vblock = vblocks.filter(_.allBlocks contains block)
-    assert(vblock.size == 1, "expected the block to be in exactly one VBlock")
-    vblockVars(vblock.head)
-  }
 
   def getVBlockLabel(vblock: VBlock) = getBlockLabel(vblock.firstBlock)
 
@@ -219,21 +213,17 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
   // Utilities
   //////////////////////////////////////////////////
 
-  def createNewVars(l: List[Variable], n: Int): List[Variable] =
-    if (n == 0) l else createNewVars(List[Variable](freshLocalVar("$unbalancedstack" + n, LiftUtils.vclasstype, init = LocalVar.initOneNull)) ::: l, n - 1)
-
   def getBlockVarVIdx(block: Block): Int = getVarIdx(getVBlockVar(block))
 
-  def getLocalVariables() = localVars
+  //    if (n == 0) l
+  //    else if (bFrame.stack(bFrame.getStackSize - n))
+  //      createNewVars(List[Variable](freshLocalVar("$unbalancedstack" + n, LiftUtils.vclasstype, init = LocalVar.initOneNull)) ::: l, n - 1)
 
-  def isConditionalField(owner: String, name: String, desc: String): Boolean = {
-    val filter = (f: VBCFieldNode) => {
-      owner == clazz.name && name == f.name && f.desc == desc && f.hasConditionalAnnotation()
-    }
-    clazz.fields.exists(filter)
+  def getVBlockVar(block: Block): Variable = {
+    val vblock = vblocks.filter(_.allBlocks contains block)
+    assert(vblock.size == 1, "expected the block to be in exactly one VBlock")
+    vblockVars(vblock.head)
   }
-
-  def getVarIdxNoCtx(variable: Variable) = super.getVarIdx(variable)
 
   /**
     * all values shifted by 1 by the ctx parameter
@@ -245,6 +235,19 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
       if (idx >= parameterCount) idx + 1
       else idx
     }
+
+  // Note: long and double are wrapped into objects, so no need to consider the fact that
+  // each long or double takes two slots.
+  override def parameterCount: Int = Type.getArgumentTypes(method.desc).size + (if (method.isStatic) 0 else 1)
+
+  def getLocalVariables() = localVars
+
+  def isConditionalField(owner: String, name: String, desc: String): Boolean = {
+    val filter = (f: VBCFieldNode) => {
+      owner == clazz.name && name == f.name && f.desc == desc && f.hasConditionalAnnotation()
+    }
+    clazz.fields.exists(filter)
+  }
 
   //////////////////////////////////////////////////
   // Statistics

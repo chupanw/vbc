@@ -54,9 +54,18 @@ case class VBCFrame(localVar: Map[Variable, FrameEntry], stack: List[FrameEntry]
     }
   }
 
+  /**
+    * Merge two frames
+    *
+    * @param v1 frame being merged into
+    * @param v2 incoming frame
+    * @return merged frame
+    */
   private def mergeFrameEntry(v1: FrameEntry, v2: FrameEntry): FrameEntry = {
     val mergedInstrs: Set[Instruction] = v1._2 ++ v2._2
     (v1._1, v2._1) match {
+      case (_: INT_TYPE, _: VInt_TYPE) => (VInt_TYPE(), mergedInstrs)
+      case (_: VInt_TYPE, _: INT_TYPE) => (VInt_TYPE(), mergedInstrs)
       case (a: V_TYPE, b) => (V_TYPE(), mergedInstrs)
       case (a, b: V_TYPE) => (V_TYPE(), mergedInstrs)
       case (a: REF_TYPE, b: V_REF_TYPE) => (b, mergedInstrs)

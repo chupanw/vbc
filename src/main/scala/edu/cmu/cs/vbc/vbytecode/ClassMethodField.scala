@@ -18,6 +18,26 @@ case class VBCMethodNode(access: Int,
 
   import LiftUtils._
 
+  lazy val returnsVoid = Type.getMethodType(desc).getReturnType == Type.VOID_TYPE
+  lazy val isMain =
+    desc == "([Ljava/lang/String;)V" && isStatic && isPublic
+  lazy val isStatic: Boolean = (access & Opcodes.ACC_STATIC) > 0
+  lazy val isPublic: Boolean = (access & Opcodes.ACC_PUBLIC) > 0
+  /**
+    * We need special handling for <init> method lifting.
+    * JVM will complain if ALOAD 0 and INVOKESPECIAL java.lang.object.<init> is invoked
+    * inside a branch, which is usually the case in our lifting (we check the ctx in the
+    * beginning of each method call)
+    *
+    * name should be sufficient because <init> method name is special enough
+    *
+    * @see [[CFG.toVByteCode()]] and [[Rewrite]]
+    * @return
+    */
+  lazy val isInit =
+    name == "<init>"
+  lazy val isClinit = name == "<clinit>"
+
   def toByteCode(cw: ClassVisitor, clazz: VBCClassNode) = {
     val newDesc: String = if (isMain) desc else MethodDesc(desc).toModels
     val mv = cw.visitMethod(access, name, newDesc, signature.getOrElse(null), exceptions.toArray)
@@ -69,31 +89,6 @@ case class VBCMethodNode(access: Int,
     mv.visitMaxs(0, 0)
     mv.visitEnd()
   }
-
-  lazy val returnsVoid = Type.getMethodType(desc).getReturnType == Type.VOID_TYPE
-
-  lazy val isMain =
-    desc == "([Ljava/lang/String;)V" && isStatic && isPublic
-
-  lazy val isStatic: Boolean = (access & Opcodes.ACC_STATIC) > 0
-
-  lazy val isPublic: Boolean = (access & Opcodes.ACC_PUBLIC) > 0
-
-  /**
-    * We need special handling for <init> method lifting.
-    * JVM will complain if ALOAD 0 and INVOKESPECIAL java.lang.object.<init> is invoked
-    * inside a branch, which is usually the case in our lifting (we check the ctx in the
-    * beginning of each method call)
-    *
-    * name should be sufficient because <init> method name is special enough
-    *
-    * @see [[CFG.toVByteCode()]] and [[Rewrite]]
-    * @return
-    */
-  lazy val isInit =
-    name == "<init>"
-
-  lazy val isClinit = name == "<clinit>"
 
   /**
     * Create a wrapper method that call the V method
@@ -149,6 +144,8 @@ case class VBCMethodNode(access: Int,
   */
 sealed trait Variable {
   def getIdx(): Option[Int] = None
+
+  def isVInt(): Boolean = false
 }
 
 /**
@@ -158,6 +155,8 @@ sealed trait Variable {
   */
 class Parameter(val idx: Int, val name: String, val desc: TypeDesc) extends Variable {
   override def getIdx(): Option[Int] = Some(idx)
+
+  override def isVInt(): Boolean = desc.isVPrim
 
   override def hashCode = idx
 
@@ -177,6 +176,8 @@ class LocalVar(
                 val is64bit: Boolean = false
                 ) extends Variable {
   override def toString = name
+
+  override def isVInt(): Boolean = TypeDesc(desc).isVPrim
 }
 
 object LocalVar {
@@ -195,6 +196,12 @@ object LocalVar {
     storeFExpr(mv, env, v)
   }
   def noInit(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {}
+
+  def initOneintZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
+    pushConstant(mv, 0)
+    callVintCreateOne(mv, loadFExpr(_, env, env.ctxParameter))
+    mv.visitVarInsn(ASTORE, env.getVarIdx(v))
+  }
 }
 
 
@@ -219,6 +226,17 @@ case class VBCClassNode(
 
   import LiftUtils._
 
+  lazy val hasStaticConditionalFields = fields.exists(_.isStatic)
+  lazy val hasCLINIT = methods.exists(_.name == "<clinit>")
+  /**
+    * Generated lambdaMethods, indexed by name
+    */
+  var lambdaMethods: Map[String, (ClassVisitor) => Unit] = Map()
+  /**
+    * Bookkeeping lambda methods that are already written to ClassWriter
+    */
+  var writtenLambdaMethods: Set[String] = Set()
+
   def toByteCode(cv: ClassVisitor, rewriter: VBCMethodNode => VBCMethodNode = a => a) = {
     val liftedSuperName = liftSuperName(Owner(superName))
     cv.visit(version, access, name, signature.getOrElse(null), liftedSuperName, interfaces.map(i => Owner(i).toModel.toString).toArray)
@@ -229,13 +247,25 @@ case class VBCClassNode(
     cv.visitEnd()
   }
 
-
   def liftSuperName(superName: Owner): Owner = {
     // Super class of interface must be java/lang/Object, could not be VObject
     if ((access & ACC_INTERFACE) == 0)
       superName.toModel
     else
       superName
+  }
+
+  /**
+    * parts that are not lifted
+    */
+  private def commonToByteCode(cv: ClassVisitor): Unit = {
+    source.map(s => cv.visitSource(s._1, s._2))
+    outerClass.map(s => cv.visitOuterClass(s._1, s._2, s._3))
+    visibleAnnotations.foreach(a => a.accept(cv.visitAnnotation(a.desc, true)))
+    invisibleAnnotations.foreach(a => a.accept(cv.visitAnnotation(a.desc, false)))
+    visibleTypeAnnotations.foreach(a => a.accept(cv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, true)))
+    invisibleTypeAnnotations.foreach(a => a.accept(cv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, false)))
+    attrs.foreach(cv.visitAttribute)
   }
 
   def toVByteCode(cv: ClassVisitor, rewriter: VBCMethodNode => VBCMethodNode = a => a) = {
@@ -263,10 +293,6 @@ case class VBCClassNode(
     }
     cv.visitEnd()
   }
-
-  lazy val hasStaticConditionalFields = fields.exists(_.isStatic)
-
-  lazy val hasCLINIT = methods.exists(_.name == "<clinit>")
 
   /**
     * Creates our own clinit methods.
@@ -341,29 +367,6 @@ case class VBCClassNode(
     mv.visitEnd()
   }
 
-
-  /**
-    * parts that are not lifted
-    */
-  private def commonToByteCode(cv: ClassVisitor): Unit = {
-    source.map(s => cv.visitSource(s._1, s._2))
-    outerClass.map(s => cv.visitOuterClass(s._1, s._2, s._3))
-    visibleAnnotations.foreach(a => a.accept(cv.visitAnnotation(a.desc, true)))
-    invisibleAnnotations.foreach(a => a.accept(cv.visitAnnotation(a.desc, false)))
-    visibleTypeAnnotations.foreach(a => a.accept(cv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, true)))
-    invisibleTypeAnnotations.foreach(a => a.accept(cv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, false)))
-    attrs.foreach(cv.visitAttribute)
-  }
-
-  /**
-    * Generated lambdaMethods, indexed by name
-    */
-  var lambdaMethods: Map[String, (ClassVisitor) => Unit] = Map()
-  /**
-    * Bookkeeping lambda methods that are already written to ClassWriter
-    */
-  var writtenLambdaMethods: Set[String] = Set()
-
 }
 
 case class VBCFieldNode(
@@ -390,6 +393,14 @@ case class VBCFieldNode(
     fv.visitEnd()
   }
 
+  private def commonToByteCode(fv: FieldVisitor): Unit = {
+    visibleAnnotations.foreach(a => a.accept(fv.visitAnnotation(a.desc, true)))
+    invisibleAnnotations.foreach(a => a.accept(fv.visitAnnotation(a.desc, false)))
+    visibleTypeAnnotations.foreach(a => a.accept(fv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, true)))
+    invisibleTypeAnnotations.foreach(a => a.accept(fv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, false)))
+    attrs.foreach(fv.visitAttribute)
+  }
+
   def toVByteCode(cv: ClassVisitor) = {
     def wrap(s: String) = "Ledu/cmu/cs/varex/V<" + s + ">;"
 
@@ -410,15 +421,6 @@ case class VBCFieldNode(
     (visibleAnnotations ++ invisibleAnnotations).exists(_.desc == "Ledu/cmu/cs/varex/annotation/VConditional;")
 
   def isStatic: Boolean = (access & ACC_STATIC) != 0
-
-
-  private def commonToByteCode(fv: FieldVisitor): Unit = {
-    visibleAnnotations.foreach(a => a.accept(fv.visitAnnotation(a.desc, true)))
-    invisibleAnnotations.foreach(a => a.accept(fv.visitAnnotation(a.desc, false)))
-    visibleTypeAnnotations.foreach(a => a.accept(fv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, true)))
-    invisibleTypeAnnotations.foreach(a => a.accept(fv.visitTypeAnnotation(a.typeRef, a.typePath, a.desc, false)))
-    attrs.foreach(fv.visitAttribute)
-  }
 }
 
 case class VBCInnerClassNode(

@@ -17,6 +17,40 @@ import org.objectweb.asm.{ClassVisitor, MethodVisitor, Type}
 trait MethodInstruction extends Instruction {
 
 
+  /** Invoke methods on nonV object with V arguments
+    *
+    * [[edu.cmu.cs.vbc.analysis.VBCAnalyzer]] ensures that all V arguments will be Vs.
+    * Call a helper static method instead of making the original call. Inside the helper method,
+    * argument order will be tweaked so that we can call [[InvokeDynamicUtils.invoke()]]
+    */
+  def invokeOnNonV(owner: Owner, name: MethodName, desc: MethodDesc, itf: Boolean, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val helperName = "helper$invokeOnNonV$" + env.clazz.lambdaMethods.size
+    val helperDesc: String =
+      "(" + owner.getTypeDesc.desc +
+        (for (arg <- desc.getArgs) yield TypeDesc(arg).toVType).mkString("") +
+        fexprclasstype + ")" +
+        (if (desc.isReturnVoid) "V" else desc.getReturnTypeAsV)
+    val helper = (cv: ClassVisitor) => {
+      val m: MethodVisitor = cv.visitMethod(
+        ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
+        helperName, // method name
+        helperDesc, // descriptor
+        helperDesc, // signature
+        Array[String]() // exception
+      )
+      m.visitCode()
+      m.visitVarInsn(ALOAD, 0) // objref
+      callVCreateOne(m, (m) => m.visitVarInsn(ALOAD, desc.getArgCount + 1))
+      1 to desc.getArgCount foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
+      invokeDynamic(owner, name, desc, itf, m, env, defaultLoadCtx = (m) => m.visitVarInsn(ALOAD, desc.getArgCount + 1))
+      if (desc.isReturnVoid) m.visitInsn(RETURN) else m.visitInsn(ARETURN)
+      m.visitMaxs(10, 10)
+      m.visitEnd()
+    }
+    env.clazz.lambdaMethods += (helperName -> helper)
+    mv.visitMethodInsn(INVOKESTATIC, Owner(env.clazz.name), MethodName(helperName), MethodDesc(helperDesc), false)
+  }
+
   def invokeDynamic(
                      owner: Owner,
                      name: MethodName,
@@ -128,40 +162,6 @@ trait MethodInstruction extends Instruction {
     }
   }
 
-  /** Invoke methods on nonV object with V arguments
-    *
-    * [[edu.cmu.cs.vbc.analysis.VBCAnalyzer]] ensures that all V arguments will be Vs.
-    * Call a helper static method instead of making the original call. Inside the helper method,
-    * argument order will be tweaked so that we can call [[InvokeDynamicUtils.invoke()]]
-    */
-  def invokeOnNonV(owner: Owner, name: MethodName, desc: MethodDesc, itf: Boolean, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    val helperName = "helper$invokeOnNonV$" + env.clazz.lambdaMethods.size
-    val helperDesc: String =
-      "(" + owner.getTypeDesc.desc +
-        (for (arg <- desc.getArgs) yield TypeDesc(arg).toVType).mkString("") +
-        fexprclasstype + ")" +
-        (if (desc.isReturnVoid) "V" else desc.getReturnTypeAsV)
-    val helper = (cv: ClassVisitor) => {
-      val m: MethodVisitor = cv.visitMethod(
-        ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
-        helperName, // method name
-        helperDesc, // descriptor
-        helperDesc, // signature
-        Array[String]() // exception
-      )
-      m.visitCode()
-      m.visitVarInsn(ALOAD, 0) // objref
-      callVCreateOne(m, (m) => m.visitVarInsn(ALOAD, desc.getArgCount + 1))
-      1 to desc.getArgCount foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
-      invokeDynamic(owner, name, desc, itf, m, env, defaultLoadCtx = (m) => m.visitVarInsn(ALOAD, desc.getArgCount + 1))
-      if (desc.isReturnVoid) m.visitInsn(RETURN) else m.visitInsn(ARETURN)
-      m.visitMaxs(10, 10)
-      m.visitEnd()
-    }
-    env.clazz.lambdaMethods += (helperName -> helper)
-    mv.visitMethodInsn(INVOKESTATIC, Owner(env.clazz.name), MethodName(helperName), MethodDesc(helperDesc), false)
-  }
-
   override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 
   def updateStack(
@@ -174,7 +174,7 @@ trait MethodInstruction extends Instruction {
     val shouldLift = LiftingPolicy.shouldLiftMethodCall(owner, name, desc)
     val nArg = Type.getArgumentTypes(desc).length
     val argList: List[(VBCType, Set[Instruction])] = s.stack.take(nArg)
-    val hasVArgs = argList.exists(_._1 == V_TYPE())
+    val hasVArgs = argList.exists(t => t._1 == V_TYPE() || t._1 == VInt_TYPE())
 
     // object reference
     var frame = s
@@ -204,18 +204,20 @@ trait MethodInstruction extends Instruction {
     // arguments
     if (hasVArgs) env.setTag(this, env.TAG_HAS_VARG)
     if (hasVArgs || shouldLift || env.shouldLiftInstr(this)) {
-      // ensure that all arguments are V
-      for (ele <- argList if ele._1 != V_TYPE()) return (s, ele._2)
+      // ensure that all arguments are V or VInt
+      for (ele <- argList) if (ele._1 != V_TYPE() && ele._1 != VInt_TYPE()) return (s, ele._2)
     }
 
     // return value
+    val isReturnPrimInt = MethodDesc(desc).isReturnPrimWithV
+    val returnType = if (isReturnPrimInt) VInt_TYPE() else V_TYPE()
     if (Type.getReturnType(desc) != Type.VOID_TYPE) {
       if (env.getTag(this, env.TAG_NEED_V))
-        frame = frame.push(V_TYPE(), Set(this))
+        frame = frame.push(returnType, Set(this))
       else if (env.shouldLiftInstr(this))
-        frame = frame.push(V_TYPE(), Set(this))
+        frame = frame.push(returnType, Set(this))
       else if (shouldLift || (hasVArgs && !shouldLift))
-        frame = frame.push(V_TYPE(), Set(this))
+        frame = frame.push(returnType, Set(this))
       else
         frame = frame.push(VBCType(Type.getReturnType(desc)), Set(this))
     }
@@ -451,9 +453,6 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
     }
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame =
-    updateStack(s, env, owner, name, desc)
-
   def explodeVArgs(liftedCall: LiftedCall, mv: MethodVisitor, env: VMethodEnv, block: Block) = {
     val vCall = if (liftedCall.desc.isReturnVoid) VCall.sforeach else VCall.sflatMap
     val lambdaName = "helper$invokestaticWithVs$" + env.clazz.lambdaMethods.size
@@ -484,6 +483,9 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
       }
     }
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame =
+    updateStack(s, env, owner, name, desc)
 }
 
 case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc, itf: Boolean) extends MethodInstruction {

@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{VBCFrame, VInt_TYPE, V_TYPE}
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes._
@@ -51,7 +51,7 @@ case class InstrIRETURN() extends ReturnInstruction {
     env.setLift(this)
     val (v, prev, newFrame) = s.pop()
     val backtrack =
-      if (v != V_TYPE()) prev
+      if (v != VInt_TYPE()) prev
       else Set[Instruction]()
     (newFrame, backtrack)
   }

@@ -34,6 +34,10 @@ case class V_TYPE() extends VBCType {
   override def toString: String = "V"
 }
 
+case class VInt_TYPE() extends VBCType {
+  override def toString: String = "V_I"
+}
+
 case class REF_TYPE() extends VBCType {
   override def toString: String = "R"
 }
@@ -64,6 +68,8 @@ case class UNINITIALIZED_TYPE(id: Int) extends VBCType {
 }
 
 object VBCType {
+  var id = 0
+
   /**
     * Create a new value based on type
     *
@@ -84,12 +90,10 @@ object VBCType {
     }
   }
 
-  def merge(v1: VBCType, v2: VBCType): VBCType = v2
-
-  var id = 0
-
   def nextID: Int = {
     id += 1
     id - 1
   }
+
+  def merge(v1: VBCType, v2: VBCType): VBCType = v2
 }

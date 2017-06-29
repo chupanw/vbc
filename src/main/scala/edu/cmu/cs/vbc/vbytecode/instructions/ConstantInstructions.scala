@@ -34,7 +34,7 @@ case class InstrICONST(v: Int) extends Instruction {
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val newFrame =
       if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(), Set(this))
+        s.push(VInt_TYPE(), Set(this))
       else
         s.push(INT_TYPE(), Set(this))
     (newFrame, Set())
@@ -49,6 +49,18 @@ case class InstrLDC(o: Object) extends Instruction {
       case s: String => wrapString(mv)
       case _ => // do nothing
     }
+  }
+
+  def wrapString(mv: MethodVisitor) = {
+    val stringOwner = Owner("java/lang/String")
+    if (stringOwner != stringOwner.toModel)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner("java/lang/String").toModel,
+        MethodName("valueOf"),
+        MethodDesc(s"(Ljava/lang/String;)${Owner("java/lang/String").toModel.getTypeDesc}"),
+        false
+      )
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, blockA: Block): Unit = {
@@ -84,18 +96,6 @@ case class InstrLDC(o: Object) extends Instruction {
         case _ => throw new UnsupportedOperationException("Unsupported LDC type")
       }
     }
-  }
-
-  def wrapString(mv: MethodVisitor) = {
-    val stringOwner = Owner("java/lang/String")
-    if (stringOwner != stringOwner.toModel)
-      mv.visitMethodInsn(
-        INVOKESTATIC,
-        Owner("java/lang/String").toModel,
-        MethodName("valueOf"),
-        MethodDesc(s"(Ljava/lang/String;)${Owner("java/lang/String").toModel.getTypeDesc}"),
-        false
-      )
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {

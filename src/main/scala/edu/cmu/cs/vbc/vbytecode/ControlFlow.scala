@@ -27,55 +27,6 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     writeExceptions(mv, env)
   }
 
-  def toVByteCode(mv: MethodVisitor, env: VMethodEnv, isFirstBlockOfInit: Boolean = false) = {
-    vvalidate(env)
-    mv.visitLabel(env.getBlockLabel(this))
-
-    //possibly jump over VBlocks and load extra stack variables (if this is the VBLock head)
-    //a unique first block always has a satisfiable condition and no stack variables
-    //exception blocks have no stack variables and always a satisfiable condition
-    if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
-      vblockSkipIfCtxContradition(mv, env)
-      loadUnbalancedStackVariables(mv, env)
-    }
-
-    //generate block code
-    instr.foreach(_.toVByteCode(mv, env, this))
-
-    //if this block ends with a jump to a different VBlock (always all jumps are to the same or to
-    //different VBlocks, never mixed)
-    if (env.isVBlockEnd(this)) {
-      storeUnbalancedStackVariables(mv, env)
-      variationalJump(mv, env)
-    } else {
-      nonvariationalJump(mv, env)
-    }
-
-//    writeExceptions(mv, env)
-  }
-
-
-  def validate(): Unit = {
-    // ensure last statement is the only jump instruction, if any
-    instr.dropRight(1).foreach(i => {
-      assert(!i.isJumpInstr, "only the last instruction in a block may be a jump instruction (goto, if)")
-      assert(!i.isReturnInstr, "only the last instruction in a block may be a return instruction")
-    })
-  }
-
-  def vvalidate(env: VMethodEnv): Unit = {
-    validate()
-    //additionally ensure that the last block is the only one that contains a return statement
-    if (this != env.getLastBlock())
-      assert(!instr.last.isReturnInstr, "only the last block may contain a return instruction in variational byte code")
-  }
-
-
-  override def equals(that: Any): Boolean = that match {
-    case t: Block => t eq this
-    case _ => false
-  }
-
   /**
     * writing exception table for every block separately.
     * this may produce larger than necessary tables when two consecutive blocks
@@ -106,6 +57,48 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     }
   }
 
+  def toVByteCode(mv: MethodVisitor, env: VMethodEnv, isFirstBlockOfInit: Boolean = false) = {
+    vvalidate(env)
+    mv.visitLabel(env.getBlockLabel(this))
+
+    //possibly jump over VBlocks and load extra stack variables (if this is the VBLock head)
+    //a unique first block always has a satisfiable condition and no stack variables
+    //exception blocks have no stack variables and always a satisfiable condition
+    if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
+      vblockSkipIfCtxContradition(mv, env)
+      loadUnbalancedStackVariables(mv, env)
+    }
+
+    //generate block code
+    instr.foreach(_.toVByteCode(mv, env, this))
+
+    //if this block ends with a jump to a different VBlock (always all jumps are to the same or to
+    //different VBlocks, never mixed)
+    if (env.isVBlockEnd(this)) {
+      storeUnbalancedStackVariables(mv, env)
+      variationalJump(mv, env)
+    } else {
+      nonvariationalJump(mv, env)
+    }
+
+//    writeExceptions(mv, env)
+  }
+
+  def vvalidate(env: VMethodEnv): Unit = {
+    validate()
+    //additionally ensure that the last block is the only one that contains a return statement
+    if (this != env.getLastBlock())
+      assert(!instr.last.isReturnInstr, "only the last block may contain a return instruction in variational byte code")
+  }
+
+  def validate(): Unit = {
+    // ensure last statement is the only jump instruction, if any
+    instr.dropRight(1).foreach(i => {
+      assert(!i.isJumpInstr, "only the last instruction in a block may be a jump instruction (goto, if)")
+      assert(!i.isReturnInstr, "only the last instruction in a block may be a return instruction")
+    })
+  }
+
   /**
     * do not need the possibility to jump over the first block if
     * is not a jump target within the method, as it can only be executed
@@ -113,7 +106,6 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     */
   private def isUniqueFirstBlock(env: VMethodEnv) =
     env.vblocks.head.firstBlock == this && env.getPredecessors(this).isEmpty
-
 
   private def loadUnbalancedStackVariables(mv: MethodVisitor, env: VMethodEnv): Unit = {
     //load local variables if this block is expecting some values on stack
@@ -171,7 +163,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
               loadFExpr(mv, env, env.getVBlockVar(this))
               mv.visitInsn(SWAP)
               mv.visitVarInsn(ALOAD, env.getVarIdx(v))
-              callVCreateChoice(mv)
+              if (v.isVInt()) callVintCreateChoice(mv) else callVCreateChoice(mv)
               mv.visitVarInsn(ASTORE, env.getVarIdx(v))
             case 2 =>
               val list = s.toList
@@ -181,12 +173,12 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
               loadFExpr(mv, env, env.getVBlockVar(this))
               mv.visitInsn(SWAP)
               mv.visitVarInsn(ALOAD, env.getVarIdx(v1))
-              callVCreateChoice(mv)
+              if (v1.isVInt()) callVintCreateChoice(mv) else callVCreateChoice(mv)
               mv.visitVarInsn(ASTORE, env.getVarIdx(v1))
               loadFExpr(mv, env, env.getVBlockVar(this))
               mv.visitInsn(SWAP)
               mv.visitVarInsn(ALOAD, env.getVarIdx(v2))
-              callVCreateChoice(mv)
+              if (v2.isVInt()) callVintCreateChoice(mv) else callVCreateChoice(mv)
               mv.visitVarInsn(ASTORE, env.getVarIdx(v2))
             case v => throw new RuntimeException(s"size of Set[Variable] is $v, but expected 1 or 2")
           }
@@ -272,6 +264,11 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
         mv.visitJumpInsn(IFNE, env.getVBlockLabel(thenBlock))
       }
     }
+  }
+
+  override def equals(that: Any): Boolean = that match {
+    case t: Block => t eq this
+    case _ => false
   }
 }
 

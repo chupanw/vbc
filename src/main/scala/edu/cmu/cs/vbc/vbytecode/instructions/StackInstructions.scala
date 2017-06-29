@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{INT_TYPE, VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{INT_TYPE, VBCFrame, VInt_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
@@ -55,10 +55,6 @@ case class InstrPOP() extends Instruction {
   * @param value
   */
 case class InstrBIPUSH(value: Int) extends Instruction {
-  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    mv.visitIntInsn(BIPUSH, value)
-  }
-
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       pushConstant(mv, value)
@@ -68,10 +64,14 @@ case class InstrBIPUSH(value: Int) extends Instruction {
       toByteCode(mv, env, block)
   }
 
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitIntInsn(BIPUSH, value)
+  }
+
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val newFrame =
       if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(), Set(this))
+        s.push(VInt_TYPE(), Set(this))
       else
         s.push(INT_TYPE(), Set(this))
     (newFrame, Set())
@@ -85,10 +85,6 @@ case class InstrBIPUSH(value: Int) extends Instruction {
   * @param value
   */
 case class InstrSIPUSH(value: Int) extends Instruction {
-  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    mv.visitIntInsn(SIPUSH, value)
-  }
-
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
       mv.visitIntInsn(SIPUSH, value)
@@ -98,10 +94,14 @@ case class InstrSIPUSH(value: Int) extends Instruction {
       toByteCode(mv, env, block)
   }
 
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitIntInsn(SIPUSH, value)
+  }
+
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val newFrame =
       if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(), Set(this))
+        s.push(VInt_TYPE(), Set(this))
       else
         s.push(INT_TYPE(), Set(this))
     (newFrame, Set())
