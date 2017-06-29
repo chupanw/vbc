@@ -100,8 +100,12 @@ case class InstrLDC(o: Object) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val newFrame =
-      if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(), Set(this))
+      if (env.shouldLiftInstr(this)) {
+        o match {
+          case _: java.lang.Integer => s.push(VInt_TYPE(), Set(this))
+          case _ => s.push(V_TYPE(), Set(this))
+        }
+      }
       else
         o match {
           case i: java.lang.Integer => s.push(INT_TYPE(), Set(this))

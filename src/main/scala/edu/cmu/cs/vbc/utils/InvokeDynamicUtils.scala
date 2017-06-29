@@ -261,10 +261,12 @@ object InvokeDynamicUtils {
           expandArray(mv)
         }
         else {
+
           mv.visitVarInsn(ALOAD, 0) // this is the next V to be exploded
           /* load arguments */
-          for (i <- 1 until nArg) mv.visitVarInsn(ALOAD, i)
-          mv.visitVarInsn(ALOAD, nArg + 1) // last argument of lambda method, the V that just got exploded
+          MethodDesc(lambdaDesc).getArgs.tail.zipWithIndex.foreach(el => mv.visitVarInsn(el._1.getLoadInsn, el._2 + 1))
+          //          for (i <- 1 until nArg) mv.visitVarInsn(ALOAD, i)
+          //          mv.visitVarInsn(ALOAD, nArg + 1) // last argument of lambda method, the V that just got exploded
           invoke(vCall, mv, env, loadCtx, "explodeArg", shiftDesc(desc), nExplodeArgs - 1, isExploding = true, expandArgArray)(lambdaOp)
         }
 

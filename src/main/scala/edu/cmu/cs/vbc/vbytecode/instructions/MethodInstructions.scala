@@ -315,7 +315,7 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
         env,
         loadCtx = (m) => m.visitVarInsn(ALOAD, nArgs),
         lambdaName,
-        desc = TypeDesc.getObject + args.map(_.toObject).mkString("(", "", ")") + vclasstype,
+        desc = TypeDesc.getObject + args.map(_.toObjectUnlessHasVPrim).mkString("(", "", ")") + vclasstype,
         nExplodeArgs = nArgs,
         expandArgArray = true
       ) {
@@ -456,7 +456,7 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
   def explodeVArgs(liftedCall: LiftedCall, mv: MethodVisitor, env: VMethodEnv, block: Block) = {
     val vCall = if (liftedCall.desc.isReturnVoid) VCall.sforeach else VCall.sflatMap
     val lambdaName = "helper$invokestaticWithVs$" + env.clazz.lambdaMethods.size
-    val args = liftedCall.desc.getArgs.map(_.castInt).map(_.toObject)
+    val args = liftedCall.desc.getArgs.map(_.castInt.toObjectUnlessHasVPrim)
     val invokeDesc = args.head.desc + s"(${args.tail.map(_.desc).mkString("")})" + liftedCall.desc.getReturnType.map(_.desc).getOrElse("V")
     InvokeDynamicUtils.invokeWithCacheClear(
       vCall,

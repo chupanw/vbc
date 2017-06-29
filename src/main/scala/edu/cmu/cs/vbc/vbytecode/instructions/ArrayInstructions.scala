@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{INT_TYPE, REF_TYPE, VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis._
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.utils.{InvokeDynamicUtils, VCall}
 import edu.cmu.cs.vbc.vbytecode._
@@ -495,7 +495,7 @@ case class InstrARRAYLENGTH() extends ArrayInstructions {
     val newFrame =
       if (vt == V_TYPE()) {
         env.setLift(this)
-        frame.push(V_TYPE(), Set(this))
+        frame.push(VInt_TYPE(), Set(this))
       } else {
         frame.push(INT_TYPE(), Set(this))
       }

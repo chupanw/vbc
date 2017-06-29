@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.{FrameEntry, UpdatedFrame}
-import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, VInt_TYPE, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, VInt_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
@@ -34,8 +34,8 @@ trait JumpInstruction extends Instruction {
     val (v1, prev1, frame1) = s.pop()
     val (v2, prev2, newFrame) = frame1.pop()
     env.setLift(this)
-    if (v1 != V_TYPE()) return (newFrame, prev1)
-    if (v1 != V_TYPE()) return (newFrame, prev2)
+    if (v1 != VInt_TYPE()) return (newFrame, prev1)
+    if (v1 != VInt_TYPE()) return (newFrame, prev2)
     val backtrack = backtrackNonVStackElements(s)
     (newFrame, backtrack)
   }
