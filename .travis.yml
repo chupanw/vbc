@@ -3,18 +3,21 @@ scala: 2.11.7
 jdk: oraclejdk8
 sudo: false
 cache:
-    directories:
-        - $HOME/.ivy2/cache
-        - $HOME/.sbt/boot/
+  directories:
+  - "$HOME/.ivy2/cache"
+  - "$HOME/.sbt/boot/"
 before_cache:
-    - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
-    - find $HOME/.sbt -name "*.lock" -delete
+- find $HOME/.ivy2 -name "ivydata-*.properties" -delete
+- find $HOME/.sbt -name "*.lock" -delete
 env:
-  - TEST="test-only edu.cmu.cs.vbc.analysis.*Test edu.cmu.cs.vbc.utils.*Test edu.cmu.cs.vbc.vbytecode.*Test"
-  - TEST="test-only edu.cmu.cs.vbc.prog.SmallExampleTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.BankAccountTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.ElevatorTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.EmailTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.GPLTest"
+- TEST="test-only edu.cmu.cs.vbc.analysis.*Test edu.cmu.cs.vbc.utils.*Test edu.cmu.cs.vbc.vbytecode.*Test"
+- TEST="test-only edu.cmu.cs.vbc.prog.SmallExampleTest"
+- TEST="test-only edu.cmu.cs.vbc.prog.BankAccountTest"
+- TEST="test-only edu.cmu.cs.vbc.prog.ElevatorTest"
+- TEST="test-only edu.cmu.cs.vbc.prog.EmailTest"
+- TEST="test-only edu.cmu.cs.vbc.prog.GPLTest"
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION "$TEST"
+- sbt ++$TRAVIS_SCALA_VERSION "$TEST"
+notifications:
+  slack:
+    secure: qoBdN9nZwgR4KWEjSUdzDy3UAOSh9JBCtUuq/kSZYw2i7TLxsTwZSloAEKL78hicZqjl/NzqIin8f7rvHbz85A8zKzuBtJxEfa0oQ2lXwdGMgT+/eJQdcw2goEiBxRS1POFvEyMpcNVl1ZpwbAS4vEM5OEnZWwqVYMqZb6fP0EMG6VyTkIo5R3/EM0/n8qwc1LY0gmeCpYyBAHi2vaE4acQ5N+qf/rp5JrShtqLMzgfnDfWaz8p/tR8a520LPqQ/iIwWQ8YdeM8gcoCXpySbOunzTGMmcdQNaBssOtUJgOC1MtDSGhkuyMTDvqeno/CGJnxehvLdJoCU8lpB3NZz0sdNtef/2ngDIEMmfwpARr6V0lYU+5bgvOz7gXuaBw4JCfVPr5j8Ctec0M4zZdH9QTwiqujC4JN0zg0cYldaITE0En+p7+qlegvLVyoGbGp1eSB76BSu2feHMVIbdlnc+oq4KgEvoUODnaDncIhr33+zYc2+kjKal3pwrdnRn1/FilSRU96bBU1WDaDoXOcu5WfU3hBvwajbwrXTorfRDxgwe/Ratu8/HUVXlv5KZwJ5CF75oCofRHLXrDxj6ABIY/Gxrt1/vrMcc9uOyWDG0BioCfFxb13jC4VModYuyWJhUptdgXuUfyNfJaJTFxMAj5tx70Zg3Bq/ChEVhq2qdgs=
