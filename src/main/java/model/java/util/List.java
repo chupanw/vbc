@@ -6,7 +6,7 @@ import edu.cmu.cs.varex.V;
 /**
  * @author chupanw
  */
-public interface List {
+public interface List extends Iterable {
     int size();
     V<?> size____I(FeatureExpr ctx);
 

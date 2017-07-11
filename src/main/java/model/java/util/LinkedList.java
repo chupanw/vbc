@@ -5,6 +5,7 @@ import edu.cmu.cs.varex.V;
 import model.Contexts;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -118,6 +119,10 @@ public class LinkedList implements List {
     private void split(FeatureExpr ctx) {
         V<? extends MyLinkedList> selected = vActual.smap(ctx, (Function<MyLinkedList, MyLinkedList>) t -> new MyLinkedList(t));
         vActual = V.choice(ctx, selected, vActual);
+    }
+
+    public Iterator iterator() {
+        return null;
     }
 }
 
