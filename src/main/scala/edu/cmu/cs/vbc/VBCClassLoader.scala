@@ -3,7 +3,7 @@ package edu.cmu.cs.vbc
 import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.cmu.cs.vbc.loader.Loader
+import edu.cmu.cs.vbc.loader.{Loader, MethodAnalyzer}
 import edu.cmu.cs.vbc.utils.{LiftingPolicy, MyClassWriter, VBCModel}
 import edu.cmu.cs.vbc.vbytecode.{Owner, VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.Opcodes._
@@ -62,7 +62,16 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       clazz.toByteCode(cw, rewriter)
     }
 
-    val cr2 = new ClassReader(cw.toByteArray)
+    val cr3 = new ClassReader(cw.toByteArray)
+    val node = new ClassNode()
+    cr3.accept(node, 0)
+    postTransformations(node)
+
+    val cw2 = new ClassWriter(0)
+    node.accept(cw2)
+    val cr2 = new ClassReader(cw2.toByteArray)
+
+//    val cr2 = new ClassReader(cw.toByteArray)
     cr2.accept(getCheckClassAdapter(getTraceClassVisitor(null)), 0)
     // for debugging
     if (toFileDebugging)
@@ -109,5 +118,19 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     cr.accept(cw, 0)
 
     toFile(classNode.name + "_", cw)
+  }
+
+  def postTransformations(node: ClassNode) = {
+    // 1. identify blocks -> get control flow graph -- use MethodAnalyzer()
+    // 2. identify loops (algorithm for doing this from graph - see dragon book)
+    //    - Depth First Spanning Tree, loop section
+    // 3. do transformation
+
+//    import scala.collection.JavaConversions._
+//    val methodBlocks = node.methods.map(mn => new MethodAnalyzer(node.name, mn).blocks)
+
+//    val CFG = getCFG(node) MethodAnalyzer()
+//    val loops = findLoops(CFG)
+//    loops.foreach(transform(node, _))
   }
 }

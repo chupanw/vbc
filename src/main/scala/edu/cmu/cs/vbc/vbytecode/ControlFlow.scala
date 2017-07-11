@@ -309,6 +309,11 @@ case class CFG(blocks: List[Block]) {
   }
 }
 
+// All of the Vs that get introduced are inserted to store intermediate values
+// used between VBlocks which in a normal program would just be stored in the stack
+//  but with variational execution it is not guaranteed that the next block will be executed
+//  immediately
+
 case class VBCHandler(
                      exceptionType: String,
                      handlerBlockIdx: Int,
