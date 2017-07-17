@@ -15,10 +15,13 @@ public class IterationExample {
 
     public static void main(String[] args) {
         new IterationExample().iterator();
+//        IterationExample ie = new IterationExample();
+//        ie.iterator();
+//        ie.automatic();
     }
 
-//    public static void automatic() {
-//        ArrayList<Integer> l = new ArrayList<>();
+//    public void automatic() {
+//        LinkedList<Integer> l = new LinkedList<>();
 //        if (A) {
 //            l.add(1);
 //        }

@@ -175,5 +175,10 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
   }
 }
 
-case class BasicBlock(startLine: Int, endLine: Int, predecessors: Set[Int], successors: Set[Int], instructions: List[AbstractInsnNode])
-case class Loop(entry: BasicBlock, body: Set[BasicBlock])
+case class BasicBlock(startLine: Int, endLine: Int, predecessors: Set[Int], successors: Set[Int], instructions: List[AbstractInsnNode]) {
+  override def toString: String =
+    s"BasicBlock { start: $startLine; end: $endLine;\n  pred: $predecessors\n  succ: $successors }"
+}
+case class Loop(entry: BasicBlock, body: Set[BasicBlock]) {
+  override def toString: String = s"Loop {\nentry: $entry\nbody: $body\n}"
+}

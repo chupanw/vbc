@@ -132,8 +132,10 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       ma.analyze()
       (mn.name, ma)
     })
-    val methodLoops = mas.map(ma => (ma._2, ma._2.loops)).filter(ml => ml._2.nonEmpty).toSet
-    val ctxVars = methodLoops.map(mloops =>
+    val methodLoops = mas.map(ma => (ma._2, ma._2.loops)).filter(_._2.nonEmpty).toSet
+    val listIterations = methodLoops.map(ml => (ml._1, ml._2.filter(isListIteration(_, ml._1)))).filter(_._2.nonEmpty)
+
+    val ctxVars = listIterations.map(mloops =>
       (mloops._1, mloops._2.map(l => (l, firstBodyBlock(l).flatMap(findCtxVar)))))
     val iteratorNextInvocations = ctxVars.flatMap(ctxVar => {
       val ma = ctxVar._1
@@ -146,7 +148,6 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     })
     iteratorNextInvocations.foreach(nextInvocation => {
       val ma = nextInvocation._3
-      println("Storing iterator ctx into " + nextInvocation._1 + " after " + nextInvocation._2.map(m => m.name))
       for { varIndex <- nextInvocation._1
             insn     <- nextInvocation._2 }
         yield unpackFEPair(insn, varIndex, ma)
@@ -169,7 +170,9 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def firstBodyBlock(loop: Loop): Option[BasicBlock] = {
-    loop.body.find(block => loop.entry.successors contains block.startLine)
+    // Sort body blocks so that find acts deterministically
+    // Given 2 or more entry successors to choose from, select the latest one by sorting in descending order
+    loop.body.toList.sortWith(_.startLine > _.startLine).find(block => loop.entry.successors contains block.startLine)
   }
 
   def findCtxLoadInsn(mInsn: MethodInsnNode): Option[VarInsnNode] = {
@@ -194,7 +197,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val ctxLoadingInsns = Set(Opcodes.INVOKESTATIC, Opcodes.INVOKEINTERFACE)
     findSome(block.instructions, (insn: AbstractInsnNode) =>
       if (ctxLoadingInsns.contains(insn.getOpcode) && cond(insn) {
-        case m: MethodInsnNode => m.name.contains("edu/cmu/cs/varex/V") || m.name.contains("isContradiction")
+        case m: MethodInsnNode => m.owner.contains("edu/cmu/cs/varex/V") || m.name.contains("isContradiction")
       }) {
         val mInsn = narrow[MethodInsnNode](insn)
         val ctxLoadInsn = mInsn.flatMap(findCtxLoadInsn)
@@ -215,7 +218,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
           }
         case _ => None
       }
-    }).flatMap(idInsn => idInsn.getNext.getNext match {
+    }).flatMap(idInsn =>
+      idInsn.getNext.getNext match {
       case ii: MethodInsnNode if ii.name contains "sflatMap" => Some(ii)
       case _ => None
     })
@@ -248,5 +252,16 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype", true)
       // ..., One(value)
     ))
+  }
+
+  def isListIteration(loop: Loop, ma: MethodAnalyzer): Boolean = {
+    import PartialFunction.cond
+    loop.entry.predecessors.map(ma.blockEnds).exists(block =>
+      block.instructions.exists(cond(_) {
+        case idInsn: InvokeDynamicInsnNode =>
+          cond(idInsn.bsmArgs(1)) {
+            case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
+          }
+      }))
   }
 }
