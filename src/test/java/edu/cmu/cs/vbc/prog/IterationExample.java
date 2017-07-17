@@ -14,38 +14,39 @@ public class IterationExample {
     static boolean B;
 
     public static void main(String[] args) {
-        new IterationExample().iterator();
-//        IterationExample ie = new IterationExample();
-//        ie.iterator();
-//        ie.automatic();
+//        new IterationExample().iterator();
+        IterationExample ie = new IterationExample();
+        ie.iterator();
+        System.out.println("\n~~~~~\n");
+        ie.indexing();
     }
 
-//    public void automatic() {
-//        LinkedList<Integer> l = new LinkedList<>();
-//        if (A) {
-//            l.add(1);
-//        }
-//        if (B) {
-//            l.add(2);
-//        }
-//        else {
-//            l.add(2);
-//        }
-//        if (A) {
-//            l.add(3);
-//        }
-//
-//        l.add(4);
-//        l.add(5);
-//
-//        if (B) {
-//            l.add(6);
-//        }
-//
-//        for (int i = 0; i < l.size(); i++) {
-//            System.out.println(l.get(i));
-//        }
-//   }
+    public void indexing() {
+        LinkedList<Integer> l = new LinkedList<>();
+        if (A) {
+            l.add(1);
+        }
+        if (B) {
+            l.add(2);
+        }
+        else {
+            l.add(2);
+        }
+        if (A) {
+            l.add(3);
+        }
+
+        l.add(4);
+        l.add(5);
+
+        if (B) {
+            l.add(6);
+        }
+
+        for (int i = 0; i < l.size(); i++) {
+            System.out.println(l.get(i));
+        }
+   }
 
    private void iterator() {
         LinkedList<Integer> l = new LinkedList<>();
