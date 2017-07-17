@@ -12,6 +12,91 @@ import org.scalatest.FlatSpec
   * Created by lukas on 7/10/17.
   */
 class MethodAnalyzerTest extends FlatSpec {
+
+  /*  Method code:
+
+    private static int simple() {
+        int x = 1;
+        int y = x + 1;
+        return y*2;
+    }
+
+    private static int lessSimple() {
+        int x  = 1;
+        if (x%2 == 0) {
+            x /= 2;
+        }
+        else {
+            x *= 3;
+        }
+        return x;
+    }
+
+    private static int evenLessSimple() {
+        int x = 1;
+        if (x%2 == 0) {
+            return x/2;
+        }
+        else {
+            return x*3;
+        }
+    }
+
+    private static int simpleLoop() {
+        int x = 0;
+        for (int i = 0; i < 5; i++) {
+            x += i;
+        }
+        return x;
+    }
+
+    private static int lessSimpleLoop() {
+        int x = 0, result = 0;
+        if (x%2 == 0) {
+            x = 2;
+        }
+        else {
+            x = 1;
+        }
+        for (int i = 0; i < x; i++) {
+            if (i == 1) {
+                result += i;
+            }
+            else {
+                result += i*2;
+            }
+        }
+        return result;
+    }
+
+    private static int multiLoop() {
+        int x = 0, result = 0;
+        if (x%2 == 0) {
+            x = 2;
+        }
+        else {
+            x = 1;
+        }
+        for (int i = 0; i < x; i++) {
+            if (i == 1) {
+                result += i;
+            }
+            else {
+                result += i*2;
+            }
+        }
+        for (int i = 50; i > x; i--) {
+            if (i%2 == 0) {
+                result -= i;
+            }
+            else {
+                result -= i*2;
+            }
+        }
+        return result;
+    }
+  */
+
   val simpleMethod: MethodNode = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
     mn.instructions

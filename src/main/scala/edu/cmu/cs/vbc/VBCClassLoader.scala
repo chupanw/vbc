@@ -3,13 +3,13 @@ package edu.cmu.cs.vbc
 import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.cmu.cs.vbc.loader.{Loader, MethodAnalyzer}
+import edu.cmu.cs.vbc.loader.{BasicBlock, Loader, Loop, MethodAnalyzer}
 import edu.cmu.cs.vbc.utils.{LiftingPolicy, MyClassWriter, VBCModel}
 import edu.cmu.cs.vbc.vbytecode.{Owner, VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.Opcodes._
-import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree._
 import org.objectweb.asm.util.{CheckClassAdapter, TraceClassVisitor}
-import org.objectweb.asm.{ClassReader, ClassVisitor, ClassWriter}
+import org.objectweb.asm._
 
 /**
   * Custom class loader to modify bytecode before loading the class.
@@ -75,9 +75,9 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     cr2.accept(getCheckClassAdapter(getTraceClassVisitor(null)), 0)
     // for debugging
     if (toFileDebugging)
-      toFile(name, cw)
+      toFile(name, cw2)
     //        debugWriteClass(getResourceAsStream(resource))
-    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
+    defineClass(name, cw2.toByteArray, 0, cw2.toByteArray.length)
   }
 
   /**
@@ -126,11 +126,127 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     //    - Depth First Spanning Tree, loop section
     // 3. do transformation
 
-//    import scala.collection.JavaConversions._
-//    val methodBlocks = node.methods.map(mn => new MethodAnalyzer(node.name, mn).blocks)
+    import scala.collection.JavaConversions._
+    val mas = node.methods.map(mn => {
+      val ma  = new MethodAnalyzer(node.name, mn)
+      ma.analyze()
+      (mn.name, ma)
+    })
+    val methodLoops = mas.map(ma => (ma._2, ma._2.loops)).filter(ml => ml._2.nonEmpty).toSet
+    val ctxVars = methodLoops.map(mloops =>
+      (mloops._1, mloops._2.map(l => (l, firstBodyBlock(l).flatMap(findCtxVar)))))
+    val iteratorNextInvocations = ctxVars.flatMap(ctxVar => {
+      val ma = ctxVar._1
+      ctxVar._2.map(l => {
+        val loop = l._1
+        val varIndex = l._2
+        val nextInvocation = findSome(loop.body, findIteratorNextInvocation)
+        (varIndex, nextInvocation, ma)
+      })
+    })
+    iteratorNextInvocations.foreach(nextInvocation => {
+      val ma = nextInvocation._3
+      println("Storing iterator ctx into " + nextInvocation._1 + " after " + nextInvocation._2.map(m => m.name))
+      for { varIndex <- nextInvocation._1
+            insn     <- nextInvocation._2 }
+        yield unpackFEPair(insn, varIndex, ma)
+    })
+  }
 
-//    val CFG = getCFG(node) MethodAnalyzer()
-//    val loops = findLoops(CFG)
-//    loops.foreach(transform(node, _))
+  def narrow[To](x: Any): Option[To] = {
+    x match {
+      case xTo: To => Some(xTo)
+      case _ => None
+    }
+  }
+  // Find the first element e in CONTAINER such that F(e).nonEmpty
+  def findSome[A, B](container: Traversable[A], f: (A => Option[B])): Option[B] = {
+    for (el <- container) {
+      val res = f(el)
+      if (res.nonEmpty) return res
+    }
+    None
+  }
+
+  def firstBodyBlock(loop: Loop): Option[BasicBlock] = {
+    loop.body.find(block => loop.entry.successors contains block.startLine)
+  }
+
+  def findCtxLoadInsn(mInsn: MethodInsnNode): Option[VarInsnNode] = {
+    // Get the ctx loading insn that precedes the given method invocation.
+    // Where to find that depends on the method being invoked:
+    val varInsn = (mInsn.owner, mInsn.name) match {
+      case ("edu/cmu/cs/varex/VOps", "IADD") |
+           ("edu/cmu/cs/varex/VOps", "IINC") |
+           ("edu/cmu/cs/varex/VOps", "ISUB") |
+           ("edu/cmu/cs/varex/VOps", "IMUL") |
+           ("de/fosd/typechef/featureexpr/FeatureExpr", "isContradiction") => Some(mInsn.getPrevious)
+      case ("edu/cmu/cs/varex/V", "one") => Some(mInsn.getPrevious.getPrevious)
+      case ("edu/cmu/cs/varex/V", "choice") => Some(mInsn.getPrevious.getPrevious.getPrevious)
+      case _ => None
+    }
+    val varInsnNode = varInsn.flatMap(narrow[VarInsnNode])
+    varInsnNode
+  }
+
+  def findCtxVar(block: BasicBlock): Option[Int] = {
+    import PartialFunction.cond
+    val ctxLoadingInsns = Set(Opcodes.INVOKESTATIC, Opcodes.INVOKEINTERFACE)
+    findSome(block.instructions, (insn: AbstractInsnNode) =>
+      if (ctxLoadingInsns.contains(insn.getOpcode) && cond(insn) {
+        case m: MethodInsnNode => m.name.contains("edu/cmu/cs/varex/V") || m.name.contains("isContradiction")
+      }) {
+        val mInsn = narrow[MethodInsnNode](insn)
+        val ctxLoadInsn = mInsn.flatMap(findCtxLoadInsn)
+        val varIndex = ctxLoadInsn.map(_.`var`)
+        varIndex
+      }
+      else
+        None)
+  }
+
+  def findIteratorNextInvocation(block: BasicBlock): Option[MethodInsnNode] = {
+    findSome(block.instructions, (insn: AbstractInsnNode) => {
+      insn match {
+        case invokeDynamicNode: InvokeDynamicInsnNode =>
+          invokeDynamicNode.bsmArgs(1) match {
+            case h: Handle if h.getName contains "INVOKEINTERFACE$next" => Some(invokeDynamicNode)
+            case _ => None
+          }
+        case _ => None
+      }
+    }).flatMap(idInsn => idInsn.getNext.getNext match {
+      case ii: MethodInsnNode if ii.name contains "sflatMap" => Some(ii)
+      case _ => None
+    })
+  }
+
+  def unpackFEPair(after: AbstractInsnNode, at: Int, ma: MethodAnalyzer): Unit = {
+    import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, vclassname, vclasstype}
+    ma.insertInsns(after, List(
+      // stack =
+      // ..., One(FEPair)
+      new MethodInsnNode(Opcodes.INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true),
+      new TypeInsnNode(Opcodes.CHECKCAST, "model/java/util/FEPair"),
+      // ..., FEPair
+      new InsnNode(Opcodes.DUP),
+      // ..., FEPair, FEPair
+      new FieldInsnNode(Opcodes.GETFIELD, "model/java/util/FEPair", "v", "Ljava/lang/Object;"),
+      // ..., FEPair, value
+      new InsnNode(Opcodes.SWAP),
+      // ..., value, FEPair
+      new FieldInsnNode(Opcodes.GETFIELD, "model/java/util/FEPair", "ctx", fexprclasstype),
+      // ..., value, FE
+      new InsnNode(Opcodes.DUP),
+      // ..., value, FE, FE
+      new VarInsnNode(Opcodes.ASTORE, at),
+
+      // ..., value, FE
+      new InsnNode(Opcodes.SWAP),
+      // ..., FE, value
+      new MethodInsnNode(Opcodes.INVOKESTATIC, vclassname, "one",
+        s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype", true)
+      // ..., One(value)
+    ))
   }
 }

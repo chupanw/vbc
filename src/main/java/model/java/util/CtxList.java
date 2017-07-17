@@ -3,34 +3,16 @@ package model.java.util;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import edu.cmu.cs.varex.V;
-import edu.cmu.cs.varex.VEmpty;
 import edu.cmu.cs.varex.VHelper;
 
 import java.util.*;
 import java.util.LinkedList;
-import java.util.stream.Collectors;
 
 
 /**
  * Created by lukas on 6/30/17.
  */
 public class CtxList<T extends Comparable<T>> implements List {
-    class CtxIterator<T> implements Iterator<T> {
-        Iterator<FEPair<T>> pairIt;
-        public CtxIterator(Iterator<FEPair<T>> it){
-            pairIt = it;
-        }
-
-        public T next() {
-            return pairIt.next().v;
-        }
-
-        public boolean hasNext() {
-            return pairIt.hasNext();
-        }
-    }
-
-
     LinkedList<FEPair<T>> list = new LinkedList<>();
     V<Integer> size = V.one(FeatureExprFactory.True(), 0);
 
@@ -146,10 +128,13 @@ public class CtxList<T extends Comparable<T>> implements List {
 
     public CtxIterator ctxIterator(FeatureExpr ctx) {
         CtxList<T> ctxList = select(ctx);
-        return new CtxIterator(ctxList.iterator());
+        return new CtxListIterator(ctxList.iterator());
     }
     public Iterator<FEPair<T>> iterator() {
         return list.iterator();
+    }
+    public V<CtxIterator<T>> iterator____Lmodel_java_util_CtxIterator(FeatureExpr ctx) {
+        return V.one(VHelper.True(), new CtxListIterator<>(iterator()));
     }
 
     /**

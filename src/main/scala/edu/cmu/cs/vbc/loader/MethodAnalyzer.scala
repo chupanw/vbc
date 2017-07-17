@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.loader
 
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.analysis.{Analyzer, BasicInterpreter, BasicValue, Frame}
-import org.objectweb.asm.tree.{JumpInsnNode, LabelNode, MethodNode}
+import org.objectweb.asm.tree.{AbstractInsnNode, JumpInsnNode, LabelNode, MethodNode}
 
 import scala.collection.mutable
 
@@ -101,7 +101,7 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
 
       val pred = edges.filter(edge => edge._2.contains(blockStart) && edge._1 != ENTRY).keySet
 
-      BasicBlock(blockStart, blockEnd, pred, succ)
+      BasicBlock(blockStart, blockEnd, pred, succ, mn.instructions.toArray.slice(blockStart, blockEnd + 1).toList)
     }).toSet
   }
   lazy val blockStarts: Map[Int, BasicBlock] =
@@ -131,7 +131,8 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
         c -= 1
       }
 
-      search(bBlocks.find(b => b.predecessors == Set.empty[Int]).get)
+      if (bBlocks.nonEmpty)
+        search(bBlocks.find(b => b.predecessors == Set.empty[Int]).get)
       depthFirstNums
     }
 
@@ -167,7 +168,12 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
       edge._2.map(to => Loop(to, blocksBetween(to, from) - to))
     }).toSet
   }
+
+  def insertInsns(after: AbstractInsnNode, insns: List[AbstractInsnNode]): Unit = {
+    val insert = mn.instructions.insert(after, _: AbstractInsnNode)
+    insns.reverse.foreach(insn => insert(insn))
+  }
 }
 
-case class BasicBlock(startLine: Int, endLine: Int, predecessors: Set[Int], successors: Set[Int])
+case class BasicBlock(startLine: Int, endLine: Int, predecessors: Set[Int], successors: Set[Int], instructions: List[AbstractInsnNode])
 case class Loop(entry: BasicBlock, body: Set[BasicBlock])
