@@ -135,6 +135,12 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val methodLoops = mas.map(ma => (ma._2, ma._2.loops)).filter(_._2.nonEmpty).toSet
     val listIterations = methodLoops.map(ml => (ml._1, ml._2.filter(isListIteration(_, ml._1)))).filter(_._2.nonEmpty)
 
+    val iteratorInvocations = listIterations.map(mloops => (mloops._1, mloops._2.map(findIteratorInvocation)))
+    iteratorInvocations.foreach(iteratorInvocation => {
+      val ma = iteratorInvocation._1
+      iteratorInvocation._2.foreach(_.foreach(insn => addSimplifyInvocation(insn, node, ma)))
+    })
+
     val ctxVars = listIterations.map(mloops =>
       (mloops._1, mloops._2.map(l => (l, firstBodyBlock(l).flatMap(findCtxVar)))))
     val iteratorNextInvocations = ctxVars.flatMap(ctxVar => {
@@ -263,5 +269,62 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
             case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
           }
       }))
+  }
+
+  def findIteratorInvocation(loop: Loop): Option[AbstractInsnNode] = {
+    import PartialFunction.cond
+    var thisInsn = loop.entry.instructions.head.getPrevious
+    var prevInsn = thisInsn.getPrevious
+    while (thisInsn != prevInsn) {
+      if (cond(thisInsn) {
+        case idInsn: InvokeDynamicInsnNode => cond(idInsn.bsmArgs(1)) {
+          case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
+        }
+      })
+        return Some(thisInsn)
+
+      thisInsn = prevInsn
+      prevInsn = prevInsn.getPrevious
+    }
+    None
+  }
+
+  var createdSimplifyLambda: Boolean = false
+
+  def addSimplifyInvocation(insn: AbstractInsnNode, clazz: ClassNode, ma: MethodAnalyzer): Unit = {
+    val ctxListName = "model/java/util/CtxList"
+    val lambdaName = "lambda$INVOKEVIRTUAL$CtxListsimplify"
+    val lambdaDesc = s"(L$ctxListName;)V"
+
+    if (!createdSimplifyLambda) {
+      val lambda = new MethodNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
+        lambdaName, lambdaDesc, lambdaDesc, Array[String]())
+      lambda.visitCode()
+      lambda.visitVarInsn(Opcodes.ALOAD, 0)
+      lambda.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ctxListName, "simplify____V", "()V", false)
+      lambda.visitInsn(Opcodes.RETURN)
+      lambda.visitMaxs(2, 1)
+      lambda.visitEnd()
+
+      clazz.methods.add(lambda)
+
+      createdSimplifyLambda = true
+    }
+
+    ma.insertInsns(insn.getPrevious, List(
+      // stack =
+      // ..., V<CtxList>
+      new InsnNode(Opcodes.DUP),
+      // ..., V<CtxList>, V<CtxList>
+      new InvokeDynamicInsnNode("accept", "()Ljava/util/function/Consumer;",
+        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
+          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
+        Type.getType("(Ljava/lang/Object;)V"),
+        new Handle(Opcodes.H_INVOKESTATIC, clazz.name, lambdaName, lambdaDesc),
+        Type.getType(lambdaDesc)),
+      // ..., V<CtxList>, V<CtxList>, lambda
+      new MethodInsnNode(Opcodes.INVOKEINTERFACE, "edu/cmu/cs/varex/V", "foreach", "(Ljava/util/function/Consumer;)V", true)
+      // ..., V<CtxList>
+    ))
   }
 }

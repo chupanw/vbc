@@ -142,7 +142,7 @@ public class CtxList<T extends Comparable<T>> implements List {
      */
     public void simplify____V() {
         LinkedList<FEPair<T>> simplified = new LinkedList<>();
-        ListIterator<FEPair<T>> it = list.listIterator();
+        Iterator<FEPair<T>> it = list.iterator();
         FEPair<T> first = it.next();
         while(it.hasNext()) {
             final FEPair<T> second = it.next();

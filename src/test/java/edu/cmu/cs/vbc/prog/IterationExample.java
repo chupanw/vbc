@@ -23,25 +23,18 @@ public class IterationExample {
 
     public void indexing() {
         LinkedList<Integer> l = new LinkedList<>();
+        l.add(1);
         if (A) {
-            l.add(1);
-        }
-        if (B) {
             l.add(2);
-        }
-        else {
-            l.add(2);
-        }
-        if (A) {
             l.add(3);
         }
-
-        l.add(4);
+        else
+            l.add(3);
+        if (B)
+            l.add(4);
         l.add(5);
-
-        if (B) {
+        if (A)
             l.add(6);
-        }
 
         for (int i = 0; i < l.size(); i++) {
             System.out.println(l.get(i));
@@ -51,11 +44,20 @@ public class IterationExample {
    private void iterator() {
         LinkedList<Integer> l = new LinkedList<>();
         l.add(1);
-        if (A)
+        if (A) {
             l.add(2);
-        if (B)
             l.add(3);
-        l.add(4);
+        }
+        else
+            l.add(3);
+
+        if (B)
+            l.add(4);
+
+        l.add(5);
+
+        if (!B)
+            l.add(76);
 
         int res = 0;
         for (Integer el : l) {

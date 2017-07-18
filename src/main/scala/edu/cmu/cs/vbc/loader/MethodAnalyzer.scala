@@ -19,6 +19,8 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
   var edges: Map[Int, Set[Int]] = Map()
   val ENTRY: Int = -1
   val EXIT: Int = mn.instructions.size() - 1
+  val mnOwner: String = owner
+  val mNode: MethodNode = mn
 
   /**
     * LabelNode -> Block Index
