@@ -127,55 +127,35 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     //    - Depth First Spanning Tree, loop section
     // 3. do transformation
 
-    import scala.collection.JavaConversions._
-    val mas = node.methods.map(mn => {
+    import scala.collection.JavaConversions._ // for map over node.methods
+
+    def createMethodAnalyzer(mn: MethodNode) = {
       val ma  = new MethodAnalyzer(node.name, mn)
       ma.analyze()
-      (mn.name, ma)
-    })
-    val methodLoops = mas.map(ma => (ma._2, ma._2.loops)).filter(_._2.nonEmpty).toSet
-    val listIterations = methodLoops.map(ml => (ml._1, ml._2.filter(isListIteration(_, ml._1)))).filter(_._2.nonEmpty)
+      ma
+    }
 
-    val iteratorInvocations = listIterations.map(mloops => (mloops._1, mloops._2.map(findIteratorInvocation)))
-    iteratorInvocations.foreach(iteratorInvocation => {
-      val ma = iteratorInvocation._1
-      iteratorInvocation._2.foreach(_.foreach(insn => addSimplifyInvocation(insn, node, ma)))
-    })
+    for { ma                     <- node.methods.map(createMethodAnalyzer).filter(_.loops.nonEmpty)
+          loop                   <- ma.loops.filter(isListIteration(_, ma))
+          block                  <- firstBodyBlock(loop)
+          loopCtxVar             <- findCtxVar(block)
 
-    val ctxVars = listIterations.map(mloops =>
-      (mloops._1, mloops._2.map(l => (l, firstBodyBlock(l).flatMap(findCtxVar)))))
+          iteratorInvocation     <- findIteratorInvocation(loop)
 
-    ctxVars.foreach(ctxVar => {
-      val ma = ctxVar._1
-      ctxVar._2.foreach(l => {
-        val loop = l._1
-        val varIndex = l._2
+          loopCtxStoreBeforeLoop <- findStoreBefore(loop, loopCtxVar, ma)
 
-        val ctxStores = varIndex.flatMap(findStoreBefore(loop, _, ma))
-        ctxStores.foreach(saveMethodCtx(_, ma))
+          methodCtxVarAfterLoop  <- findFalseFEBefore(loop, ma).map(_.`var`)
+          methodCtxLoadAfterLoop <- findLoadAfter(loop, methodCtxVarAfterLoop, ma)
 
-        val afterLoopCtxVar = findFalseFEBefore(loop, ma).map(_.`var`)
-        val afterLoopCtxStore = afterLoopCtxVar.flatMap(findLoadAfter(loop, _, ma))
-        afterLoopCtxStore.foreach(restoreMethodCtx(_, ma))
-      })
-    })
+          itNextInvocation       <- findSome(loop.body, findIteratorNextInvocation) }
+      yield {
+        addSimplifyInvocationBefore(iteratorInvocation, node, ma)
 
-    val iteratorNextInvocations = ctxVars.flatMap(ctxVar => {
-      val ma = ctxVar._1
-      ctxVar._2.map(l => {
-        val loop = l._1
-        val varIndex = l._2
-        val nextInvocation = findSome(loop.body, findIteratorNextInvocation)
-        (varIndex, nextInvocation, ma)
-      })
-    })
+        saveMethodCtxBefore(loopCtxStoreBeforeLoop, ma)
+        restoreMethodCtxBefore(methodCtxLoadAfterLoop, ma)
 
-    iteratorNextInvocations.foreach(nextInvocation => {
-      val ma = nextInvocation._3
-      for { varIndex <- nextInvocation._1
-            insn     <- nextInvocation._2 }
-        yield unpackFEPair(insn, varIndex, ma)
-    })
+        unpackFEPair(itNextInvocation, loopCtxVar, ma)
+      }
   }
 
   def narrow[To](x: Any): Option[To] = {
@@ -325,7 +305,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       createdSimplifyLambda = true
     }
   }
-  def addSimplifyInvocation(insn: AbstractInsnNode, clazz: ClassNode, ma: MethodAnalyzer): Unit = {
+  def addSimplifyInvocationBefore(insn: AbstractInsnNode, clazz: ClassNode, ma: MethodAnalyzer): Unit = {
     val ctxListName = "model/java/util/CtxList"
     val lambdaName = "lambda$INVOKEVIRTUAL$CtxListsimplify"
     val lambdaDesc = s"(L$ctxListName;)V"
@@ -402,7 +382,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
             new VarInsnNode(Opcodes.ASTORE, mtdCtxVar.get)))
         }
   }
-  def saveMethodCtx(ctxStoreInsn: VarInsnNode, ma: MethodAnalyzer): Unit = {
+  def saveMethodCtxBefore(ctxStoreInsn: VarInsnNode, ma: MethodAnalyzer): Unit = {
     if (mtdCtxVar.isEmpty) createMethodCtxVar(ma)
 
     for { varIndex <- mtdCtxVar } yield {
@@ -427,7 +407,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       ))
     }
   }
-  def restoreMethodCtx(insn: VarInsnNode, ma: MethodAnalyzer): Unit = {
+  def restoreMethodCtxBefore(insn: VarInsnNode, ma: MethodAnalyzer): Unit = {
     // restore mtdCtxVar into ctxVar at start of block
     ma.mNode.maxStack += 1
     val blockCtxVar = insn.`var`
