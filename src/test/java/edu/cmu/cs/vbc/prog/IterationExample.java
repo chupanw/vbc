@@ -14,7 +14,6 @@ public class IterationExample {
     static boolean B;
 
     public static void main(String[] args) {
-//        new IterationExample().iterator();
         IterationExample ie = new IterationExample();
         ie.iterator();
         System.out.println("\n~~~~~\n");
@@ -41,7 +40,7 @@ public class IterationExample {
         }
    }
 
-   private void iterator() {
+    private void iterator() {
         LinkedList<Integer> l = new LinkedList<>();
         l.add(1);
         if (A) {

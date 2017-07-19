@@ -141,20 +141,20 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
     edgesByBlock.map(e => e._1 -> e._2.filter(succ => dfns(e._1) >= dfns(succ))).filter(e => e._2.nonEmpty)
   }
 
-  lazy val loops: Set[Loop] = {
-    // Collect all blocks reachable from BLOCK - where NEIGHBORSOF defines the blocks "next to" a given block
-    def reachableFrom(block: BasicBlock, neighborsOf: (BasicBlock => Iterable[BasicBlock])) ={
-      var collected = Set.empty[BasicBlock]
-      var blockQ = mutable.Queue(block)
-      while (blockQ.nonEmpty) {
-        val b = blockQ.dequeue
-        if (!collected.contains(b)) {
-          blockQ ++= neighborsOf(b)
-        }
-        collected += b
+  // Collect all blocks reachable from BLOCK - where NEIGHBORSOF defines the blocks "next to" a given block
+  def reachableFrom(block: BasicBlock, neighborsOf: (BasicBlock => Iterable[BasicBlock])): Set[BasicBlock] = {
+    var collected = Set.empty[BasicBlock]
+    var blockQ = mutable.Queue(block)
+    while (blockQ.nonEmpty) {
+      val b = blockQ.dequeue
+      if (!collected.contains(b)) {
+        blockQ ++= neighborsOf(b)
       }
-      collected
+      collected += b
     }
+    collected
+  }
+  lazy val loops: Set[Loop] = {
     val descendantsOf = reachableFrom(_: BasicBlock, b => b.successors.map(blockStarts(_)))
     val ancestorsOf = reachableFrom(_: BasicBlock, b => b.predecessors.map(blockEnds(_)))
 

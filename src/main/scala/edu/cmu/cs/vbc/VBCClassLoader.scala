@@ -10,6 +10,7 @@ import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
 import org.objectweb.asm.util.{CheckClassAdapter, TraceClassVisitor}
 import org.objectweb.asm._
+import PartialFunction.cond
 
 /**
   * Custom class loader to modify bytecode before loading the class.
@@ -67,7 +68,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     cr3.accept(node, 0)
     postTransformations(node)
 
-    val cw2 = new ClassWriter(0)
+    val cw2 = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
     node.accept(cw2)
     val cr2 = new ClassReader(cw2.toByteArray)
 
@@ -143,6 +144,22 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 
     val ctxVars = listIterations.map(mloops =>
       (mloops._1, mloops._2.map(l => (l, firstBodyBlock(l).flatMap(findCtxVar)))))
+
+    ctxVars.foreach(ctxVar => {
+      val ma = ctxVar._1
+      ctxVar._2.foreach(l => {
+        val loop = l._1
+        val varIndex = l._2
+
+        val ctxStores = varIndex.flatMap(findStoreBefore(loop, _, ma))
+        ctxStores.foreach(saveMethodCtx(_, ma))
+
+        val afterLoopCtxVar = findFalseFEBefore(loop, ma).map(_.`var`)
+        val afterLoopCtxStore = afterLoopCtxVar.flatMap(findLoadAfter(loop, _, ma))
+        afterLoopCtxStore.foreach(restoreMethodCtx(_, ma))
+      })
+    })
+
     val iteratorNextInvocations = ctxVars.flatMap(ctxVar => {
       val ma = ctxVar._1
       ctxVar._2.map(l => {
@@ -152,6 +169,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         (varIndex, nextInvocation, ma)
       })
     })
+
     iteratorNextInvocations.foreach(nextInvocation => {
       val ma = nextInvocation._3
       for { varIndex <- nextInvocation._1
@@ -199,7 +217,6 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def findCtxVar(block: BasicBlock): Option[Int] = {
-    import PartialFunction.cond
     val ctxLoadingInsns = Set(Opcodes.INVOKESTATIC, Opcodes.INVOKEINTERFACE)
     findSome(block.instructions, (insn: AbstractInsnNode) =>
       if (ctxLoadingInsns.contains(insn.getOpcode) && cond(insn) {
@@ -260,27 +277,29 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     ))
   }
 
+  def isIteratorInvocation(insn: AbstractInsnNode): Boolean = cond(insn) {
+    case idInsn: InvokeDynamicInsnNode =>
+      cond(idInsn.bsmArgs(1)) {
+        case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
+      }
+  }
+  def isHasNextInvocation(insn: AbstractInsnNode): Boolean = cond(insn) {
+    case idInsn: InvokeDynamicInsnNode =>
+      cond(idInsn.bsmArgs(1)) {
+        case h: Handle => h.getName.contains("INVOKEINTERFACE$hasNext") && h.getDesc.contains("CtxIterator")
+      }
+  }
+
+
   def isListIteration(loop: Loop, ma: MethodAnalyzer): Boolean = {
-    import PartialFunction.cond
-    loop.entry.predecessors.map(ma.blockEnds).exists(block =>
-      block.instructions.exists(cond(_) {
-        case idInsn: InvokeDynamicInsnNode =>
-          cond(idInsn.bsmArgs(1)) {
-            case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
-          }
-      }))
+    loop.entry.predecessors.map(ma.blockEnds).exists(_.instructions.exists(isIteratorInvocation))
   }
 
   def findIteratorInvocation(loop: Loop): Option[AbstractInsnNode] = {
-    import PartialFunction.cond
     var thisInsn = loop.entry.instructions.head.getPrevious
     var prevInsn = thisInsn.getPrevious
     while (thisInsn != prevInsn) {
-      if (cond(thisInsn) {
-        case idInsn: InvokeDynamicInsnNode => cond(idInsn.bsmArgs(1)) {
-          case h: Handle => h.getName.contains("INVOKEVIRTUAL$iterator") && h.getDesc.contains("CtxList")
-        }
-      })
+      if (isIteratorInvocation(thisInsn))
         return Some(thisInsn)
 
       thisInsn = prevInsn
@@ -290,12 +309,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   var createdSimplifyLambda: Boolean = false
-
-  def addSimplifyInvocation(insn: AbstractInsnNode, clazz: ClassNode, ma: MethodAnalyzer): Unit = {
-    val ctxListName = "model/java/util/CtxList"
-    val lambdaName = "lambda$INVOKEVIRTUAL$CtxListsimplify"
-    val lambdaDesc = s"(L$ctxListName;)V"
-
+  def createSimplifyLambda(clazz: ClassNode, ctxListName: String, lambdaName: String, lambdaDesc: String): Unit = {
     if (!createdSimplifyLambda) {
       val lambda = new MethodNode(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
         lambdaName, lambdaDesc, lambdaDesc, Array[String]())
@@ -310,6 +324,13 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 
       createdSimplifyLambda = true
     }
+  }
+  def addSimplifyInvocation(insn: AbstractInsnNode, clazz: ClassNode, ma: MethodAnalyzer): Unit = {
+    val ctxListName = "model/java/util/CtxList"
+    val lambdaName = "lambda$INVOKEVIRTUAL$CtxListsimplify"
+    val lambdaDesc = s"(L$ctxListName;)V"
+
+    createSimplifyLambda(clazz, ctxListName, lambdaName, lambdaDesc)
 
     ma.insertInsns(insn.getPrevious, List(
       // stack =
@@ -323,8 +344,107 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         new Handle(Opcodes.H_INVOKESTATIC, clazz.name, lambdaName, lambdaDesc),
         Type.getType(lambdaDesc)),
       // ..., V<CtxList>, V<CtxList>, lambda
-      new MethodInsnNode(Opcodes.INVOKEINTERFACE, "edu/cmu/cs/varex/V", "foreach", "(Ljava/util/function/Consumer;)V", true)
+      new MethodInsnNode(Opcodes.INVOKEINTERFACE, "edu/cmu/cs/varex/V", "foreach", "(Ljava/util/function/Consumer;)V",
+        true)
       // ..., V<CtxList>
     ))
+  }
+
+  def findStoreBefore(loop: Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
+    /*
+    Turns out the only store into the loop ctx var "before" the loop is in the first body block of the loop
+    -- that is where the context propogation of the vBlocks is done
+     */
+    val firstBodyBlock = loop.entry.successors.map(ma.blockStarts) find (_.instructions.exists(isHasNextInvocation))
+    firstBodyBlock.flatMap(block => findSome(block.instructions.reverse, (insn: AbstractInsnNode) =>  insn match {
+      case v: VarInsnNode if v.`var` == varIndex => Some(v)
+      case _ => None
+    }))
+  }
+  def findLoadAfter(loop: Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
+    // Find the first store to VARINDEX after LOOP
+    val blocksAfterLoop = ma.reachableFrom(loop.entry, _.successors.map(ma.blockStarts)) diff loop.body
+    val blocksSorted = blocksAfterLoop.toList.sortWith(_.startLine < _.startLine)
+
+    def findStoreIn(block: BasicBlock) = findSome(block.instructions, (insn: AbstractInsnNode) => insn match {
+      case vInsn: VarInsnNode if vInsn.`var` == varIndex => Some(vInsn)
+      case _ => None
+    })
+
+    findSome(blocksSorted, (block: BasicBlock) => findStoreIn(block))
+  }
+
+
+  def findLabel(iterable: Iterable[AbstractInsnNode]): Option[LabelNode] = {
+    findSome(iterable, (insn: AbstractInsnNode) => insn match {
+      case l: LabelNode => Some(l)
+      case _ => None
+    })
+  }
+  def firstLabel(insnList: InsnList): Option[LabelNode] = findLabel(insnList.toArray)
+  def lastLabel(insnList: InsnList): Option[LabelNode] = findLabel(insnList.toArray.reverse)
+
+  var mtdCtxVar: Option[Int] = None
+  def createMethodCtxVar(ma: MethodAnalyzer): Unit = {
+    for { firstL <- firstLabel(ma.mNode.instructions)
+          lastL  <- lastLabel(ma.mNode.instructions) }
+        yield {
+          mtdCtxVar = Some(ma.mNode.maxLocals)
+          ma.mNode.maxLocals += 1
+          ma.mNode.localVariables.add(new LocalVariableNode("pre$loop$mtd$ctx",
+            "Lde/fosd/typechef/featureexpr/FeatureExpr;", "Lde/fosd/typechef/featureexpr/FeatureExpr;",
+            firstL, lastL, mtdCtxVar.get))
+
+          // initialize var with False at method start
+          ma.insertInsns(firstL, List(
+            new MethodInsnNode(Opcodes.INVOKESTATIC, "de/fosd/typechef/featureexpr/FeatureExprFactory", "False",
+              "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true),
+            new VarInsnNode(Opcodes.ASTORE, mtdCtxVar.get)))
+        }
+  }
+  def saveMethodCtx(ctxStoreInsn: VarInsnNode, ma: MethodAnalyzer): Unit = {
+    if (mtdCtxVar.isEmpty) createMethodCtxVar(ma)
+
+    for { varIndex <- mtdCtxVar } yield {
+      var label = new LabelNode()
+      ma.insertInsns(ctxStoreInsn.getPrevious,
+        List(
+          // stack = ..., method ctx
+          new VarInsnNode(Opcodes.ALOAD, varIndex),
+          // ..., method ctx, methodCtxVar
+          new MethodInsnNode(Opcodes.INVOKEINTERFACE, "de/fosd/typechef/featureexpr/FeatureExpr", "isContradiction",
+          "()Z", true),
+          // ..., method ctx, Z
+          new JumpInsnNode(Opcodes.IFEQ, label), // if methodCtxVar is not False, don't store into it again
+
+          // ..., method ctx
+          new InsnNode(Opcodes.DUP), // otherwise, store the method ctx into methodCtx
+          // ..., methodCtx, methodCtx
+          new VarInsnNode(Opcodes.ASTORE, varIndex),
+
+          // ..., method ctx
+          label
+      ))
+    }
+  }
+  def restoreMethodCtx(insn: VarInsnNode, ma: MethodAnalyzer): Unit = {
+    // restore mtdCtxVar into ctxVar at start of block
+    ma.mNode.maxStack += 1
+    val blockCtxVar = insn.`var`
+    for { methodCtxVar <- mtdCtxVar }
+      yield ma.insertInsns(insn.getPrevious,
+        List(
+          new VarInsnNode(Opcodes.ALOAD, methodCtxVar),
+          new VarInsnNode(Opcodes.ASTORE, blockCtxVar)
+        ))
+  }
+
+  def findFalseFEBefore(loop: Loop, ma: MethodAnalyzer): Option[VarInsnNode] = {
+    def isFEFalse(m: MethodInsnNode) = m.owner == "de/fosd/typechef/featureexpr/FeatureExprFactory" && m.name == "False"
+    val firstBodyBlock = loop.entry.successors.map(ma.blockStarts) find (_.instructions.exists(isHasNextInvocation))
+    firstBodyBlock.flatMap(block => findSome(block.instructions.reverse, (insn: AbstractInsnNode) =>  insn match {
+      case m: MethodInsnNode if isFEFalse(m) => narrow[VarInsnNode](m.getPrevious)
+      case _ => None
+    }))
   }
 }
