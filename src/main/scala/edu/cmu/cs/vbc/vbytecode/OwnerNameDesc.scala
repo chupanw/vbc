@@ -77,10 +77,10 @@ case class Owner(name: String) extends TypeVerifier {
         this
       else if (name.endsWith("Exception") || name.endsWith("Error"))
         this
-      else if (name.equals("java/util/LinkedList") || name.equals("java/util/ArrayList"))
-        Owner(VBCModel.prefix + "/" + "java/util/CtxList")
-      else if (name.equals("java/util/Iterator"))
-        Owner(VBCModel.prefix + "/" + "java/util/CtxIterator")
+//      else if (name.equals("java/util/LinkedList") || name.equals("java/util/ArrayList"))
+//        Owner(VBCModel.prefix + "/" + "java/util/CtxList")
+//      else if (name.equals("java/util/Iterator"))
+//        Owner(VBCModel.prefix + "/" + "java/util/CtxIterator")
       else
         Owner(VBCModel.prefix + "/" + name)
     case _ => this
