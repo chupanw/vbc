@@ -12,7 +12,7 @@ import java.util.LinkedList;
 /**
  * Created by lukas on 6/30/17.
  */
-public class CtxList<T extends Comparable<T>> implements List {
+public class CtxList<T> implements List {
     LinkedList<FEPair<T>> list = new LinkedList<>();
     V<Integer> size = V.one(FeatureExprFactory.True(), 0);
 
@@ -47,8 +47,8 @@ public class CtxList<T extends Comparable<T>> implements List {
         size = (V<Integer>)size.flatMap((vCtx, s) -> (V<Integer>)V.choice(vCtx.and(ctx), s + 1, s));
         return V.one(ctx, true); // list.add always returns true
     }
-    public V<Boolean> add(T v) {
-        return add(v, FeatureExprFactory.True());
+    public boolean add(T v) {
+        return list.add(new FEPair(FeatureExprFactory.True(), v));
     }
     public V<Boolean> add__Ljava_lang_Object__Z(V<? extends T> v, FeatureExpr vCtx) {
         return (V<Boolean>)v.sflatMap(vCtx, (ctx, val) -> add(val, ctx));
@@ -130,11 +130,11 @@ public class CtxList<T extends Comparable<T>> implements List {
         CtxList<T> ctxList = select(ctx);
         return new CtxListIterator(ctxList.iterator());
     }
-    public Iterator<FEPair<T>> iterator() {
-        return list.iterator();
+    public CtxIterator<T> iterator() {
+        return new CtxListIterator<>(list.iterator());
     }
     public V<CtxIterator<T>> iterator____Lmodel_java_util_CtxIterator(FeatureExpr ctx) {
-        return V.one(VHelper.True(), new CtxListIterator<>(iterator()));
+        return V.one(VHelper.True(), new CtxListIterator<>(list.iterator()));
     }
 
     /**

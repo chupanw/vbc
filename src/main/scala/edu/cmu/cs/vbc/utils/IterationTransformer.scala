@@ -6,7 +6,7 @@ import org.objectweb.asm._
 
 import PartialFunction.cond
 
-object IterationTransformer {
+class IterationTransformer {
   def transformListIterationLoops(node: ClassNode): Unit = {
     // 1. identify blocks -> get control flow graph -- use MethodAnalyzer()
     // 2. identify loops (algorithm for doing this from graph - see dragon book)
@@ -28,19 +28,22 @@ object IterationTransformer {
 
           iteratorInvocation     <- findIteratorInvocation(loop)
 
-          loopCtxStoreBeforeLoop <- findStoreBefore(loop, loopCtxVar, ma)
 
-          methodCtxVarAfterLoop  <- findFalseFEBefore(loop, ma).map(_.`var`)
-          methodCtxLoadAfterLoop <- findLoadAfter(loop, methodCtxVarAfterLoop, ma)
 
           itNextInvocation       <- loadUtil.findSome(loop.body, findIteratorNextInvocation) }
       yield {
         addSimplifyInvocationBefore(iteratorInvocation, node, ma)
 
-        saveMethodCtxBefore(loopCtxStoreBeforeLoop, ma)
-        restoreMethodCtxBefore(methodCtxLoadAfterLoop, ma)
-
         unpackFEPair(itNextInvocation, loopCtxVar, ma)
+
+        for { loopCtxStoreBeforeLoop <- findStoreBefore(loop, loopCtxVar, ma)
+
+              methodCtxVarAfterLoop  <- findFalseFEBefore(loop, ma).map(_.`var`)
+              methodCtxLoadAfterLoop <- findLoadAfter(loop, methodCtxVarAfterLoop, ma) }
+          yield {
+            saveMethodCtxBefore(loopCtxStoreBeforeLoop, ma)
+            restoreMethodCtxBefore(methodCtxLoadAfterLoop, ma)
+          }
       }
   }
 

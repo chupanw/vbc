@@ -16,13 +16,10 @@ public class CtxListIterator<T> implements CtxIterator<T> {
         }
 
     public V<FEPair<T>> next____Ljava_lang_Object(FeatureExpr ctx) {
-        return V.one(VHelper.True(), next());
+        return V.one(VHelper.True(), feIt.next());
     }
-//    public FEPair<T> next____Ljava_lang_Object(FeatureExpr ctx) {
-//        return next();
-//    }
-    public FEPair<T> next() {
-        return feIt.next();
+    public T next() {
+        return feIt.next().v;
     }
 
     public boolean hasNext() {

@@ -11,7 +11,7 @@ import java.util.Iterator;
 public interface CtxIterator<T> extends Iterator {
     V<FEPair<T>> next____Ljava_lang_Object(FeatureExpr ctx);
 //    FEPair<T> next____Ljava_lang_Object(FeatureExpr ctx);
-    FEPair<T> next();
+    T next();
     boolean hasNext();
     V<Boolean> hasNext____Z(FeatureExpr ctx);
 }

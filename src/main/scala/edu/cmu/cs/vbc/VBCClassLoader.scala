@@ -65,7 +65,9 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val cr3 = new ClassReader(cw.toByteArray)
     val node = new ClassNode()
     cr3.accept(node, 0)
-    postTransformations(node)
+    if (isLift) {
+      postTransformations(node)
+    }
 
     val cw2 = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
     node.accept(cw2)
@@ -121,7 +123,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def postTransformations(node: ClassNode): Unit = {
-    IterationTransformer.transformListIterationLoops(node)
+    new IterationTransformer().transformListIterationLoops(node)
   }
 }
 
