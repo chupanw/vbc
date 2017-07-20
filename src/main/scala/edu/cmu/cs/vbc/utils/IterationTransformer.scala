@@ -233,28 +233,29 @@ object IterationTransformer {
   def firstLabel(insnList: InsnList): Option[LabelNode] = findLabel(insnList.toArray)
   def lastLabel(insnList: InsnList): Option[LabelNode] = findLabel(insnList.toArray.reverse)
 
-  var mtdCtxVar: Option[Int] = None
+  var mtdCtxVars: Map[String, Int] = Map()
   def createMethodCtxVar(ma: MethodAnalyzer): Unit = {
     for { firstL <- firstLabel(ma.mNode.instructions)
           lastL  <- lastLabel(ma.mNode.instructions) }
         yield {
-          mtdCtxVar = Some(ma.mNode.maxLocals)
+          val mtdCtxVar = ma.mNode.maxLocals
+          mtdCtxVars += (ma.mNode.name -> mtdCtxVar)
           ma.mNode.maxLocals += 1
           ma.mNode.localVariables.add(new LocalVariableNode("pre$loop$mtd$ctx",
             "Lde/fosd/typechef/featureexpr/FeatureExpr;", "Lde/fosd/typechef/featureexpr/FeatureExpr;",
-            firstL, lastL, mtdCtxVar.get))
+            firstL, lastL, mtdCtxVar))
 
           // initialize var with False at method start
           ma.insertInsns(firstL, List(
             new MethodInsnNode(Opcodes.INVOKESTATIC, "de/fosd/typechef/featureexpr/FeatureExprFactory", "False",
               "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true),
-            new VarInsnNode(Opcodes.ASTORE, mtdCtxVar.get)))
+            new VarInsnNode(Opcodes.ASTORE, mtdCtxVar)))
         }
   }
   def saveMethodCtxBefore(ctxStoreInsn: VarInsnNode, ma: MethodAnalyzer): Unit = {
-    if (mtdCtxVar.isEmpty) createMethodCtxVar(ma)
+    if ((mtdCtxVars get ma.mNode.name).isEmpty) createMethodCtxVar(ma)
 
-    for { varIndex <- mtdCtxVar } yield {
+    for { varIndex <- mtdCtxVars get ma.mNode.name } yield {
       val label = new LabelNode()
       ma.insertInsns(ctxStoreInsn.getPrevious,
         List(
@@ -262,7 +263,7 @@ object IterationTransformer {
           new VarInsnNode(Opcodes.ALOAD, varIndex),
           // ..., method ctx, methodCtxVar
           new MethodInsnNode(Opcodes.INVOKEINTERFACE, "de/fosd/typechef/featureexpr/FeatureExpr", "isContradiction",
-          "()Z", true),
+            "()Z", true),
           // ..., method ctx, Z
           new JumpInsnNode(Opcodes.IFEQ, label), // if methodCtxVar is not False, don't store into it again
 
@@ -280,7 +281,7 @@ object IterationTransformer {
     // restore mtdCtxVar into ctxVar at start of block
     ma.mNode.maxStack += 1
     val blockCtxVar = insn.`var`
-    for { methodCtxVar <- mtdCtxVar }
+    for { methodCtxVar <- mtdCtxVars get ma.mNode.name }
       yield ma.insertInsns(insn.getPrevious,
         List(
           new VarInsnNode(Opcodes.ALOAD, methodCtxVar),
