@@ -6,13 +6,13 @@ import java.util.LinkedList;
 
 public class IterationBenchmark {
     @VConditional
-    static boolean A;
+    boolean A;
     @VConditional
-    static boolean B;
+    boolean B;
     @VConditional
-    static boolean C;
+    boolean C;
     @VConditional
-    static boolean D;
+    boolean D;
 
     public static void main(String[] args) {
         IterationBenchmark ie = new IterationBenchmark();

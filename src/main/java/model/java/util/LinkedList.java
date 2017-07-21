@@ -122,8 +122,13 @@ public class LinkedList implements List {
     }
 
     public Iterator iterator() {
-        return null;
+        return actual.iterator();
     }
+
+    public V<?> iterator____Ljava_util_Iterator(FeatureExpr ctx) {
+        return vActual.smap(ctx, MyLinkedList::iterator);
+    }
+
 }
 
 class MyLinkedList extends java.util.LinkedList {

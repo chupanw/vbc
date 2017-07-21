@@ -482,12 +482,20 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
       invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     }
     else {
+      val hasVArgs = env.getTag(this, env.TAG_HAS_VARG)
       val liftedCall = liftCall(owner, name, desc)
 
-      if (liftedCall.isLifting) loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKEINTERFACE, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
-
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      if (!liftedCall.isLifting && hasVArgs) {
+        loadCurrentCtx(mv, env, block)
+        invokeOnNonV(owner, name, desc, itf, mv, env, block)
+      }
+      else {
+        if (liftedCall.isLifting) loadCurrentCtx(mv, env, block)
+        mv.visitMethodInsn(INVOKEINTERFACE, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
+        if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+        // cpwtodo: for now, just pop the returned exceptions.
+        if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
+      }
     }
   }
 }

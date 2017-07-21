@@ -23,8 +23,8 @@ object LiftingPolicy {
     case x if x.endsWith("java/util/AbstractCollection") => true
     case x if x.endsWith("java/lang/Enum") => true
     case x if x.contentEquals("model/java/util/Collection") => true
-    case x if x.endsWith("java/util/Iterator") => true // false
-    case x if x.endsWith("model/java/util/Iterator") => true
+//    case x if x.endsWith("java/util/Iterator") => false // false
+//    case x if x.endsWith("model/java/util/Iterator") => true
 //    case x if x.endsWith("java/util/List") => true
     case x if x.endsWith("java/util/Collections") => true
     case x if x.endsWith("java/util/Collections$EmptySet") => true
@@ -36,7 +36,7 @@ object LiftingPolicy {
 //    case x if x.endsWith("java/util/LinkedList$Node") => true
 //    case x if x.endsWith("java/util/LinkedList$ListItr") => true
     case x if x.endsWith("java/util/ListIterator") => true
-    case x if x.endsWith("java/util/AbstractSequentialList") => true
+    case x if x.endsWith("model/java/util/AbstractSequentialList") => true
     case _ => false
   }
 
@@ -65,6 +65,7 @@ object LiftingPolicy {
         case Owner("java/io/Reader") => false
 //        case Owner("model/java/util/LinkedList") => false
         case o if o.name.endsWith("Exception") => false
+        case o if o.name.endsWith("java/util/Iterator") => false
         case _ => true
       }
     }
