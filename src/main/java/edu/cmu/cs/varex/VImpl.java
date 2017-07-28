@@ -236,7 +236,10 @@ class VImpl<T> implements V<T> {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof VImpl) {
-            return ((VImpl) obj).values.equals(values);
+//            return ((VImpl) obj).values.equals(values);
+            // updated FeatureExpr logical equivalence checking
+            return ((VImpl<Object>) obj).values.entrySet().stream().allMatch((Map.Entry<Object, FeatureExpr> entry) ->
+                    values.containsKey(entry.getKey()) && values.get(entry.getKey()).equivalentTo(entry.getValue()));
         }
         return super.equals(obj);
     }
