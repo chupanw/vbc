@@ -26,3 +26,16 @@ initialize := {
     if (sys.props("java.specification.version") != "1.8")
         sys.error("Java 8 is required for this project.")
 }
+
+testGrouping in Test := (definedTests in Test).value.map(test =>
+    Tests.Group(name = test.name, tests = Seq(test),
+        runPolicy = Tests.SubProcess(
+            ForkOptions(
+                javaHome.value,
+                outputStrategy.value,
+                Nil,
+                Some(baseDirectory.value),
+                javaOptions.value,
+                connectInput.value,
+                envVars.value
+            ))))

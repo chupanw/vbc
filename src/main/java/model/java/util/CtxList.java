@@ -14,37 +14,26 @@ import java.util.LinkedList;
  */
 public class CtxList<T> implements List {
     LinkedList<FEPair<T>> list = new LinkedList<>();
-    V<Integer> size = V.one(FeatureExprFactory.True(), 0);
 
 
     public CtxList(FeatureExpr ctx) {}
     public CtxList(){}
 
-    public V<Integer> index____I(FeatureExpr ctx) {
-        System.out.println("Warning: Variational index invoked");
-        return (V<Integer>)size.select(ctx).map(i -> 0);
-    }
-
-//    public V<Integer> size____I() {
-//        return V.one(FeatureExprFactory.True(), list.size());
-//    }
     public int size() {
         return list.size();
-//        return VHelper.explode(VHelper.True(), size____I(VHelper.True())).values().stream().mapToInt(i -> i).sum();
-        // I suspect that the size is being obtained in a true ctx,
-        // but then it is iterating in the restricted ctx !A
-        // because One(T, 5).select(!A) -> One(!A, 5)
-
-        // do I need to return size as a V (below), where each ctx has a size of its own?
     }
     public V<Integer> size____I(FeatureExpr ctx) {
-        V<Integer> selected = size.select(ctx);
-        return selected;
+        V<Integer> size = V.one(ctx, 0);
+        CtxIterator<T> it = select(ctx).iterator();
+        while (it.hasNext()) {
+            FEPair<T> el = it.next____Ljava_lang_Object(FeatureExprFactory.True()).getOne();
+            size = (V<Integer>)size.flatMap((vCtx, s) -> (V<Integer>)V.choice(vCtx.and(el.ctx), s + 1, s));
+        }
+        return size;
     }
 
     public V<Boolean> add(T v, FeatureExpr ctx) {
         list.add(new FEPair<>(ctx, v));
-        size = (V<Integer>)size.flatMap((vCtx, s) -> (V<Integer>)V.choice(vCtx.and(ctx), s + 1, s));
         return V.one(ctx, true); // list.add always returns true
     }
     public boolean add(T v) {
@@ -54,7 +43,7 @@ public class CtxList<T> implements List {
         return (V<Boolean>)v.sflatMap(vCtx, (ctx, val) -> add(val, ctx));
     }
     public V<Boolean> add(CtxList<T> l) {
-        Iterator<FEPair<T>> it = l.iterator();
+        Iterator<FEPair<T>> it = l.list.iterator();
         while(it.hasNext()) {
             FEPair<T> fePair = it.next();
             add(fePair.v, fePair.ctx);
@@ -62,37 +51,69 @@ public class CtxList<T> implements List {
         return V.one(FeatureExprFactory.True(), true); // list.add always returns true
     }
 
-    public void remove(T v, FeatureExpr ctx) {
-        Iterator<FEPair<T>> it = this.iterator();
+    public boolean remove(T v) {
+        Iterator<FEPair<T>> it = list.iterator();
         while(it.hasNext()) {
             FEPair<T> el = it.next();
-            if (el.ctx.and(ctx).isSatisfiable() && el.v == v) {
-                el.ctx = el.ctx.andNot(ctx);
-                size = (V<Integer>)size.flatMap((vCtx, s) -> (V<Integer>)V.choice(vCtx.and(ctx), s - 1, s));
-                break;
+            if (el.v == v) {
+                el.ctx = FeatureExprFactory.False();
+                return true;
             }
         }
+        return false;
     }
-    public void removeIndex(int index, FeatureExpr ctx) {
-        int i = 0;
-        Iterator<FEPair<T>> it = this.iterator();
+    public V<Boolean> remove(T v, FeatureExpr ctx) {
+        Iterator<FEPair<T>> it = list.iterator();
+        V<Boolean> result = V.one(ctx, false);
+        FeatureExpr removeCtx = ctx;
         while(it.hasNext()) {
             FEPair<T> el = it.next();
-            if (el.ctx.and(ctx).isSatisfiable()) {
-                if (i == index) {
-                    el.ctx = el.ctx.andNot(ctx);
-                    size = (V<Integer>)size.flatMap((vCtx, s) -> (V<Integer>)V.choice(vCtx.and(ctx), s - 1, s));
-                    break;
-                }
-                i++;
+            FeatureExpr combinedCtx = el.ctx.and(removeCtx);
+            if (combinedCtx.isSatisfiable()) {
+                result = (V<Boolean>)result.flatMap((FeatureExpr resCtx, Boolean resVal) -> {
+                    if (el.v == v) {
+                        el.ctx = el.ctx.andNot(ctx);
+                        return V.choice(combinedCtx, true, resVal);
+                    } else {
+                        return V.one(resCtx, resVal);
+                    }
+                });
+                removeCtx = result.when(t -> !t, false);
             }
         }
+        return result;
     }
-    public void remove__Ljava_lang_Object__V(V<? extends T> v, FeatureExpr vCtx) {
-        v.sforeach(vCtx, (ctx, value) -> remove(value, ctx));
+
+    public V<T> removeIndex(int index, FeatureExpr ctx) {
+        V<Integer> i = V.one(ctx, 0);
+        V<T> returnValue = V.one(ctx, null);
+        Iterator<FEPair<T>> it = list.iterator();
+        FeatureExpr removeIndexCtx = ctx;
+        while(it.hasNext()) {
+            FEPair<T> el = it.next();
+            FeatureExpr combinedCtx = el.ctx.and(removeIndexCtx);
+            if (combinedCtx.isSatisfiable()) {
+                final V<Integer> finalI = i;
+                returnValue = (V<T>)returnValue.flatMap((FeatureExpr retCtx, T retVal) -> finalI.sflatMap(retCtx, (FeatureExpr iCtx, Integer iVal) -> {
+                    if (iVal == index) {
+                        el.ctx = el.ctx.andNot(combinedCtx);
+                        return (V<T>)V.choice(iCtx.and(combinedCtx), el.v, retVal);
+                    } else {
+                        return V.one(retCtx, retVal);
+                    }
+                }));
+                removeIndexCtx = returnValue.when(t -> t == null, false);
+                i = (V<Integer>)i.flatMap((FeatureExpr vCtx, Integer iVal) ->
+                        V.choice(vCtx.and(combinedCtx), iVal + 1, iVal));
+            }
+        }
+        return returnValue;
     }
-    public void removeIndex__Ljava_lang_Object__V(V<Integer> vIndex, FeatureExpr vCtx) {
-        vIndex.sforeach(vCtx, (ctx, index) -> removeIndex(index, ctx));
+    public V<Boolean> remove__Ljava_lang_Object__Z(V<? extends T> v, FeatureExpr vCtx) {
+        return (V<Boolean>)v.sflatMap(vCtx, (ctx, value) -> remove(value, ctx));
+    }
+    public V<T> remove__I__Ljava_lang_Object(V<Integer> vIndex, FeatureExpr vCtx) {
+        return (V<T>)vIndex.sflatMap(vCtx, (ctx, index) -> removeIndex(index, ctx));
     }
 
     private CtxList<T> select(FeatureExpr ctx) {
@@ -111,19 +132,32 @@ public class CtxList<T> implements List {
         return list.get(index).v;
     }
 
-    public T get(int index, FeatureExpr ctx) {
-        CtxList<T> filtered = select(ctx);
-        int filteredSize = filtered.size();
-        if (index < filteredSize) {
-            return filtered.get(index);
+    public V<T> get(int index, FeatureExpr ctx) {
+        V<Integer> i = V.one(ctx, 0);
+        V<T> returnValue = V.one(ctx, null);
+        Iterator<FEPair<T>> it = list.iterator();
+        FeatureExpr getIndexCtx = ctx;
+        while(it.hasNext()) {
+            FEPair<T> el = it.next();
+            FeatureExpr combinedCtx = el.ctx.and(getIndexCtx);
+            if (combinedCtx.isSatisfiable()) {
+                final V<Integer> finalI = i;
+                returnValue = (V<T>)returnValue.flatMap((FeatureExpr retCtx, T retVal) -> finalI.sflatMap(retCtx, (FeatureExpr iCtx, Integer iVal) -> {
+                    if (iVal == index) {
+                        return (V<T>)V.choice(iCtx.and(combinedCtx), el.v, retVal);
+                    } else {
+                        return V.one(retCtx, retVal);
+                    }
+                }));
+                getIndexCtx = returnValue.when(t -> t == null, false);
+                i = (V<Integer>)i.flatMap((FeatureExpr vCtx, Integer iVal) ->
+                        V.choice(vCtx.and(combinedCtx), iVal + 1, iVal));
+            }
         }
-        else {
-            return list.getFirst().v;
-        }
+        return returnValue;
     }
     public V<T> get__I__Ljava_lang_Object(V<? extends Integer> vIndex, FeatureExpr indexCtx) {
-        V<T> result = (V<T>) vIndex.smap(indexCtx, (ctx, index) -> get(index, ctx));
-        return result;
+        return (V<T>) vIndex.sflatMap(indexCtx, (ctx, index) -> get(index, ctx));
     }
 
     public CtxIterator ctxIterator(FeatureExpr ctx) {
@@ -134,13 +168,14 @@ public class CtxList<T> implements List {
         return new CtxListIterator<>(list.iterator());
     }
     public V<CtxIterator<T>> iterator____Lmodel_java_util_CtxIterator(FeatureExpr ctx) {
-        return V.one(VHelper.True(), new CtxListIterator<>(list.iterator()));
+        return V.one(ctx, new CtxListIterator<>(list.iterator()));
     }
 
-    /**
-     * simplify: Remove duplicate elements and elements with unsatisfiable contexts.
-     */
+     // simplify: Remove duplicate elements and elements with unsatisfiable contexts.
     public void simplify____V() {
+        if (list.size() == 0)
+            return;
+
         LinkedList<FEPair<T>> simplified = new LinkedList<>();
         Iterator<FEPair<T>> it = list.iterator();
         FEPair<T> first = it.next();
@@ -179,5 +214,44 @@ public class CtxList<T> implements List {
         });
         list = newList.list;
         return null;
+    }
+
+    public int indexOf(Object o) {
+        int i = 0;
+        CtxIterator<T> it = this.iterator();
+        while (it.hasNext()) {
+            T el = it.next();
+            if (o.equals(el))
+                return i;
+            i++;
+        }
+        return -1;
+    }
+    public V<Integer> indexOf(Object o, FeatureExpr ctx) {
+        V<Integer> i = V.one(ctx, 0);
+        V<Integer> returnValue = V.one(ctx, -1);
+        Iterator<FEPair<T>> it = list.iterator();
+        FeatureExpr getIndexCtx = ctx;
+        while(it.hasNext()) {
+            FEPair<T> el = it.next();
+            FeatureExpr combinedCtx = el.ctx.and(getIndexCtx);
+            if (combinedCtx.isSatisfiable()) {
+                final V<Integer> finalI = i;
+                returnValue = (V<Integer>)returnValue.flatMap((FeatureExpr retCtx, Integer retVal) -> finalI.sflatMap(retCtx, (FeatureExpr iCtx, Integer iVal) -> {
+                    if (o.equals(el.v)) {
+                        return (V<Integer>)V.choice(iCtx.and(combinedCtx), iVal, retVal);
+                    } else {
+                        return V.one(retCtx, retVal);
+                    }
+                }));
+                getIndexCtx = returnValue.when(t -> t == -1, false);
+                i = (V<Integer>)i.flatMap((FeatureExpr vCtx, Integer iVal) ->
+                        V.choice(vCtx.and(combinedCtx), iVal + 1, iVal));
+            }
+        }
+        return returnValue;
+    }
+    public V<Integer> indexOf__Ljava_lang_Object__I(V<Object> vObj, FeatureExpr ctx) {
+        return (V<Integer>)vObj.sflatMap(ctx, (FeatureExpr objCtx, Object obj) -> indexOf(obj, objCtx));
     }
 }
