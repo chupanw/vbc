@@ -138,7 +138,8 @@ class MethodAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicValue]
       depthFirstNums
     }
 
-    edgesByBlock.map(e => e._1 -> e._2.filter(succ => dfns(e._1) >= dfns(succ))).filter(e => e._2.nonEmpty)
+    edgesByBlock.map(e => e._1 -> e._2.filter(succ => dfns.getOrElse(e._1, -1) >= dfns.getOrElse(succ, -2)))
+      .filter(e => e._2.nonEmpty)
   }
 
   // Collect all blocks reachable from BLOCK - where NEIGHBORSOF defines the blocks "next to" a given block
