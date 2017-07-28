@@ -156,8 +156,6 @@ public class CtxListUnit {
         assertEq(list.get__I__Ljava_lang_Object(V.one(T, 0), T), V.one(T, 1));
         assertEq(list.get__I__Ljava_lang_Object(V.one(T, 1), T),
                 V.choice(A, V.one(A, 2), V.choice(B, 3, null)));
-        // fails with equivalent ctxs? Seems like the expression isn't being simplified properly.
-        // !A ^ B ^ (A v B) <=> (!A ^ B ^ A) v (!A ^ B ^ B) <=> 0 v (!A ^ B) <=> !A ^ B
         assertEq(list.get__I__Ljava_lang_Object(V.one(B, 1), B),
                 V.choice(A, V.one(B, 2), V.one(B, 3)));
     }
@@ -172,7 +170,6 @@ public class CtxListUnit {
 
         assertEq(list.indexOf__Ljava_lang_Object__I(V.one(T, 1), T),
                 V.one(T, 0));
-        // fails with equivalent ctxs? Seems like the expression isn't being simplified properly.
         assertEq(list.indexOf__Ljava_lang_Object__I(V.one(T, 2), T),
                 V.choice(A, V.one(A, 1), V.choice(B, 3, -1)));
         assertEq(list.indexOf__Ljava_lang_Object__I(V.one(T, 3), T),
