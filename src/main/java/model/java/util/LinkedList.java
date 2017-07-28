@@ -87,11 +87,25 @@ public class LinkedList implements List {
         return vActual.sflatMap(ctx, (fe, list) -> vElem.smap(fe, (fe2, e) -> list.indexOf(e)));
     }
 
+    public int indexOf(Object o) {
+        return actual.indexOf(o);
+    }
+
 
     public V<?> remove__I__Ljava_lang_Object(V<? extends Integer> vIndex, FeatureExpr ctx) {
         split(ctx);
         return vActual.sflatMap(ctx, (fe, list) -> vIndex.smap(fe, i -> list.remove(i.intValue())));
     }
+
+    public boolean remove(Object o) {
+        return actual.remove(o);
+    }
+
+    public V<?> remove__Ljava_lang_Object__Z(V<? extends Object> vEl, FeatureExpr ctx) {
+        split(ctx);
+        return vActual.sflatMap(ctx, (fe, list) -> vEl.smap(fe, o -> list.remove(o)));
+    }
+
 
 
     public V<?> add__I_Ljava_lang_Object__V(V<? extends Integer> vIndex, V<?> vElem, FeatureExpr ctx) {
