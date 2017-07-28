@@ -66,7 +66,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val node = new ClassNode()
     cr3.accept(node, 0)
     if (isLift) {
-//      postTransformations(node)
+      postTransformations(node)
     }
 
     val cw2 = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
