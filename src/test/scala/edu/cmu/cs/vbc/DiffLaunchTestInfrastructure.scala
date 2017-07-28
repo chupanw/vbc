@@ -2,7 +2,10 @@ package edu.cmu.cs.vbc
 
 import java.io.{File, FileWriter}
 
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc
+import edu.cmu.cs.vbc.prog.iteration.FEList
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 
@@ -76,12 +79,14 @@ trait DiffLaunchTestInfrastructure {
 
   def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
 
-  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true): Unit = {
+  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true,
+               feListFeatures: Int = 1): Unit = {
     //test uninstrumented variational execution to see whether it crashes
     val classname = clazz.getName
     //VBCLauncher.launch(classname)
     val testCrashLoader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, true, avoidOutput)
     val testCrash = testCrashLoader.loadClass(classname)
+    generateList(testCrash, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(testCrash, new Array[String](0))
 
     //test instrumented version, executed variationally
@@ -89,18 +94,19 @@ trait DiffLaunchTestInfrastructure {
     TraceConfig.options = Set()
     val vloader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, true, instrumentMethod)
     val vcls: Class[_] = vloader.loadClass(classname)
+    generateList(vcls, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(vcls, new Array[String](0))
 
     val vtrace = TestTraceOutput.trace
     val usedOptions = TraceConfig.options.map(_.feature)
 
-    println("Used Options: " + TraceConfig.options.mkString(", "))
+//    println("Used Options: " + TraceConfig.options.mkString(", "))
 
     if (compareTraceAgainstBruteForce) {
       val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, false, instrumentMethod, toFileDebugging = false)
       val cls: Class[_] = loader.loadClass(classname)
       //run against brute force instrumented execution and compare traces
-      for ((sel, desel) <- scala.util.Random.shuffle(explode(usedOptions.toList)).take(1000)) {
+      for ((sel, desel) <- scala.util.Random.shuffle(explode(scala.util.Random.shuffle(usedOptions.toList).take(10))).take(1000)) {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
@@ -119,7 +125,7 @@ trait DiffLaunchTestInfrastructure {
       val vbenchmarkcls: Class[_] = vbenchmarkloader.loadClass(classname)
       val benchmarkloader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, false, prepareBenchmark)
       val benchmarkcls: Class[_] = benchmarkloader.loadClass(classname)
-      benchmark(classname, vbenchmarkcls, benchmarkcls, usedOptions)
+      benchmark(classname, vbenchmarkcls, benchmarkcls, usedOptions, feListFeatures)
     }
   }
 
@@ -132,6 +138,22 @@ trait DiffLaunchTestInfrastructure {
     else {
       val r = explode(fs.tail)
       r.map(x => (fs.head :: x._1, x._2)) ++ r.map(x => (x._1, fs.head :: x._2))
+    }
+  }
+
+  /**
+    * Randomly assign true or false to each option
+    * @param fs List of options in the program.
+    * @param num  Number of selections.
+    * @return List of pairs, each pair consists of a list selected options and a list of deselected options. Might
+    *         contain duplicate pairs because of the randomness.
+    */
+  def selectOptRandomly(fs: List[Feature], num: Int): List[Config] = {
+    import scala.util.Random
+    require(num > 0)
+    if (fs.isEmpty) List((Nil, Nil))
+    else {
+      (0 to num).toList.map(_ => Random.shuffle(fs).splitAt(Random.nextInt(fs.size)))
     }
   }
 
@@ -159,33 +181,41 @@ trait DiffLaunchTestInfrastructure {
   }
 
 
-  def benchmark(classname: String, testVClass: Class[_], testClass: Class[_], configOptions: Set[String]): Unit = {
+  def benchmark(classname: String, testVClass: Class[_], testClass: Class[_], configOptions: Set[String],
+                feListFeatures: Int): Unit = {
     import org.scalameter._
 
     //measure V execution
     val vtime = config(
-      Key.exec.benchRuns -> 20
+      Key.exec.benchRuns -> 100
     ) withWarmer {
       new Warmer.Default
     } setUp { _ =>
       TestTraceOutput.trace = Nil
       TraceConfig.config = Map()
+      generateList(testVClass, lifted = true, feListFeatures)
     } measure {
-      VBCLauncher.invokeMain(testVClass, new Array[String](0))
+      if (testVClass.getName.endsWith(".memory"))
+        println("Memory consumption: " + (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) + " bytes")
+      else
+        VBCLauncher.invokeMain(testVClass, new Array[String](0))
     }
     //        println(s"Total time V: $time")
 
 
     //measure brute-force execution
-    val configs = explode(configOptions.toList)
-    val bftimes = for ((sel, desel) <- scala.util.Random.shuffle(configs).take(1000))
+//    val configs = explode(configOptions.toList)
+    val configs = selectOptRandomly(configOptions.toList, 100)
+    val bftimes = for ((sel, desel) <- scala.util.Random.shuffle(configs).take(10))
       yield config(
-        Key.exec.benchRuns -> 20
+        Key.exec.benchRuns -> 5
       ) withWarmer {
         new Warmer.Default
       } setUp { _ =>
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
+        generateList(testClass, lifted = false, feListFeatures)
+        System.gc()
       } measure {
         VBCLauncher.invokeMain(testClass, new Array[String](0))
       }
@@ -198,4 +228,12 @@ trait DiffLaunchTestInfrastructure {
 
   }
 
+  def generateList(clazz: Class[_], lifted:Boolean, numFeatures: Int): Unit = {
+    if (lifted)
+      clazz.getMethod("generate__Ljava_lang_Integer__V", classOf[V[Integer]], classOf[FeatureExpr])
+        .invoke(null, V.one(numFeatures), FeatureExprFactory.True)
+    else
+      clazz.getMethod("generate", classOf[Integer])
+        .invoke(null, Integer.valueOf(numFeatures))
+  }
 }
