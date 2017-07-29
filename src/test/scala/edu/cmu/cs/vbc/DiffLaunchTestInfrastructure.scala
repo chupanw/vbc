@@ -110,6 +110,7 @@ trait DiffLaunchTestInfrastructure {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
+        generateList(cls, lifted = false, feListFeatures)
         VBCLauncher.invokeMain(cls, new Array[String](0))
         val atrace = TestTraceOutput.trace
 
@@ -194,6 +195,7 @@ trait DiffLaunchTestInfrastructure {
       TestTraceOutput.trace = Nil
       TraceConfig.config = Map()
       generateList(testVClass, lifted = true, feListFeatures)
+      println("[info] starting vExecution")
     } measure {
       if (testVClass.getName.endsWith(".memory"))
         println("Memory consumption: " + (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) + " bytes")
@@ -215,7 +217,7 @@ trait DiffLaunchTestInfrastructure {
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
         generateList(testClass, lifted = false, feListFeatures)
-        System.gc()
+        println("[info] starting brute-force")
       } measure {
         VBCLauncher.invokeMain(testClass, new Array[String](0))
       }

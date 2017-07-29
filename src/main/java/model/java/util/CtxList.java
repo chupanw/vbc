@@ -84,6 +84,14 @@ public class CtxList<T> implements List {
         return result;
     }
 
+    public T remove(int index) {
+        if (list.size() <= index) {
+            return null;
+        }
+        FEPair<T> el = list.get(index);
+        el.ctx = FeatureExprFactory.False();
+        return el.v;
+    }
     public V<T> removeIndex(int index, FeatureExpr ctx) {
         V<Integer> i = V.one(ctx, 0);
         V<T> returnValue = V.one(ctx, null);

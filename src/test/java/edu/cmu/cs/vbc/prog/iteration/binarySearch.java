@@ -9,7 +9,7 @@ public class binarySearch extends iterationBench {
     }
 
     public void run() {
-        binarySearch(9, FEList.list);
+        binarySearch(610, FEList.list);
     }
 
     public Integer binarySearch(Integer what, LinkedList<Integer> list) {

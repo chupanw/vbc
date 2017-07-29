@@ -7,10 +7,6 @@ public class findElement extends iterationBench {
     }
 
     public void run() {
-        FEList.list.indexOf(6);
-    }
-
-    public static void generate(Integer numFeatures) {
-        FEList.generate(numFeatures);
+        FEList.list.indexOf(610);
     }
 }
