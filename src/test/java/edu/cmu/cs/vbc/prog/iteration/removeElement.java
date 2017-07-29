@@ -7,10 +7,6 @@ public class removeElement extends iterationBench {
     }
 
     public void run() {
-        FEList.list.remove(Integer.valueOf(6));
-    }
-
-    public static void generate(Integer numFeatures) {
-        FEList.generate(numFeatures);
+        FEList.list.remove(Integer.valueOf(610));
     }
 }

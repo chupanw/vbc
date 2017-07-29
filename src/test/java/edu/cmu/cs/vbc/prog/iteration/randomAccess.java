@@ -7,6 +7,6 @@ public class randomAccess extends iterationBench {
     }
 
     public void run() {
-        System.out.println(FEList.list.get(9));
+        System.out.println(FEList.list.get(6));
     }
 }
