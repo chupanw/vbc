@@ -92,6 +92,10 @@ public class LinkedList implements List {
     }
 
 
+    public Object remove(int index) {
+        return actual.remove(index);
+    }
+
     public V<?> remove__I__Ljava_lang_Object(V<? extends Integer> vIndex, FeatureExpr ctx) {
         split(ctx);
         return vActual.sflatMap(ctx, (fe, list) -> vIndex.smap(fe, i -> list.remove(i.intValue())));
