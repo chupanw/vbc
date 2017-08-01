@@ -8,11 +8,6 @@ import PartialFunction.cond
 
 class IterationTransformer {
   def transformListIterationLoops(node: ClassNode): Unit = {
-    // 1. identify blocks -> get control flow graph -- use MethodAnalyzer()
-    // 2. identify loops (algorithm for doing this from graph - see dragon book)
-    //    - Depth First Spanning Tree, loop section
-    // 3. do transformation
-
     import scala.collection.JavaConversions._ // for map over node.methods
 
     def createMethodAnalyzer(mn: MethodNode) = {
@@ -28,20 +23,19 @@ class IterationTransformer {
 
           iteratorInvocation     <- findIteratorInvocation(loop)
 
+          itNextInvocation       <- loadUtil.findSome(loop.body, findIteratorNextInvocation)
 
-
-          itNextInvocation       <- loadUtil.findSome(loop.body, findIteratorNextInvocation) }
+          loopCtxStoreBeforeLoop <- findStoreBefore(loop, loopCtxVar, ma) }
       yield {
         addSimplifyInvocationBefore(iteratorInvocation, node, ma)
 
+        saveMethodCtxBefore(loopCtxStoreBeforeLoop, ma)
+
         unpackFEPair(itNextInvocation, loopCtxVar, ma)
 
-        for { loopCtxStoreBeforeLoop <- findStoreBefore(loop, loopCtxVar, ma)
-
-              methodCtxVarAfterLoop  <- findFalseFEBefore(loop, ma).map(_.`var`)
+        for { methodCtxVarAfterLoop  <- findFalseFEBefore(loop, ma).map(_.`var`)
               methodCtxLoadAfterLoop <- findLoadAfter(loop, methodCtxVarAfterLoop, ma) }
           yield {
-            saveMethodCtxBefore(loopCtxStoreBeforeLoop, ma)
             restoreMethodCtxBefore(methodCtxLoadAfterLoop, ma)
           }
       }
@@ -104,6 +98,7 @@ class IterationTransformer {
 
   def unpackFEPair(after: AbstractInsnNode, at: Int, ma: MethodAnalyzer): Unit = {
     import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, vclassname, vclasstype}
+    val methodCtxVar = mtdCtxVars(ma.mNode.name)
     ma.insertInsns(after, List(
       // stack =
       // ..., One(FEPair)
@@ -120,6 +115,11 @@ class IterationTransformer {
       // ..., value, FE
       new InsnNode(Opcodes.DUP),
       // ..., value, FE, FE
+      new VarInsnNode(Opcodes.ALOAD, methodCtxVar),
+      // ..., value, FE, FE, mCtx
+      new MethodInsnNode(Opcodes.INVOKEINTERFACE, "de/fosd/typechef/featureexpr/FeatureExpr", "and",
+        "(Lde/fosd/typechef/featureexpr/FeatureExpr;)Lde/fosd/typechef/featureexpr/FeatureExpr;", true),
+      // ..., value, FE, FE^mCtx
       new VarInsnNode(Opcodes.ASTORE, at),
 
       // ..., value, FE
@@ -258,26 +258,27 @@ class IterationTransformer {
   def saveMethodCtxBefore(ctxStoreInsn: VarInsnNode, ma: MethodAnalyzer): Unit = {
     if ((mtdCtxVars get ma.mNode.name).isEmpty) createMethodCtxVar(ma)
 
-    for { varIndex <- mtdCtxVars get ma.mNode.name } yield {
-      val label = new LabelNode()
-      ma.insertInsns(ctxStoreInsn.getPrevious,
-        List(
-          // stack = ..., method ctx
-          new VarInsnNode(Opcodes.ALOAD, varIndex),
-          // ..., method ctx, methodCtxVar
-          new MethodInsnNode(Opcodes.INVOKEINTERFACE, "de/fosd/typechef/featureexpr/FeatureExpr", "isContradiction",
-            "()Z", true),
-          // ..., method ctx, Z
-          new JumpInsnNode(Opcodes.IFEQ, label), // if methodCtxVar is not False, don't store into it again
+    for { varIndex <- mtdCtxVars get ma.mNode.name }
+      yield {
+        val label = new LabelNode()
+        ma.insertInsns(ctxStoreInsn.getPrevious,
+          List(
+            // stack = ..., method ctx
+            new VarInsnNode(Opcodes.ALOAD, varIndex),
+            // ..., method ctx, methodCtxVar
+            new MethodInsnNode(Opcodes.INVOKEINTERFACE, "de/fosd/typechef/featureexpr/FeatureExpr", "isContradiction",
+              "()Z", true),
+            // ..., method ctx, Z
+            new JumpInsnNode(Opcodes.IFEQ, label), // if methodCtxVar is not False, don't store into it again
 
-          // ..., method ctx
-          new InsnNode(Opcodes.DUP), // otherwise, store the method ctx into methodCtx
-          // ..., methodCtx, methodCtx
-          new VarInsnNode(Opcodes.ASTORE, varIndex),
+            // ..., method ctx
+            new InsnNode(Opcodes.DUP), // otherwise, store the method ctx into methodCtx
+            // ..., methodCtx, methodCtx
+            new VarInsnNode(Opcodes.ASTORE, varIndex),
 
-          // ..., method ctx
-          label
-      ))
+            // ..., method ctx
+            label
+        ))
     }
   }
   def restoreMethodCtxBefore(insn: VarInsnNode, ma: MethodAnalyzer): Unit = {
