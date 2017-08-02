@@ -1,8 +1,8 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.loader.MethodAnalyzer
+import edu.cmu.cs.vbc.loader.Loader
 import org.objectweb.asm
-import org.objectweb.asm.tree.MethodNode
+import org.objectweb.asm.tree.{ClassNode, MethodNode}
 import org.objectweb.asm.Opcodes
 import org.scalatest.FlatSpec
 
@@ -11,7 +11,7 @@ import org.scalatest.FlatSpec
 /**
   * Created by lukas on 7/10/17.
   */
-class MethodAnalyzerTest extends FlatSpec {
+class CFGLoopAnalysisTest extends FlatSpec {
 
   /*  Method code:
 
@@ -96,7 +96,15 @@ class MethodAnalyzerTest extends FlatSpec {
         return result;
     }
   */
-
+  val loader = new Loader()
+  val clazz = {
+    val cn = new ClassNode()
+    cn.name = "test"
+    loader.adaptClass(cn)
+  }
+  def envFor(what: MethodNode) = new VMethodEnv(clazz, loader.adaptMethod(clazz.name, what))
+  
+  
   val simpleMethod: MethodNode = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
     mn.instructions
@@ -127,11 +135,8 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val simpleMethodAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", simpleMethod)
-    ma.analyze()
-    ma
-  }
+  val simpleMethodEnv: VMethodEnv = envFor(simpleMethod)
+  
   val lessSimpleMethod = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
     val l0 = new asm.Label()
@@ -179,11 +184,8 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val lessSimpleMethodAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", lessSimpleMethod)
-    ma.analyze()
-    ma
-  }
+  val lessSimpleMethodEnv: VMethodEnv = envFor(lessSimpleMethod)
+  
   val evenLessSimpleMethod = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
     val l0 = new asm.Label()
@@ -220,11 +222,7 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val evenLessSimpleMethodAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", evenLessSimpleMethod)
-    ma.analyze()
-    ma
-  }
+  val evenLessSimpleMethodEnv: VMethodEnv = envFor(evenLessSimpleMethod)
 
   val simpleLoop = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
@@ -270,11 +268,7 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val simpleLoopAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", simpleLoop)
-    ma.analyze()
-    ma
-  }
+  val simpleLoopEnv: VMethodEnv = envFor(simpleLoop)
   
   val lessSimpleLoop = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
@@ -364,11 +358,7 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val lessSimpleLoopAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", lessSimpleLoop)
-    ma.analyze()
-    ma
-  }
+  val lessSimpleLoopEnv: VMethodEnv = envFor(lessSimpleLoop)
 
   val multiLoop = {
     var mn = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
@@ -502,84 +492,54 @@ class MethodAnalyzerTest extends FlatSpec {
 
     mn
   }
-  val multiLoopAnalyzer: MethodAnalyzer = {
-    val ma = new MethodAnalyzer("test", multiLoop)
-    ma.analyze()
-    ma
-  }
-
-  "bBlocks" should "contain a BasicBlock for every block" in {
-    val msg = "analysis of simple method has wrong number of basic blocks"
-    assert(simpleMethodAnalyzer.bBlocks.size == 1, msg)
-    assert(lessSimpleMethodAnalyzer.bBlocks.size == 4, msg)
-    assert(evenLessSimpleMethodAnalyzer.bBlocks.size == 3, msg)
-
-    assert(simpleLoopAnalyzer.bBlocks.size == 4, msg)
-    assert(lessSimpleLoopAnalyzer.bBlocks.size == 10, msg)
-    assert(multiLoopAnalyzer.bBlocks.size == 16, msg)
-  }
+  val multiLoopEnv: VMethodEnv = envFor(multiLoop)
 
   "retreatingEdges" should "contain all retreating edges" in {
     var msg = "analysis of simple method incorrectly finds retreating edges"
-    assert(simpleMethodAnalyzer.retreatingEdges.isEmpty, msg)
-    assert(lessSimpleMethodAnalyzer.retreatingEdges.isEmpty, msg)
-    assert(evenLessSimpleMethodAnalyzer.retreatingEdges.isEmpty, msg)
+    assert(simpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
+    assert(lessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
+    assert(evenLessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
 
     msg = "incorrect retreating edges"
-    var re = simpleLoopAnalyzer.retreatingEdges
+    var re = simpleLoopEnv.LoopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
-    assert(re.get(simpleLoopAnalyzer.blockStarts(13)) contains Set(simpleLoopAnalyzer.blockStarts(8)), msg)
 
-    re = lessSimpleLoopAnalyzer.retreatingEdges
+    re = lessSimpleLoopEnv.LoopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
-    assert(re.get(lessSimpleLoopAnalyzer.blockStarts(54)) contains Set(lessSimpleLoopAnalyzer.blockStarts(28)), msg)
 
-    re = multiLoopAnalyzer.retreatingEdges
+    re = multiLoopEnv.LoopAnalysis.retreatingEdges
     assert(re.size == 2, msg)
-    assert(re.get(multiLoopAnalyzer.blockStarts(54)) contains Set(multiLoopAnalyzer.blockStarts(28)), msg)
-    assert(re.get(multiLoopAnalyzer.blockStarts(91)) contains Set(multiLoopAnalyzer.blockStarts(64)), msg)
   }
 
   "loops.size" should "be the correct number of loops" in {
     var msg = "analysis of simple method finds loops when there are none"
-    assert(simpleMethodAnalyzer.loops.isEmpty, msg)
-    assert(lessSimpleMethodAnalyzer.loops.isEmpty, msg)
-    assert(evenLessSimpleMethodAnalyzer.loops.isEmpty, msg)
+    assert(simpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
+    assert(lessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
+    assert(evenLessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
 
     msg = "incorrect number of loops"
-    assert(simpleLoopAnalyzer.loops.size == 1, msg)
-    assert(lessSimpleLoopAnalyzer.loops.size == 1, msg)
-    assert(multiLoopAnalyzer.loops.size == 2, msg)
+    assert(simpleLoopEnv.LoopAnalysis.loops.size == 1, msg)
+    assert(lessSimpleLoopEnv.LoopAnalysis.loops.size == 1, msg)
+    assert(multiLoopEnv.LoopAnalysis.loops.size == 2, msg)
   }
 
   "loops" should "contain the relevant nodes in their bodies" in {
     val msg = "loops does not contain expected BasicBlocks"
-    var loop = simpleLoopAnalyzer.loops.find(_ => true).get
-    var body = loop.body.toList.sortWith(_.startLine < _.startLine)
+    var loop = simpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
+    var body = loop.body
     assert(body.size == 1, msg)
-    assert(loop.entry.startLine == 8, msg)
-    assert(body.head.startLine == 13, msg)
 
-    loop = lessSimpleLoopAnalyzer.loops.find(_ => true).get
-    body = loop.body.toList.sortWith(_.startLine < _.startLine)
+    loop = lessSimpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
+    body = loop.body
     assert(body.size == 4, msg)
-    assert(loop.entry.startLine == 28, msg)
-    assert(body.head.startLine == 33, msg)
-    assert(body.last.startLine == 54, msg)
 
-    val loops = multiLoopAnalyzer.loops.toList.sortWith(_.entry.startLine < _.entry.startLine)
+    val loops = multiLoopEnv.LoopAnalysis.loops.toList
     loop = loops.head
-    body = loop.body.toList.sortWith(_.startLine < _.startLine)
+    body = loop.body
     assert(body.size == 4, msg)
-    assert(loop.entry.startLine == 28, msg)
-    assert(body.head.startLine == 33, msg)
-    assert(body.last.startLine == 54, msg)
 
     loop = loops.last
-    body = loop.body.toList.sortWith(_.startLine < _.startLine)
+    body = loop.body
     assert(body.size == 4, msg)
-    assert(loop.entry.startLine == 64, msg)
-    assert(body.head.startLine == 69, msg)
-    assert(body.last.startLine == 91, msg)
   }
 }
