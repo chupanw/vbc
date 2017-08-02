@@ -20,6 +20,8 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
   val exceptionVar: LocalVar = freshLocalVar(name = "$exceptionVar", desc = LiftUtils.vclasstype, LocalVar.initOneNull)
   val ctxParameter: Parameter = new Parameter(-1, "ctx", TypeDesc(LiftUtils.fexprclasstype))
 
+  val loopAnalysis: LoopAnalysis = LoopAnalysis(method)
+
   //////////////////////////////////////////////////
   // tagV
   //////////////////////////////////////////////////

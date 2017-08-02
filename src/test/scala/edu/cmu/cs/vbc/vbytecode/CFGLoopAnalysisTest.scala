@@ -558,40 +558,40 @@ class CFGLoopAnalysisTest extends FlatSpec {
 
   "retreatingEdges" should "contain all retreating edges" in {
     var msg = "analysis incorrectly finds retreating edges"
-    assert(simpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
-    assert(lessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
-    assert(evenLessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
+    assert(simpleMethodEnv.loopAnalysis.retreatingEdges.isEmpty, msg)
+    assert(lessSimpleMethodEnv.loopAnalysis.retreatingEdges.isEmpty, msg)
+    assert(evenLessSimpleMethodEnv.loopAnalysis.retreatingEdges.isEmpty, msg)
 
     msg = "incorrect number of retreating edges"
-    var re = simpleLoopEnv.LoopAnalysis.retreatingEdges
+    var re = simpleLoopEnv.loopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
 
-    re = lessSimpleLoopEnv.LoopAnalysis.retreatingEdges
+    re = lessSimpleLoopEnv.loopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
 
-    re = multiLoopEnv.LoopAnalysis.retreatingEdges
+    re = multiLoopEnv.loopAnalysis.retreatingEdges
     assert(re.size == 2, msg)
 
-    re = iteratorLoopEnv.LoopAnalysis.retreatingEdges
+    re = iteratorLoopEnv.loopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
   }
 
   "loops.size" should "be the correct number of loops" in {
     var msg = "analysis finds loops when there are none"
-    assert(simpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
-    assert(lessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
-    assert(evenLessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
+    assert(simpleMethodEnv.loopAnalysis.loops.isEmpty, msg)
+    assert(lessSimpleMethodEnv.loopAnalysis.loops.isEmpty, msg)
+    assert(evenLessSimpleMethodEnv.loopAnalysis.loops.isEmpty, msg)
 
     msg = "incorrect number of loops"
-    assert(simpleLoopEnv.LoopAnalysis.loops.size == 1, msg)
-    assert(lessSimpleLoopEnv.LoopAnalysis.loops.size == 1, msg)
-    assert(multiLoopEnv.LoopAnalysis.loops.size == 2, msg)
-    assert(iteratorLoopEnv.LoopAnalysis.loops.size == 1, msg)
+    assert(simpleLoopEnv.loopAnalysis.loops.size == 1, msg)
+    assert(lessSimpleLoopEnv.loopAnalysis.loops.size == 1, msg)
+    assert(multiLoopEnv.loopAnalysis.loops.size == 2, msg)
+    assert(iteratorLoopEnv.loopAnalysis.loops.size == 1, msg)
   }
 
   "loops" should "contain the relevant nodes in their bodies" in {
     val msg = "loops does not contain expected Blocks"
-    var loop = simpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
+    var loop = simpleLoopEnv.loopAnalysis.loops.find(_ => true).get
     var body = loop.body
     assert(body.size == 1, msg)
     assert(loop.entry.instr.exists(cond(_) { case v: InstrICONST => v.v == 5 }), msg)
@@ -599,7 +599,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(body.find(_ => true).get.instr.exists(cond(_) { case a: InstrIADD => true }), msg)
 
 
-    loop = lessSimpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
+    loop = lessSimpleLoopEnv.loopAnalysis.loops.find(_ => true).get
     body = loop.body
     assert(body.size == 4, msg)
     assert(loop.entry.instr.exists(cond(_) { case l: InstrILOAD => l.getVariables().exists(_.name == "i")}))
@@ -615,7 +615,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(bodyList(3).instr.exists(cond(_) { case a: InstrIADD => true }))
     assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
 
-    val loops = multiLoopEnv.LoopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
+    val loops = multiLoopEnv.loopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
       case l: InstrLINENUMBER => l.line
       case _ => Int.MaxValue
     })
@@ -653,7 +653,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
 
 
-    loop = iteratorLoopEnv.LoopAnalysis.loops.find(_ => true).get
+    loop = iteratorLoopEnv.loopAnalysis.loops.find(_ => true).get
     body = loop.body
     assert(body.size == 1, msg)
     assert(loop.entry.instr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "hasNext" }), msg)
