@@ -1,11 +1,13 @@
 package edu.cmu.cs.vbc.vbytecode
 
 import edu.cmu.cs.vbc.loader.Loader
+import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm
 import org.objectweb.asm.tree.{ClassNode, MethodNode}
 import org.objectweb.asm.Opcodes
 import org.scalatest.FlatSpec
 
+import PartialFunction._
 
 
 /**
@@ -495,12 +497,12 @@ class CFGLoopAnalysisTest extends FlatSpec {
   val multiLoopEnv: VMethodEnv = envFor(multiLoop)
 
   "retreatingEdges" should "contain all retreating edges" in {
-    var msg = "analysis of simple method incorrectly finds retreating edges"
+    var msg = "analysis incorrectly finds retreating edges"
     assert(simpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
     assert(lessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
     assert(evenLessSimpleMethodEnv.LoopAnalysis.retreatingEdges.isEmpty, msg)
 
-    msg = "incorrect retreating edges"
+    msg = "incorrect number of retreating edges"
     var re = simpleLoopEnv.LoopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
 
@@ -512,7 +514,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
   }
 
   "loops.size" should "be the correct number of loops" in {
-    var msg = "analysis of simple method finds loops when there are none"
+    var msg = "analysis finds loops when there are none"
     assert(simpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
     assert(lessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
     assert(evenLessSimpleMethodEnv.LoopAnalysis.loops.isEmpty, msg)
@@ -524,22 +526,67 @@ class CFGLoopAnalysisTest extends FlatSpec {
   }
 
   "loops" should "contain the relevant nodes in their bodies" in {
-    val msg = "loops does not contain expected BasicBlocks"
+    val msg = "loops does not contain expected Blocks"
     var loop = simpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
     var body = loop.body
     assert(body.size == 1, msg)
+    assert(loop.entry.instr.exists(cond(_) { case v: InstrICONST => v.v == 5 }), msg)
+    assert(loop.entry.instr.exists(cond(_) { case c: InstrIF_ICMPGE => true }), msg)
+    assert(body.find(_ => true).get.instr.exists(cond(_) { case a: InstrIADD => true }), msg)
+
 
     loop = lessSimpleLoopEnv.LoopAnalysis.loops.find(_ => true).get
     body = loop.body
     assert(body.size == 4, msg)
+    assert(loop.entry.instr.exists(cond(_) { case l: InstrILOAD => l.getVariables().exists(_.name == "i")}))
+    assert(loop.entry.instr.exists(cond(_) { case c: InstrIF_ICMPGE => true }), msg)
+    var bodyList = body.toList.sortBy(_.instr.head match {
+      case l: InstrLINENUMBER => l.line
+      case _ => Int.MaxValue
+    })
+    assert(bodyList.head.instr.exists(cond(_) { case i: InstrIINC => i.getVariables().exists(_.name == "i") }))
+    assert(bodyList(1).instr.exists(cond(_) { case c: InstrIF_ICMPNE => true }))
+    assert(bodyList(2).instr.exists(cond(_) { case a: InstrIADD => true }))
+    assert(!bodyList(2).instr.exists(cond(_) { case m: InstrIMUL => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case a: InstrIADD => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
 
-    val loops = multiLoopEnv.LoopAnalysis.loops.toList
+    val loops = multiLoopEnv.LoopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
+      case l: InstrLINENUMBER => l.line
+      case _ => Int.MaxValue
+    })
     loop = loops.head
     body = loop.body
     assert(body.size == 4, msg)
+    assert(loop.entry.instr.exists(cond(_) { case l: InstrILOAD => l.getVariables().exists(_.name == "i")}))
+    assert(loop.entry.instr.exists(cond(_) { case c: InstrIF_ICMPGE => true }), msg)
+    bodyList = body.toList.sortBy(_.instr.head match {
+      case l: InstrLINENUMBER => l.line
+      case _ => Int.MaxValue
+    })
+    assert(bodyList.head.instr.exists(cond(_) { case i: InstrIINC => i.getVariables().exists(_.name == "i") && i.increment == 1 }))
+    assert(bodyList(1).instr.exists(cond(_) { case c: InstrIF_ICMPNE => true }))
+    assert(bodyList(2).instr.exists(cond(_) { case a: InstrIADD => true }))
+    assert(!bodyList(2).instr.exists(cond(_){ case m: InstrIMUL => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case a: InstrIADD => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
 
     loop = loops.last
     body = loop.body
     assert(body.size == 4, msg)
+    assert(loop.entry.instr.exists(cond(_) { case l: InstrILOAD => l.getVariables().exists(_.name == "i")}))
+    assert(loop.entry.instr.exists(cond(_) { case c: InstrIF_ICMPLE => true }), msg)
+    bodyList = body.toList.sortBy(_.instr.head match {
+      case l: InstrLINENUMBER => l.line
+      case _ => Int.MaxValue
+    })
+    assert(bodyList.head.instr.exists(cond(_) { case i: InstrIINC => i.getVariables().exists(_.name == "i") && i.increment == -1}))
+    assert(bodyList(1).instr.exists(cond(_) { case c: InstrIREM => true }))
+    assert(bodyList(1).instr.exists(cond(_) { case c: InstrIFNE => true }))
+    assert(bodyList(2).instr.exists(cond(_) { case a: InstrISUB => true }))
+    assert(!bodyList(2).instr.exists(cond(_){ case m: InstrIMUL => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case a: InstrISUB => true }))
+    assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
+
   }
 }
