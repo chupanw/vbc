@@ -2,35 +2,67 @@ package edu.cmu.cs.vbc.utils
 
 import edu.cmu.cs.vbc.loader.{BasicBlock, Loader, Loop, MethodAnalyzer}
 import edu.cmu.cs.vbc.vbytecode._
-import edu.cmu.cs.vbc.vbytecode.instructions.Instruction
+import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.tree._
 import org.objectweb.asm._
 
 import PartialFunction.cond
 
 class IterationTransformer {
+  import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
   def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
-    val loops = env.loopAnalysis.loops
-    var newBlocks = cfg.blocks
-    var newVars = List.empty[Variable]
+    val fePairClassName = "model/java/util/FEPair"
+    val fePairClassType = s"L$fePairClassName;"
+    val objectClassType = "Ljava/lang/Object;"
 
-    // todo: modify newBlocks and add newVars here
-    newBlocks = newBlocks.map({
+    val loops = env.loopAnalysis.loops
+
+    var newVars = List.empty[Variable]
+    var newInsns = List.empty[Int]
+
+    // todo: modify newBlocks and add newVars & newInsns here
+    var newBlocks = cfg.blocks map {
       case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
         entryPred // todo
+
       case entry if loops.exists(_.entry == entry) =>
         entry // todo
-      case body if loops.exists(_.body.contains(body)) =>
-        body // todo
+
+      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
+        val vblockCtx = env.getVBlockVar(bodyBlock)
+        Block(bodyBlock.instr flatMap {
+          case nextInvocation: InstrINVOKEINTERFACE
+            if nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
+            val nextInvIndex = env.getInsnIdx(nextInvocation)
+            newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 5)
+            List(nextInvocation,
+              InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+              InstrCHECKCAST(Owner(fePairClassName)),
+              InstrDUP,
+              InstrGETFIELD(Owner(fePairClassName), "v", objectClassType),
+              InstrSWAP,
+              InstrGETFIELD(Owner(fePairClassName), "ctx", fexprclasstype),
+              InstrDUP,
+              InstrALOAD(vblockCtx),
+              InstrINVOKEINTERFACE(fexprclassname, "and", s"($fexprclasstype)$fexprclasstype", true),
+              InstrASTORE(vblockCtx),
+              InstrSWAP,
+              InstrINVOKESTATIC(vclassname, "one", s"($fexprclasstype$objectClassType)$vclasstype", true))
+          case i => List(i)
+        }, bodyBlock.exceptionHandlers)
+
       case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
         afterLoop // todo
+
       case block => block
-    })
+    }
 
     val newCFG: CFG = CFG(newBlocks)
     val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature, env.method.exceptions,
       newCFG, env.method.localVar ++ newVars)
-    val newEnv = new VMethodEnv(env.clazz, newMN) // by default insns do not have TAG_LIFT, so no need to unset it
+    val newEnv = new VMethodEnv(env.clazz, newMN)
+
+    newInsns.foreach(newEnv.instructionTags(_) &= ~env.TAG_LIFT)
 
     (newCFG, newEnv)
   }
