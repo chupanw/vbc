@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.utils.LiftUtils
+import edu.cmu.cs.vbc.utils.{IterationTransformer, LiftUtils}
 import edu.cmu.cs.vbc.vbytecode.instructions.{InstrINIT_CONDITIONAL_FIELDS, InstrINVOKESTATIC, InstrRETURN, Instruction}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm._
@@ -45,8 +45,8 @@ case class VBCMethodNode(access: Int,
     mv.visitLabel(labelStart)
 
     if (body.blocks.nonEmpty) {
-      val env = new VMethodEnv(clazz, this)
-      body.toVByteCode(mv, env)
+      val (newBody, env) = methodTransformations(body, new VMethodEnv(clazz, this))
+      newBody.toVByteCode(mv, env)
 
       val labelEnd = new Label()
       mv.visitLabel(labelEnd)
@@ -136,6 +136,11 @@ case class VBCMethodNode(access: Int,
       mv.visitMaxs(0, 0)
       mv.visitEnd()
     }
+  }
+
+  def methodTransformations(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
+    val iterTrans = new IterationTransformer()
+    iterTrans.transformListIteration(cfg, env)
   }
 }
 

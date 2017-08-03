@@ -1,12 +1,39 @@
 package edu.cmu.cs.vbc.utils
 
 import edu.cmu.cs.vbc.loader.{BasicBlock, Loader, Loop, MethodAnalyzer}
+import edu.cmu.cs.vbc.vbytecode._
+import edu.cmu.cs.vbc.vbytecode.instructions.Instruction
 import org.objectweb.asm.tree._
 import org.objectweb.asm._
 
 import PartialFunction.cond
 
 class IterationTransformer {
+  def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
+    val loops = env.loopAnalysis.loops
+    var newBlocks = cfg.blocks
+    var newVars = List.empty[Variable]
+
+    // todo: modify newBlocks and add newVars here
+    newBlocks = newBlocks.map({
+      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
+        entryPred // todo
+      case entry if loops.exists(_.entry == entry) =>
+        entry // todo
+      case body if loops.exists(_.body.contains(body)) =>
+        body // todo
+      case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
+        afterLoop // todo
+      case block => block
+    })
+
+    val newCFG: CFG = CFG(newBlocks)
+    val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature, env.method.exceptions,
+      newCFG, env.method.localVar ++ newVars)
+    val newEnv = new VMethodEnv(env.clazz, newMN) // by default insns do not have TAG_LIFT, so no need to unset it
+
+    (newCFG, newEnv)
+  }
   def transformListIterationLoops(node: ClassNode): Unit = {
     import scala.collection.JavaConversions._ // for map over node.methods
 
