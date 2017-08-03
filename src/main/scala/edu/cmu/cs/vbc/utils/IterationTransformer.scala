@@ -10,11 +10,11 @@ import PartialFunction.cond
 
 class IterationTransformer {
   import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
-  def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
-    val fePairClassName = "model/java/util/FEPair"
-    val fePairClassType = s"L$fePairClassName;"
-    val objectClassType = "Ljava/lang/Object;"
+  val fePairClassName = "model/java/util/FEPair"
+  val fePairClassType = s"L$fePairClassName;"
+  val objectClassType = "Ljava/lang/Object;"
 
+  def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops
 
     var newVars = List.empty[Variable]
@@ -31,24 +31,16 @@ class IterationTransformer {
       case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
         val vblockCtx = env.getVBlockVar(bodyBlock)
         Block(bodyBlock.instr flatMap {
-          case nextInvocation: InstrINVOKEINTERFACE
-            if nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
+          case nextInvocation: InstrINVOKEINTERFACE if
+          nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
+            val unpackInsns = unpackFEPair(vblockCtx)
+
             val nextInvIndex = env.getInsnIdx(nextInvocation)
-            newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 5)
-            List(nextInvocation,
-              InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
-              InstrCHECKCAST(Owner(fePairClassName)),
-              InstrDUP,
-              InstrGETFIELD(Owner(fePairClassName), "v", objectClassType),
-              InstrSWAP,
-              InstrGETFIELD(Owner(fePairClassName), "ctx", fexprclasstype),
-              InstrDUP,
-              InstrALOAD(vblockCtx),
-              InstrINVOKEINTERFACE(fexprclassname, "and", s"($fexprclasstype)$fexprclasstype", true),
-              InstrASTORE(vblockCtx),
-              InstrSWAP,
-              InstrINVOKESTATIC(vclassname, "one", s"($fexprclasstype$objectClassType)$vclasstype", true))
-          case i => List(i)
+            newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
+
+            nextInvocation :: unpackInsns
+
+          case otherInsn => List(otherInsn)
         }, bodyBlock.exceptionHandlers)
 
       case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
@@ -66,6 +58,29 @@ class IterationTransformer {
 
     (newCFG, newEnv)
   }
+
+  def unpackFEPair(loopCtxVar: Variable): List[Instruction] = {
+    List(InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      InstrCHECKCAST(Owner(fePairClassName)),
+      InstrDUP(),
+      InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
+      // InstrSWAP, todo: notimplemented
+      InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      InstrDUP(),
+      InstrALOAD(loopCtxVar),
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
+        MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
+      InstrASTORE(loopCtxVar),
+      // InstrSWAP, todo: notimplemented
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
+        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true))
+  }
+
+
+
+
+
+
   def transformListIterationLoops(node: ClassNode): Unit = {
     import scala.collection.JavaConversions._ // for map over node.methods
 
