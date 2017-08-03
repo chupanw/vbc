@@ -14,44 +14,42 @@ class IterationTransformer {
   val fePairClassType = s"L$fePairClassName;"
   val objectClassType = "Ljava/lang/Object;"
 
+
   def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops
 
-    var newVars = List.empty[Variable]
-    var newInsns = List.empty[Int]
-
     // todo: modify newBlocks and add newVars & newInsns here
-    var newBlocks = cfg.blocks map {
+    var blockTransformations = cfg.blocks map {
       case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
-        entryPred // todo
+        val newBlock = Block(entryPred.instr flatMap {
+//          case itInv if isIteratorInvocation()
+          case block => List(block)
+        }, entryPred.exceptionHandlers)
+        BlockTransformation(newBlock, List(), List())
 
       case entry if loops.exists(_.entry == entry) =>
-        entry // todo
+        BlockTransformation(entry, List(), List()) // todo
 
       case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
-        val vblockCtx = env.getVBlockVar(bodyBlock)
-        Block(bodyBlock.instr flatMap {
-          case nextInvocation: InstrINVOKEINTERFACE if
-          nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
-            val unpackInsns = unpackFEPair(vblockCtx)
-
-            val nextInvIndex = env.getInsnIdx(nextInvocation)
-            newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
-
-            nextInvocation :: unpackInsns
-
-          case otherInsn => List(otherInsn)
-        }, bodyBlock.exceptionHandlers)
+        transformBodyBlock(bodyBlock, env)
 
       case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
-        afterLoop // todo
+        BlockTransformation(afterLoop, List(), List())// todo
 
-      case block => block
+      case block => BlockTransformation(block, List(), List())
     }
 
+    val collectTransformations =
+      blockTransformations.foldLeft((List.empty[Block], List.empty[Int], List.empty[Variable]))
+    val (newBlocks, newInsns, newVars) = collectTransformations((collected, bt) =>
+      (bt.newBlock :: collected._1,
+        bt.newInsnIndeces ++ collected._2,
+        bt.newVars ++ collected._3))
+
+
     val newCFG: CFG = CFG(newBlocks)
-    val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature, env.method.exceptions,
-      newCFG, env.method.localVar ++ newVars)
+    val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature,
+      env.method.exceptions, newCFG, env.method.localVar ++ newVars)
     val newEnv = new VMethodEnv(env.clazz, newMN)
 
     newInsns.foreach(newEnv.instructionTags(_) &= ~env.TAG_LIFT)
@@ -59,6 +57,25 @@ class IterationTransformer {
     (newCFG, newEnv)
   }
 
+  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv): BlockTransformation = {
+    val vblockCtx = env.getVBlockVar(bodyBlock)
+    var newInsns = List.empty[Int]
+    BlockTransformation(
+      Block(bodyBlock.instr flatMap {
+        case nextInvocation: InstrINVOKEINTERFACE if
+        nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
+          val unpackInsns = unpackFEPair(vblockCtx)
+
+          val nextInvIndex = env.getInsnIdx(nextInvocation) + env.getBlockIdx(bodyBlock)
+          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
+
+          nextInvocation :: unpackInsns
+
+        case otherInsn => List(otherInsn)
+      }, bodyBlock.exceptionHandlers),
+      newInsns,
+      List())
+  }
   def unpackFEPair(loopCtxVar: Variable): List[Instruction] = {
     List(InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
       InstrCHECKCAST(Owner(fePairClassName)),
@@ -377,7 +394,7 @@ class IterationTransformer {
   }
 }
 
-
+case class BlockTransformation(newBlock: Block, newInsnIndeces: List[Int], newVars: List[Variable])
 
 object loadUtil {
   // Narrow the type of X to TO, if possible
