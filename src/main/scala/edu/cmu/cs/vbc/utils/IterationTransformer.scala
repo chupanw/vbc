@@ -12,6 +12,8 @@ class IterationTransformer {
   import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
   val fePairClassName = "model/java/util/FEPair"
   val fePairClassType = s"L$fePairClassName;"
+  val ctxListClassName = "model/java/util/CtxList"
+  val ctxListClassType = s"L$ctxListClassName;"
   val objectClassType = "Ljava/lang/Object;"
 
 
@@ -21,20 +23,10 @@ class IterationTransformer {
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
       case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
-        val newBlock = Block(entryPred.instr flatMap {
-//          case itInv if isIteratorInvocation()
-          case block => List(block)
-        }, entryPred.exceptionHandlers)
-        BlockTransformation(newBlock, List(), List())
-
-//      case entry if loops.exists(_.entry == entry) =>
-//        BlockTransformation(entry, List(), List()) // todo
+        transformEntryPred(entryPred, env)
 
       case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
         transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
-
-//      case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
-//        BlockTransformation(afterLoop, List(), List())// todo
 
       case block => BlockTransformation(block, List(), List())
     }
@@ -57,6 +49,31 @@ class IterationTransformer {
     (newCFG, newEnv)
   }
 
+
+  def transformEntryPred(entryPred: Block, env: VMethodEnv): BlockTransformation = {
+    // add an invocation to ctxlist.simplify before the iterator invocation
+    var newInsns = List.empty[Int]
+    BlockTransformation(
+      Block(entryPred.instr flatMap {
+        case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
+          val simplifyInsns = invokeSimplify()
+
+          val iteratorIndex = absoluteIdxOf(itInvoke, env, entryPred)
+          // Range from index because new instructions come before simplify
+          newInsns ++= List.range(iteratorIndex, iteratorIndex + simplifyInsns.size)
+
+          simplifyInsns :+ itInvoke
+
+        case block => List(block)
+      }, entryPred.exceptionHandlers),
+      newInsns,
+      List())
+  }
+  def invokeSimplify(): List[Instruction] = {
+    List( InstrDUP(),
+      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), true))
+  }
+
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
     val vblockCtx = env.getVBlockVar(bodyBlock)
     var newInsns = List.empty[Int]
@@ -66,8 +83,12 @@ class IterationTransformer {
         nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
           val unpackInsns = unpackFEPair(vblockCtx, env, entry)
 
-          val nextInvIndex = env.getInsnIdx(nextInvocation) + env.getBlockIdx(bodyBlock)
-          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
+          val nextInvIndex = absoluteIdxOf(nextInvocation, env, bodyBlock)
+          val condInsnIndex = unpackInsns.indexWhere(_.isJumpInstr)
+          // Range from index + 1 because new instructions come after nextInvocation
+          // Do not mark conditional as a "new instruction" so that it will be lifted (thereby narrowing context)
+          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + condInsnIndex)
+          newInsns ++= List.range(nextInvIndex + 1 + condInsnIndex + 1, nextInvIndex + 1 + unpackInsns.size)
 
           nextInvocation :: unpackInsns
 
@@ -94,6 +115,12 @@ class IterationTransformer {
         MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true))
   }
 
+
+  def absoluteIdxOf(insn: Instruction, env: VMethodEnv, block: Block): Int = {
+    env.getInsnIdx(insn) + env.getBlockIdx(block)
+  }
+  def isIteratorInvocation(insn: InstrINVOKEVIRTUAL): Boolean =
+    insn.name.name.equals("iterator") && insn.owner.name.equals("CtxList")
 
 
 
