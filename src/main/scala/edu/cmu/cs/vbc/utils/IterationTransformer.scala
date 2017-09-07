@@ -27,14 +27,14 @@ class IterationTransformer {
         }, entryPred.exceptionHandlers)
         BlockTransformation(newBlock, List(), List())
 
-      case entry if loops.exists(_.entry == entry) =>
-        BlockTransformation(entry, List(), List()) // todo
+//      case entry if loops.exists(_.entry == entry) =>
+//        BlockTransformation(entry, List(), List()) // todo
 
       case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
-        transformBodyBlock(bodyBlock, env)
+        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
 
-      case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
-        BlockTransformation(afterLoop, List(), List())// todo
+//      case afterLoop if loops.exists(l => env.getPredecessors(l.entry).contains(afterLoop)) =>
+//        BlockTransformation(afterLoop, List(), List())// todo
 
       case block => BlockTransformation(block, List(), List())
     }
@@ -57,14 +57,14 @@ class IterationTransformer {
     (newCFG, newEnv)
   }
 
-  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv): BlockTransformation = {
+  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
     val vblockCtx = env.getVBlockVar(bodyBlock)
     var newInsns = List.empty[Int]
     BlockTransformation(
       Block(bodyBlock.instr flatMap {
         case nextInvocation: InstrINVOKEINTERFACE if
         nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
-          val unpackInsns = unpackFEPair(vblockCtx)
+          val unpackInsns = unpackFEPair(vblockCtx, env, entry)
 
           val nextInvIndex = env.getInsnIdx(nextInvocation) + env.getBlockIdx(bodyBlock)
           newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
@@ -76,7 +76,7 @@ class IterationTransformer {
       newInsns,
       List())
   }
-  def unpackFEPair(loopCtxVar: Variable): List[Instruction] = {
+  def unpackFEPair(loopCtxVar: Variable, env: VMethodEnv, entry: Block): List[Instruction] = {
     List(InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
       InstrCHECKCAST(Owner(fePairClassName)),
       InstrDUP(),
@@ -87,7 +87,8 @@ class IterationTransformer {
       InstrALOAD(loopCtxVar),
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
-      InstrASTORE(loopCtxVar),
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      InstrIFEQ(env.getBlockIdx(entry)),
       // InstrSWAP, todo: notimplemented
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
         MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true))
