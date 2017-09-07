@@ -40,7 +40,7 @@ class IterationTransformer {
     }
 
     val collectTransformations =
-      blockTransformations.foldLeft((List.empty[Block], List.empty[Int], List.empty[Variable]))
+      blockTransformations.foldLeft((List.empty[Block], List.empty[Int], List.empty[Variable])) _
     val (newBlocks, newInsns, newVars) = collectTransformations((collected, bt) =>
       (bt.newBlock :: collected._1,
         bt.newInsnIndeces ++ collected._2,
