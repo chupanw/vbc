@@ -139,3 +139,18 @@ case class InstrDUP_X1() extends Instruction {
     mv.visitInsn(DUP_X1)
   }
 }
+
+case class InstrSWAP() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(SWAP)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    // given valid bytecode, lifting or not does not matter, just swap
+    mv.visitInsn(SWAP)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v1, prev1, frame1) = s.pop()
+    val (v2, prev2, frame2) = frame1.pop()
+    (frame2.push(v1, prev1).push(v2, prev2), Set())
+  }
+}
