@@ -102,7 +102,7 @@ class IterationTransformer {
       InstrCHECKCAST(Owner(fePairClassName)),
       InstrDUP(),
       InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
-      // InstrSWAP, todo: notimplemented
+      InstrSWAP(),
       InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
       InstrDUP(),
       InstrALOAD(loopCtxVar),
@@ -110,7 +110,7 @@ class IterationTransformer {
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
       InstrIFEQ(env.getBlockIdx(entry)),
-      // InstrSWAP, todo: notimplemented
+      InstrSWAP(),
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
         MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true))
   }
