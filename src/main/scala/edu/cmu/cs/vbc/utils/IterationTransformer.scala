@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.utils
 
-import edu.cmu.cs.vbc.loader.{BasicBlock, Loader, Loop, MethodAnalyzer}
+import edu.cmu.cs.vbc.loader.{BasicBlock, MethodAnalyzer}
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.tree._
@@ -162,7 +162,7 @@ class IterationTransformer {
   }
 
 
-  def firstBodyBlock(loop: Loop): Option[BasicBlock] = {
+  def firstBodyBlock(loop: edu.cmu.cs.vbc.loader.Loop): Option[BasicBlock] = {
     // Sort body blocks so that find acts deterministically
     // Given 2 or more entry successors to choose from, select the latest one by sorting in descending order
     loop.body.toList.sortWith(_.startLine > _.startLine).find(block => loop.entry.successors contains block.startLine)
@@ -264,10 +264,10 @@ class IterationTransformer {
     isInvokeDynamicWith(insn, "INVOKEINTERFACE$hasNext", "CtxIterator")
 
 
-  def isListIteration(loop: Loop, ma: MethodAnalyzer): Boolean =
+  def isListIteration(loop: edu.cmu.cs.vbc.loader.Loop, ma: MethodAnalyzer): Boolean =
     loop.entry.predecessors.map(ma.blockEnds).exists(_.instructions.exists(isIteratorInvocation))
 
-  def findIteratorInvocation(loop: Loop): Option[AbstractInsnNode] = {
+  def findIteratorInvocation(loop: edu.cmu.cs.vbc.loader.Loop): Option[AbstractInsnNode] = {
     var thisInsn = loop.entry.instructions.head.getPrevious
     var prevInsn = thisInsn.getPrevious
     while (thisInsn != prevInsn) {
@@ -322,7 +322,7 @@ class IterationTransformer {
     ))
   }
 
-  def findStoreBefore(loop: Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
+  def findStoreBefore(loop: edu.cmu.cs.vbc.loader.Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
     /*
     Turns out the only store into the loop ctx var "before" the loop is in the first body block of the loop
     -- that is where the context propogation of the vBlocks is done
@@ -333,7 +333,7 @@ class IterationTransformer {
       case _ => None
     }))
   }
-  def findLoadAfter(loop: Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
+  def findLoadAfter(loop: edu.cmu.cs.vbc.loader.Loop, varIndex: Int, ma: MethodAnalyzer): Option[VarInsnNode] = {
     // Find the first store to VARINDEX after LOOP
     val blocksAfterLoop = ma.reachableFrom(loop.entry, _.successors.map(ma.blockStarts)) diff loop.body
     val blocksSorted = blocksAfterLoop.toList.sortWith(_.startLine < _.startLine)
@@ -413,7 +413,7 @@ class IterationTransformer {
         ))
   }
 
-  def findFalseFEBefore(loop: Loop, ma: MethodAnalyzer): Option[VarInsnNode] = {
+  def findFalseFEBefore(loop: edu.cmu.cs.vbc.loader.Loop, ma: MethodAnalyzer): Option[VarInsnNode] = {
     def isFEFalse(m: MethodInsnNode) = m.owner == "de/fosd/typechef/featureexpr/FeatureExprFactory" && m.name == "False"
     val firstBodyBlock = loop.entry.successors.map(ma.blockStarts) find (_.instructions.exists(isHasNextInvocation))
     firstBodyBlock.flatMap(block => loadUtil.findSome(block.instructions.reverse, (insn: AbstractInsnNode) =>  insn match {
