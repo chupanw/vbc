@@ -22,18 +22,18 @@ class IterationTransformer {
 
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
-      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
-        transformEntryPred(entryPred, env)
-
-      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
-        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
+//      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
+//        transformEntryPred(entryPred, env)
+//
+//      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
+//        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
 
       case block => BlockTransformation(block, List(), List())
     }
 
     val collectTransformations =
-      blockTransformations.foldLeft((List.empty[Block], List.empty[Int], List.empty[Variable])) _
-    val (newBlocks, newInsns, newVars) = collectTransformations((collected, bt) =>
+      blockTransformations.foldRight((List.empty[Block], List.empty[Int], List.empty[Variable])) _
+    val (newBlocks, newInsns, newVars) = collectTransformations((bt, collected) =>
       (bt.newBlock :: collected._1,
         bt.newInsnIndeces ++ collected._2,
         bt.newVars ++ collected._3))
@@ -51,7 +51,7 @@ class IterationTransformer {
 
 
   def transformEntryPred(entryPred: Block, env: VMethodEnv): BlockTransformation = {
-    // add an invocation to ctxlist.simplify before the iterator invocation
+    // Add an invocation to ctxlist.simplify before the iterator invocation
     var newInsns = List.empty[Int]
     BlockTransformation(
       Block(entryPred.instr flatMap {
@@ -75,6 +75,7 @@ class IterationTransformer {
   }
 
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
+    // Unpack FEPair iterator after the iterator.next invocation, and add condition testing context of FEPair
     val vblockCtx = env.getVBlockVar(bodyBlock)
     var newInsns = List.empty[Int]
     BlockTransformation(
