@@ -18,13 +18,13 @@ class IterationTransformer {
 
 
   def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
-    val loops = env.loopAnalysis.loops
+    val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
 
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
-//      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
-//        transformEntryPred(entryPred, env)
-//
+      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
+        transformEntryPred(entryPred, env)
+
 //      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
 //        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
 
@@ -119,9 +119,14 @@ class IterationTransformer {
 
   def absoluteIdxOf(insn: Instruction, env: VMethodEnv, block: Block): Int = {
     env.getInsnIdx(insn) + env.getBlockIdx(block)
+  def isListIteration(loop: Loop, env: VMethodEnv): Boolean =
+    env.getPredecessors(loop.entry).exists(_.instr.exists(isIteratorInvocation))
+
+  def isIteratorInvocation(insn: Instruction): Boolean = cond(insn) {
+    case inv: InstrINVOKEVIRTUAL => isIteratorInvocation(inv)
   }
   def isIteratorInvocation(insn: InstrINVOKEVIRTUAL): Boolean =
-    insn.name.name.equals("iterator") && insn.owner.name.equals("CtxList")
+    insn.name.name.equals("iterator") && insn.owner.name.contains("List")
 
 
 
