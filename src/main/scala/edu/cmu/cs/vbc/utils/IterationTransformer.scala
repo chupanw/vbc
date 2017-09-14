@@ -58,7 +58,7 @@ class IterationTransformer {
         case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
           val simplifyInsns = invokeSimplify()
 
-          val iteratorIndex = absoluteIdxOf(itInvoke, env, entryPred)
+          val iteratorIndex = env.getInsnIdx(itInvoke)
           // Range from index because new instructions come before simplify
           newInsns ++= List.range(iteratorIndex, iteratorIndex + simplifyInsns.size)
 
@@ -84,7 +84,7 @@ class IterationTransformer {
         nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
           val unpackInsns = unpackFEPair(vblockCtx, env, entry)
 
-          val nextInvIndex = absoluteIdxOf(nextInvocation, env, bodyBlock)
+          val nextInvIndex = env.getInsnIdx(nextInvocation)
           val condInsnIndex = unpackInsns.indexWhere(_.isJumpInstr)
           // Range from index + 1 because new instructions come after nextInvocation
           // Do not mark conditional as a "new instruction" so that it will be lifted (thereby narrowing context)
@@ -117,8 +117,6 @@ class IterationTransformer {
   }
 
 
-  def absoluteIdxOf(insn: Instruction, env: VMethodEnv, block: Block): Int = {
-    env.getInsnIdx(insn) + env.getBlockIdx(block)
   def isListIteration(loop: Loop, env: VMethodEnv): Boolean =
     env.getPredecessors(loop.entry).exists(_.instr.exists(isIteratorInvocation))
 
