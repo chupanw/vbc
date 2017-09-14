@@ -40,7 +40,11 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     }
 
     //generate block code
-    instr.foreach(_.toVByteCode(mv, env, this))
+    for { insn <- instr } yield {
+      // respect instruction tags in env
+      val insnToByteCode = if (env.getTag(insn, env.TAG_LIFT)) insn.toVByteCode _ else insn.toByteCode _
+      insnToByteCode(mv, env, this)
+    }
 
     //if this block ends with a jump to a different VBlock (always all jumps are to the same or to
     //different VBlocks, never mixed)
