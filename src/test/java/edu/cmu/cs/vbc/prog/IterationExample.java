@@ -15,12 +15,12 @@ public class IterationExample {
 
     public static void main(String[] args) {
         IterationExample ie = new IterationExample();
-        ie.iterator();
+        ie.TEST_iterator();
         System.out.println("\n~~~~~\n");
-        ie.indexing();
+        ie.TEST_indexing();
     }
 
-    public void indexing() {
+    public void TEST_indexing() {
         LinkedList<Integer> l = new LinkedList<>();
         l.add(1);
         if (A) {
@@ -40,7 +40,7 @@ public class IterationExample {
         }
    }
 
-    private void iterator() {
+    private void TEST_iterator() {
         LinkedList<Integer> l = new LinkedList<>();
         l.add(1);
         if (A) {
