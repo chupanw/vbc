@@ -70,8 +70,12 @@ class IterationTransformer {
       List())
   }
   def invokeSimplify(): List[Instruction] = {
-    List( InstrDUP(),
-      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), true))
+    // todo: this needs to map over the V wrapping the CtxList
+    List(InstrDUP(),
+      // Could assume the V is a One. It should be, but I'm not certain.
+//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+//      InstrCHECKCAST(Owner(ctxListClassName)),
+      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), false))
   }
 
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
