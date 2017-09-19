@@ -66,14 +66,16 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     * INVOKESPECIAL only. Handle special case like NEW DUP INVOKESPECIAL sequence.
     */
   val TAG_WRAP_DUPLICATE = 8
+  // Do not lift this instruction with toVByteCode, use toByteCode instead
+  val TAG_PRESERVE = 16
 
   def setTag(instr: Instruction, tag: Int): Unit = {
-    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE)
+    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE || tag == TAG_PRESERVE)
     instructionTags(getInsnIdx(instr)) |= tag
   }
 
   def getTag(instr: Instruction, tag: Int): Boolean = {
-    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE)
+    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE || tag == TAG_PRESERVE)
     (instructionTags(getInsnIdx(instr)) & tag) != 0
   }
 

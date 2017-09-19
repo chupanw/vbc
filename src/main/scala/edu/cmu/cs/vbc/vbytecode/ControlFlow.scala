@@ -42,7 +42,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     //generate block code
     for { insn <- instr } yield {
       // respect instruction tags in env
-      val insnToByteCode = if (env.getTag(insn, env.TAG_LIFT)) insn.toVByteCode _ else insn.toByteCode _
+      val insnToByteCode = if (env.getTag(insn, env.TAG_PRESERVE)) insn.toByteCode _ else insn.toVByteCode _
       insnToByteCode(mv, env, this)
     }
 

@@ -44,7 +44,7 @@ class IterationTransformer {
       env.method.exceptions, newCFG, env.method.localVar ++ newVars)
     val newEnv = new VMethodEnv(env.clazz, newMN)
 
-    newInsns.foreach(newEnv.instructionTags(_) &= ~env.TAG_LIFT)
+    newInsns.foreach(newEnv.instructionTags(_) |= env.TAG_PRESERVE)
 
     (newCFG, newEnv)
   }
