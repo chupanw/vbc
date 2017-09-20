@@ -8,7 +8,7 @@ import edu.cmu.cs.vbc.utils.LiftingPolicy.{LiftedCall, liftCall, replaceCall}
 import edu.cmu.cs.vbc.utils.{InvokeDynamicUtils, LiftingPolicy, VCall}
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.Opcodes._
-import org.objectweb.asm.{ClassVisitor, MethodVisitor, Type}
+import org.objectweb.asm.{ClassVisitor, Handle, MethodVisitor, Type}
 
 /**
   * @author chupanw
@@ -497,5 +497,17 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
         if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
       }
     }
+  }
+}
+
+case class InstrINVOKEDYNAMIC(owner: Owner, name: MethodName, desc: MethodDesc, bsm: Handle, bsmArgs: Any*) extends MethodInstruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = updateStack(s, env, owner, name, desc)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    assert(false, "Lifting INVOKEDYNAMIC not implemented.")
   }
 }

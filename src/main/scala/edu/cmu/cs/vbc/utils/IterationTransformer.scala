@@ -17,13 +17,13 @@ class IterationTransformer {
   val objectClassType = "Ljava/lang/Object;"
 
 
-  def transformListIteration(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
+  def transformListIteration(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
 
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
       case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
-        transformEntryPred(entryPred, env)
+        transformEntryPred(entryPred, env, cw)
 
 //      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
 //        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
@@ -50,13 +50,32 @@ class IterationTransformer {
   }
 
 
-  def transformEntryPred(entryPred: Block, env: VMethodEnv): BlockTransformation = {
+  var createdSimplifyLambdaMtd = false
+  def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
+    if (!createdSimplifyLambdaMtd) {
+      val mv = cw.visitMethod(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
+        lambdaName, lambdaDesc, lambdaDesc, Array[String]())
+      mv.visitCode()
+      mv.visitVarInsn(Opcodes.ALOAD, 0)
+      mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ctxListClassName, "simplify____V", "()V", false)
+      mv.visitInsn(Opcodes.RETURN)
+      mv.visitMaxs(2, 1)
+      mv.visitEnd()
+
+      createdSimplifyLambdaMtd = true
+    }
+  }
+  def transformEntryPred(entryPred: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
+    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
+    val lambdaDesc = s"($ctxListClassType)V"
+    createSimplifyLambda(cw, lambdaName, lambdaDesc)
+
     // Add an invocation to ctxlist.simplify before the iterator invocation
     var newInsns = List.empty[Int]
     BlockTransformation(
       Block(entryPred.instr flatMap {
         case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
-          val simplifyInsns = invokeSimplify()
+          val simplifyInsns = invokeSimplify(env.clazz.name, lambdaName, lambdaDesc)
 
           val iteratorIndex = env.getInsnIdx(itInvoke)
           // Range from index because new instructions come before simplify
@@ -69,13 +88,22 @@ class IterationTransformer {
       newInsns,
       List())
   }
-  def invokeSimplify(): List[Instruction] = {
+  def invokeSimplify(className: String, lambdaName: String, lambdaDesc: String): List[Instruction] = {
+    val consumerName = "java/util/function/Consumer"
+    val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
     List(InstrDUP(),
       // Could assume the V is a One. It should be, but I'm not certain.
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
 //      InstrCHECKCAST(Owner(ctxListClassName)),
-      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), false))
+
+      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
+        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
+          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
+        Type.getType("(Ljava/lang/Object;)V"),
+        new Handle(Opcodes.H_INVOKESTATIC, className, lambdaName, lambdaDesc),
+        Type.getType(lambdaDesc)),
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true))
   }
 
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {

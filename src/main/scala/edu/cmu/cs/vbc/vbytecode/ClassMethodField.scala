@@ -45,7 +45,7 @@ case class VBCMethodNode(access: Int,
     mv.visitLabel(labelStart)
 
     if (body.blocks.nonEmpty) {
-      val (newBody, env) = methodTransformations(body, new VMethodEnv(clazz, this))
+      val (newBody, env) = methodTransformations(body, new VMethodEnv(clazz, this), cw)
       newBody.toVByteCode(mv, env)
 
       val labelEnd = new Label()
@@ -138,9 +138,9 @@ case class VBCMethodNode(access: Int,
     }
   }
 
-  def methodTransformations(cfg: CFG, env: VMethodEnv): (CFG, VMethodEnv) = {
+  def methodTransformations(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val iterTrans = new IterationTransformer()
-    iterTrans.transformListIteration(cfg, env)
+    iterTrans.transformListIteration(cfg, env, cw)
   }
 }
 
