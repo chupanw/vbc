@@ -100,7 +100,7 @@ class IterationTransformer {
       // Could assume the V is a One. It should be, but I'm not certain.
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
       InstrCHECKCAST(Owner(ctxListClassName)),
-      InstrPOP()
+      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), true) // todo: changed this, haven't tested
 //
 //      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
 //        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
