@@ -1,5 +1,7 @@
 package edu.cmu.cs.vbc.utils
 
+import edu.cmu.cs.vbc.analysis.VBCFrame
+import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
 import edu.cmu.cs.vbc.loader.{BasicBlock, MethodAnalyzer}
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -25,8 +27,9 @@ class IterationTransformer {
 
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
-      case entryPred if loopPredecessors contains entryPred =>
-        transformEntryPred(entryPred, env, cw)
+      // todo: re-enable simplify invocation
+//      case entryPred if loopPredecessors contains entryPred =>
+//        transformEntryPred(entryPred, env, cw)
 
       case bodyBlock if loopBodyBlocks contains bodyBlock =>
         transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
@@ -114,7 +117,7 @@ class IterationTransformer {
 
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
     // Unpack FEPair iterator after the iterator.next invocation, and add condition testing context of FEPair
-    val vblockCtx = env.getVBlockVar(bodyBlock)
+    val vblockCtx = env.getVBlockVar(entry)
     var newInsns = List.empty[Int]
     BlockTransformation(
       Block(bodyBlock.instr flatMap {
@@ -497,4 +500,48 @@ object loadUtil {
     }
     None
   }
+}
+
+case class InstrUNPACK_FEPAIR(loop: Loop) extends Instruction {
+  import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
+  val fePairClassName = "model/java/util/FEPair"
+  val fePairClassType = s"L$fePairClassName;"
+  val ctxListClassName = "model/java/util/CtxList"
+  val ctxListClassType = s"L$ctxListClassName;"
+  val objectClassType = "Ljava/lang/Object;"
+
+  override def toByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block, vMethodEnv: VMethodEnv): Unit = {
+      // todo: change these to use the mv -- refer to the old loop transformer code
+       // stack: ..., One(FEPair)
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      // ..., FEPair
+      InstrCHECKCAST(Owner(fePairClassName)),
+      InstrDUP(),
+      // ..., FEPair, FEPair
+      InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
+      // ..., FEPair, v
+      InstrSWAP(),
+      // ..., v, FEPair
+      InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      // ..., v, ctx
+      InstrDUP(),
+      // ..., v, ctx, ctx
+      InstrALOAD(loopCtxVar),
+      // ..., v, ctx, ctx, loopCtx
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
+        MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
+      // ..., v, ctx, FE
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      // ..., v, ctx, isSat?
+      InstrIFEQ(env.getBlockIdx(entry)), // todo: this won't work because we leave stuff on top of the stack
+      // ..., v, ctx
+      InstrSWAP(),
+      // ..., ctx, v
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
+        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
+  }
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    assert(false, "toVByteCode called on fake instruction UNPACK_FEPAIR. This instruction should not be lifted.")
+  }
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set())
 }

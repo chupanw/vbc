@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.utils.LiftUtils
+import edu.cmu.cs.vbc.utils.{InstrUNPACK_FEPAIR, LiftUtils}
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree.TypeAnnotationNode
@@ -40,11 +40,12 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     }
 
     //generate block code
-    for { insn <- instr } yield {
+    instr.foreach({
       // respect instruction tags in env
-      val insnToByteCode = if (env.getTag(insn, env.TAG_PRESERVE)) insn.toByteCode _ else insn.toVByteCode _
-      insnToByteCode(mv, env, this)
-    }
+      case unpackFEPair: InstrUNPACK_FEPAIR => unpackFEPair.toByteCode(mv, env, this)
+      case insertedInsn if env.getTag(insn, env.TAG_PRESERVE) => insertedInsn.toByteCode(mv, env, this)
+      case other => other.toVByteCode(mv, env, this)
+    })
 
     //if this block ends with a jump to a different VBlock (always all jumps are to the same or to
     //different VBlocks, never mixed)
