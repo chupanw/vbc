@@ -61,9 +61,9 @@ case class Owner(name: String) extends TypeVerifier {
     "java/lang/Math",
     // I/O natives
     "java/io/UnixFileSystem", "java/io/FileSystem", "java/io/DefaultFileSystem", "java/io/File", "java/net/URL",
-    "java/io/FileInputStream", "java/io/InputStream",
-    // Collections
-    "java/util/Iterator"
+    "java/io/FileInputStream", "java/io/InputStream"//,
+//    // Collections
+//    "java/util/Iterator"
   )
 
   /** Get the corresponding model class
@@ -79,10 +79,10 @@ case class Owner(name: String) extends TypeVerifier {
         this
       else if (name.endsWith("Exception") || name.endsWith("Error"))
         this
-//      else if (name.equals("java/util/LinkedList") || name.equals("java/util/ArrayList"))
-//        Owner(VBCModel.prefix + "/" + "java/util/CtxList")
-//      else if (name.equals("java/util/Iterator"))
-//        Owner(VBCModel.prefix + "/" + "java/util/CtxIterator")
+      else if (name.equals("java/util/LinkedList") || name.equals("java/util/ArrayList"))
+        Owner(VBCModel.prefix + "/" + "java/util/CtxList")
+      else if (name.equals("java/util/Iterator"))
+        Owner(VBCModel.prefix + "/" + "java/util/CtxIterator")
       else
         Owner(VBCModel.prefix + "/" + name)
     case _ => this
