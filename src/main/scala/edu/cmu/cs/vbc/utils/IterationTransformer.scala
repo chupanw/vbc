@@ -25,8 +25,8 @@ class IterationTransformer {
       case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
         transformEntryPred(entryPred, env, cw)
 
-//      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
-//        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
+      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
+        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
 
       case block => BlockTransformation(block, List(), List())
     }
@@ -50,21 +50,6 @@ class IterationTransformer {
   }
 
 
-  var createdSimplifyLambdaMtd = false
-  def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
-    if (!createdSimplifyLambdaMtd) {
-      val mv = cw.visitMethod(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
-        lambdaName, lambdaDesc, lambdaDesc, Array[String]())
-      mv.visitCode()
-      mv.visitVarInsn(Opcodes.ALOAD, 0)
-      mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ctxListClassName, "simplify____V", "()V", false)
-      mv.visitInsn(Opcodes.RETURN)
-      mv.visitMaxs(2, 1)
-      mv.visitEnd()
-
-      createdSimplifyLambdaMtd = true
-    }
-  }
   def transformEntryPred(entryPred: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
     val lambdaDesc = s"($ctxListClassType)V"
@@ -88,22 +73,40 @@ class IterationTransformer {
       newInsns,
       List())
   }
+  var createdSimplifyLambdaMtd = false
+  def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
+    if (!createdSimplifyLambdaMtd) {
+      val mv = cw.visitMethod(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
+        lambdaName, lambdaDesc, lambdaDesc, Array[String]())
+      mv.visitCode()
+      mv.visitVarInsn(Opcodes.ALOAD, 0)
+      mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, ctxListClassName, "simplify____V", "()V", false)
+      mv.visitInsn(Opcodes.RETURN)
+      mv.visitMaxs(2, 1)
+      mv.visitEnd()
+
+      createdSimplifyLambdaMtd = true
+    }
+  }
   def invokeSimplify(className: String, lambdaName: String, lambdaDesc: String): List[Instruction] = {
     val consumerName = "java/util/function/Consumer"
     val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
-    List(InstrDUP(),
+    List(
+      InstrDUP(),
       // Could assume the V is a One. It should be, but I'm not certain.
-//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
-//      InstrCHECKCAST(Owner(ctxListClassName)),
-
-      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
-        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
-          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
-        Type.getType("(Ljava/lang/Object;)V"),
-        new Handle(Opcodes.H_INVOKESTATIC, className, lambdaName, lambdaDesc),
-        Type.getType(lambdaDesc)),
-      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true))
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      InstrCHECKCAST(Owner(ctxListClassName)),
+      InstrPOP()
+//
+//      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
+//        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
+//          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
+//        Type.getType("(Ljava/lang/Object;)V"),
+//        new Handle(Opcodes.H_INVOKESTATIC, className, lambdaName, lambdaDesc),
+//        Type.getType(lambdaDesc)),
+//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true)
+    )
   }
 
   def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, entry: Block): BlockTransformation = {
@@ -131,21 +134,35 @@ class IterationTransformer {
       List())
   }
   def unpackFEPair(loopCtxVar: Variable, env: VMethodEnv, entry: Block): List[Instruction] = {
-    List(InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+    List(
+      // stack: ..., One(FEPair)
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      // ..., FEPair
       InstrCHECKCAST(Owner(fePairClassName)),
       InstrDUP(),
+      // ..., FEPair, FEPair
       InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
+      // ..., FEPair, v
       InstrSWAP(),
+      // ..., v, FEPair
       InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      // ..., v, ctx
       InstrDUP(),
+      // ..., v, ctx, ctx
       InstrALOAD(loopCtxVar),
+      // ..., v, ctx, ctx, loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
+      // ..., v, ctx, FE
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
-      InstrIFEQ(env.getBlockIdx(entry)),
+      // ..., v, ctx, isSat?
+      InstrIFEQ(env.getBlockIdx(entry)), // todo: this won't work because we leave stuff on top of the stack
+      // ..., v, ctx
       InstrSWAP(),
+      // ..., ctx, v
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
-        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true))
+        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
+    )
   }
 
 
