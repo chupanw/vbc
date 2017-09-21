@@ -19,13 +19,15 @@ class IterationTransformer {
 
   def transformListIteration(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
+    val loopPredecessors = loops.flatMap(l => env.getPredecessors(l.entry))
+    val loopBodyBlocks = loops.flatMap(_.body)
 
     // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = cfg.blocks map {
-      case entryPred if loops.exists(l => env.getPredecessors(l.entry).contains(entryPred)) =>
+      case entryPred if loopPredecessors contains entryPred =>
         transformEntryPred(entryPred, env, cw)
 
-      case bodyBlock if loops.exists(_.body.contains(bodyBlock)) =>
+      case bodyBlock if loopBodyBlocks contains bodyBlock =>
         transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get.entry)
 
       case block => BlockTransformation(block, List(), List())
