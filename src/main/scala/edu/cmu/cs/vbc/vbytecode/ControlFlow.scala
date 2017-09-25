@@ -42,8 +42,8 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     //generate block code
     instr.foreach({
       // respect instruction tags in env
-      case unpackFEPair: InstrUNPACK_FEPAIR => unpackFEPair.toByteCode(mv, env, this)
-      case insertedInsn if env.getTag(insn, env.TAG_PRESERVE) => insertedInsn.toByteCode(mv, env, this)
+      case unpackFEPair: InstrUNPACK_FEPAIR => unpackFEPair.toByteCode(mv, env, this) // todo: make this be based on tags as well
+      case insertedInsn if env.getTag(insertedInsn, env.TAG_PRESERVE) => insertedInsn.toByteCode(mv, env, this)
       case other => other.toVByteCode(mv, env, this)
     })
 
