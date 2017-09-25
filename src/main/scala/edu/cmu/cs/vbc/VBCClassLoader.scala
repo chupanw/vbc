@@ -4,12 +4,14 @@ import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.cmu.cs.vbc.loader.Loader
-import edu.cmu.cs.vbc.utils.{IterationTransformer, LiftingPolicy, MyClassWriter, VBCModel}
+import edu.cmu.cs.vbc.utils._
 import edu.cmu.cs.vbc.vbytecode.{Owner, VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
-import org.objectweb.asm.util.{CheckClassAdapter, TraceClassVisitor}
+import org.objectweb.asm.util.{CheckClassAdapter, Textifier, TraceClassVisitor}
 import org.objectweb.asm._
+
+import scala.sys.process.Process
 
 /**
   * Custom class loader to modify bytecode before loading the class.
@@ -53,33 +55,45 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def liftClass(name: String, clazz: VBCClassNode): Class[_] = {
+    import scala.collection.JavaConversions._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
-    if (isLift) {
-      logger.info(s"lifting $name")
-      clazz.toVByteCode(cw, rewriter)
-    }
-    else {
-      clazz.toByteCode(cw, rewriter)
+    val dotifier = new Dotifier()
+    val textifier = new Textifier()
+    val cv = new TraceClassVisitor(new TraceClassVisitor(cw, textifier, null), dotifier, null)
+    try {
+      if (isLift) {
+        logger.info(s"lifting $name")
+        clazz.toVByteCode(cv, rewriter)
+      }
+      else {
+        logger.info(s"lifting $name")
+        clazz.toByteCode(cv, rewriter)
+      }
+    } catch {
+      case e: Throwable =>
+        println("Exception thrown in ASM: ")
+        println(e.getClass + ": " + e.getMessage)
+        println(e.getStackTrace.toList mkString("\t", "\n\t", "\n"))
+        println("Please check bug.gv and bug.txt")
+        val writer = new PrintWriter(new File("bug.gv"))
+        writer.write(dotifier.textBuf.mkString(""))
+        writer.write("}")
+        writer.close()
+        val writer2 = new PrintWriter(new File("bug.txt"))
+        writer2.write(textifier.text.mkString(""))
+        writer2.close()
+        val output = Process("dot -Tpdf -O bug.gv").lineStream
+        println("Output from dot: " + output)
+        System.exit(1)
     }
 
-    val cr3 = new ClassReader(cw.toByteArray)
-    val node = new ClassNode()
-    cr3.accept(node, 0)
-    if (isLift) {
-//      postTransformations(node)
-    }
-
-    val cw2 = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
-    node.accept(cw2)
-    val cr2 = new ClassReader(cw2.toByteArray)
-
-//    val cr2 = new ClassReader(cw.toByteArray)
+    val cr2 = new ClassReader(cw.toByteArray)
     cr2.accept(getCheckClassAdapter(getTraceClassVisitor(null)), 0)
     // for debugging
     if (toFileDebugging)
-      toFile(name, cw2)
+      toFile(name, cw)
     //        debugWriteClass(getResourceAsStream(resource))
-    defineClass(name, cw2.toByteArray, 0, cw2.toByteArray.length)
+    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
   /**
