@@ -483,7 +483,7 @@ case class InstrUNPACK_FEPAIR(loop: Loop) extends Instruction {
     val thisBlock = env.getBlockForInstruction(this)
     for {
       thisLoop <- env.loopAnalysis.loops.find(_.body.contains(thisBlock))
-      loopCtxVarIdx <- env.getVBlockVar(thisLoop.entry).getIdx()
+      loopCtxVarIdx = env.getVarIdx(env.getVBlockVar(thisLoop.entry))
       entry = thisLoop.entry
     } yield {
       // stack: ..., One(FEPair)
