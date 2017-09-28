@@ -135,9 +135,5 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 
     toFile(classNode.name + "_", cw)
   }
-
-  def postTransformations(node: ClassNode): Unit = {
-    new IterationTransformer().transformListIterationLoops(node)
-  }
 }
 
