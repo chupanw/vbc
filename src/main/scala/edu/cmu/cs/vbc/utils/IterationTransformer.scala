@@ -21,38 +21,55 @@ class IterationTransformer {
 
   def transformListIteration(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
+
+    if (loops.isEmpty) return (cfg, env)
+
+    val (newCFG, cleanupBlocks) = insertCleanupBlocks(cfg, loops)
+
     val loopBodyBlocks = loops.flatMap(_.body)
     // the last body block(s) of loops are technically predecessors of the loop, but we are not interested in them
     val loopPredecessors = loops.flatMap(l => env.getPredecessors(l.entry)) diff loopBodyBlocks
 
     // todo: modify newBlocks and add newVars & newInsns here
-    var blockTransformations = cfg.blocks map {
+    var blockTransformations = newCFG.blocks map {
       // todo: re-enable simplify invocation
 //      case entryPred if loopPredecessors contains entryPred =>
 //        transformEntryPred(entryPred, env, cw)
 
       case bodyBlock if loopBodyBlocks contains bodyBlock =>
-        transformBodyBlock(bodyBlock, env, loops.find(_.body.contains(bodyBlock)).get)
+        val loop = loops.find(_.body.contains(bodyBlock)).get
+        val cleanupBlockIdx = newCFG.blocks.indexOf(cleanupBlocks(loop))
+        transformBodyBlock(bodyBlock, env, loop, cleanupBlockIdx)
 
-      case block => BlockTransformation(block, List(), List())
+      case block => BlockTransformation(List(block), List(), List())
     }
 
     val collectTransformations =
       blockTransformations.foldRight((List.empty[Block], List.empty[Int], List.empty[Variable])) _
     val (newBlocks, newInsns, newVars) = collectTransformations((bt, collected) =>
-      (bt.newBlock :: collected._1,
+      (bt.newBlocks ++ collected._1,
         bt.newInsnIndeces ++ collected._2,
         bt.newVars ++ collected._3))
 
 
-    val newCFG: CFG = CFG(newBlocks)
+    val finalCFG: CFG = CFG(newBlocks)
     val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature,
-      env.method.exceptions, newCFG, env.method.localVar ++ newVars)
+      env.method.exceptions, finalCFG, env.method.localVar ++ newVars)
     val newEnv = new VMethodEnv(env.clazz, newMN)
 
     newInsns.foreach(newEnv.instructionTags(_) |= env.TAG_PRESERVE)
 
-    (newCFG, newEnv)
+    (finalCFG, newEnv)
+  }
+
+  // Insert a block for cleaning up the stack after the narrow conditional for each loop
+  def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, Block]) = {
+    loops.foldLeft((cfg, Map.empty[Loop, Block]))((newCfgAndBlocks, loop) => {
+      val (newCfg, cleanupBlocks) = newCfgAndBlocks
+      // blockIdx is just the index in the list of blocks, so appending will not change any other block indices
+      val cleanupBlock = new Block(List(InstrPOP(), InstrPOP(), InstrGOTO(newCfg.blocks.indexOf(loop.entry))), List())
+      (CFG(newCfg.blocks :+ cleanupBlock), cleanupBlocks + (loop -> cleanupBlock))
+    })
   }
 
 
@@ -64,7 +81,7 @@ class IterationTransformer {
     // Add an invocation to ctxlist.simplify before the iterator invocation
     var newInsns = List.empty[Int]
     BlockTransformation(
-      Block(entryPred.instr flatMap {
+      List(Block(entryPred.instr flatMap {
         case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
           val simplifyInsns = invokeSimplify(env.clazz.name, lambdaName, lambdaDesc)
 
@@ -75,7 +92,7 @@ class IterationTransformer {
           simplifyInsns :+ itInvoke
 
         case block => List(block)
-      }, entryPred.exceptionHandlers),
+      }, entryPred.exceptionHandlers)),
       newInsns,
       List())
   }
@@ -115,14 +132,14 @@ class IterationTransformer {
     )
   }
 
-  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, loop: Loop): BlockTransformation = {
+  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, loop: Loop, cleanupBlockIdx: Int): BlockTransformation = {
     // Unpack FEPair iterator after the iterator.next invocation, and add condition testing context of FEPair
     var newInsns = List.empty[Int]
     BlockTransformation(
-      Block(bodyBlock.instr flatMap {
+      List(Block(bodyBlock.instr flatMap {
         case nextInvocation: InstrINVOKEINTERFACE if
         nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
-          val unpackInsns = unpackFEPair(loop, env)
+          val unpackInsns = unpackFEPair(loop, env, cleanupBlockIdx)
 
           val nextInvIndex = env.getInsnIdx(nextInvocation)
           val condInsnIndex = unpackInsns.indexWhere(_.isJumpInstr)
@@ -134,11 +151,11 @@ class IterationTransformer {
           nextInvocation :: unpackInsns
 
         case otherInsn => List(otherInsn)
-      }, bodyBlock.exceptionHandlers),
+      }, bodyBlock.exceptionHandlers)),
       newInsns,
       List())
   }
-  def unpackFEPair(loop: Loop, env: VMethodEnv): List[Instruction] = {
+  def unpackFEPair(loop: Loop, env: VMethodEnv, cleanupBlockIdx: Int): List[Instruction] = {
     List(
       // stack: ..., One(FEPair)
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
@@ -162,7 +179,7 @@ class IterationTransformer {
       // ..., v, ctx, FE
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
       // ..., v, ctx, isSat?
-      InstrIFEQ(env.getBlockIdx(loop.entry)), // todo: this won't work because we leave stuff on top of the stack
+      InstrIFEQ(cleanupBlockIdx),
       // ..., v, ctx
       InstrSWAP(),
       // ..., ctx, v
@@ -482,7 +499,7 @@ class IterationTransformer {
   }
 }
 
-case class BlockTransformation(newBlock: Block, newInsnIndeces: List[Int], newVars: List[Variable])
+case class BlockTransformation(newBlocks: List[Block], newInsnIndeces: List[Int], newVars: List[Variable])
 
 object loadUtil {
   // Narrow the type of X to TO, if possible
