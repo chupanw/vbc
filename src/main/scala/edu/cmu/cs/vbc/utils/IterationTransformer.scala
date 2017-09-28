@@ -72,6 +72,35 @@ class IterationTransformer {
     })
   }
 
+  def insertBlock[jumpInstr <: JumpInstruction](cfg: CFG, splitting: Block, block: Block): CFG = {
+    var splittingIdx = cfg.blocks.indexOf(splitting)
+    // assume that block indices are just literally their indices in the cfg.blocks list
+    // therefore adding two blocks after splitting will just shift all blocks after splitting
+    // back two.
+
+    // newIndex maps old indices to what the new indices will be
+    val newIndex = cfg.blocks.indices.zipWithIndex.map {
+      case (old, aboveSplit) if aboveSplit > splittingIdx => old -> (aboveSplit + 2)
+      case (old, belowSplit) => old -> belowSplit
+    }
+
+    // map over the blocks and change all the jump insns to refer to the new indices
+    val blocksWithNewIndices = cfg.blocks.map(b => Block(b.instr.map {
+      case jump: JumpInstruction =>
+        val jumpSucc = jump.getSuccessor()
+        val oldJumpDest = jumpSucc._1.getOrElse(jumpSucc._2.get)
+        val newJumpDest = newIndex(oldJumpDest)
+        val jumpTypeConstructor = jump.getClass.getConstructors()(0)
+        jumpTypeConstructor(newJumpDest)
+    }, b.exceptionHandlers))
+
+    // actually insert the new blocks
+    val newBlocks = cfg.blocks.flatMap {
+      case theBlock if theBlock == splitting =>
+        List(Block(theBlock.instr :+ jumpInstr(splittingIdx + 2)))
+      case b => List(b)
+    }
+  }
 
   def transformEntryPred(entryPred: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
