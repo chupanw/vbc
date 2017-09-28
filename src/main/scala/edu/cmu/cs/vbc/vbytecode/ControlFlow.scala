@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.utils.{InstrUNPACK_FEPAIR, LiftUtils}
+import edu.cmu.cs.vbc.utils.{InstrLOAD_LOOP_CTX, LiftUtils}
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree.TypeAnnotationNode
@@ -42,7 +42,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     //generate block code
     instr.foreach({
       // respect instruction tags in env
-      case unpackFEPair: InstrUNPACK_FEPAIR => unpackFEPair.toByteCode(mv, env, this) // todo: make this be based on tags as well
+      case loadLoopCtx: InstrLOAD_LOOP_CTX => loadLoopCtx.toByteCode(mv, env, this) // todo: make this be based on tags as well
       case insertedInsn if env.getTag(insertedInsn, env.TAG_PRESERVE) => insertedInsn.toByteCode(mv, env, this)
       case other => other.toVByteCode(mv, env, this)
     })

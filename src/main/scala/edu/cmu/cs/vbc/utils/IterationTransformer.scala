@@ -122,7 +122,7 @@ class IterationTransformer {
       Block(bodyBlock.instr flatMap {
         case nextInvocation: InstrINVOKEINTERFACE if
         nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
-          val unpackInsns = List(InstrUNPACK_FEPAIR(loop))
+          val unpackInsns = unpackFEPair(loop, env)
 
           val nextInvIndex = env.getInsnIdx(nextInvocation)
           val condInsnIndex = unpackInsns.indexWhere(_.isJumpInstr)
@@ -137,6 +137,38 @@ class IterationTransformer {
       }, bodyBlock.exceptionHandlers),
       newInsns,
       List())
+  }
+  def unpackFEPair(loop: Loop, env: VMethodEnv): List[Instruction] = {
+    List(
+      // stack: ..., One(FEPair)
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      // ..., FEPair
+      InstrCHECKCAST(Owner(fePairClassName)),
+      InstrDUP(),
+      // ..., FEPair, FEPair
+      InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
+      // ..., FEPair, v
+      InstrSWAP(),
+      // ..., v, FEPair
+      InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      // ..., v, ctx
+      InstrDUP(),
+      // ..., v, ctx, ctx
+      InstrLOAD_LOOP_CTX(loop),
+//      InstrALOAD(loopCtxVar),
+      // ..., v, ctx, ctx, loopCtx
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
+        MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
+      // ..., v, ctx, FE
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      // ..., v, ctx, isSat?
+      InstrIFEQ(env.getBlockIdx(loop.entry)), // todo: this won't work because we leave stuff on top of the stack
+      // ..., v, ctx
+      InstrSWAP(),
+      // ..., ctx, v
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
+        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
+    )
   }
 
 
@@ -471,59 +503,22 @@ object loadUtil {
   }
 }
 
-case class InstrUNPACK_FEPAIR(loop: Loop) extends Instruction {
-  import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
-  val fePairClassName = "model/java/util/FEPair"
-  val fePairClassType = s"L$fePairClassName;"
-  val ctxListClassName = "model/java/util/CtxList"
-  val ctxListClassType = s"L$ctxListClassName;"
-  val objectClassType = "Ljava/lang/Object;"
-
+case class InstrLOAD_LOOP_CTX(loop: Loop) extends Instruction {
   def toByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val thisBlock = env.getBlockForInstruction(this)
     for {
       thisLoop <- env.loopAnalysis.loops.find(_.body.contains(thisBlock))
       loopCtxVarIdx = env.getVarIdx(env.getVBlockVar(thisLoop.entry))
-      entry = thisLoop.entry
     } yield {
-      // stack: ..., One(FEPair)
-      mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, Owner(vclassname), MethodName("getOne"),
-        MethodDesc("()Ljava/lang/Object;"), true)
-      // ..., FEPair
-      mv.visitTypeInsn(Opcodes.CHECKCAST, Owner(fePairClassName))
-      mv.visitInsn(Opcodes.DUP)
-      // ..., FEPair, FEPair
-      mv.visitFieldInsn(Opcodes.GETFIELD, Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType))
-      // ..., FEPair, v
-      mv.visitInsn(Opcodes.SWAP)
-      // ..., v, FEPair
-      mv.visitFieldInsn(Opcodes.GETFIELD, Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype))
-      // ..., v, ctx
-      mv.visitInsn(Opcodes.DUP)
-      // ..., v, ctx, ctx
       mv.visitVarInsn(Opcodes.ALOAD, loopCtxVarIdx)
-      // ..., v, ctx, ctx, loopCtx
-      mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, Owner(fexprclassname), MethodName("and"),
-        MethodDesc(s"($fexprclasstype)$fexprclasstype"), true)
-      // ..., v, ctx, FE
-      mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"),
-        true)
-      // ..., v, ctx, isSat?
-      mv.visitJumpInsn(Opcodes.IFEQ, env.getBlockLabel(entry)) // todo: this won't work because we leave stuff on top of the stack
-      // ..., v, ctx
-      mv.visitInsn(Opcodes.SWAP)
-      // ..., ctx, v
-      mv.visitMethodInsn(Opcodes.INVOKESTATIC, Owner(vclassname), MethodName("one"),
-        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
-      // ..., One(v)
     }
   }
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    assert(false, "invalid override of toByteCode called on fake instruction UNPACK_FEPAIR." +
+    assert(false, "invalid override of toByteCode called on fake instruction LOAD_LOOP_CTX." +
       "This instruction should be passed a VMethodEnv rather than a MethodEnv.")
   }
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    assert(false, "toVByteCode called on fake instruction UNPACK_FEPAIR. This instruction should not be lifted.")
+    assert(false, "toVByteCode called on fake instruction LOAD_LOOP_CTX. This instruction should not be lifted.")
   }
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set())
 }
