@@ -48,6 +48,26 @@ trait JumpInstruction extends Instruction {
         else a
       })._2
   }
+
+  def copy(target: Int): JumpInstruction = this match {
+    case _: InstrIFEQ => InstrIFEQ(target)
+    case _: InstrIFNE => InstrIFNE(target)
+    case _: InstrGOTO => InstrGOTO(target)
+    case _: InstrIF_ICMPEQ => InstrIF_ICMPEQ(target)
+    case _: InstrIF_ICMPGE => InstrIF_ICMPGE(target)
+    case _: InstrIFGE => InstrIFGE(target)
+    case _: InstrIF_ICMPLT => InstrIF_ICMPLT(target)
+    case _: InstrIF_ICMPNE => InstrIF_ICMPNE(target)
+    case _: InstrIFGT => InstrIFGT(target)
+    case _: InstrIFNONNULL => InstrIFNONNULL(target)
+    case _: InstrIFLT => InstrIFLT(target)
+    case _: InstrIF_ICMPLE => InstrIF_ICMPLE(target)
+    case _: InstrIFNULL => InstrIFNULL(target)
+    case _: InstrIFLE => InstrIFLE(target)
+    case _: InstrIF_ICMPGT => InstrIF_ICMPGT(target)
+    case _: InstrIF_ACMPNE => InstrIF_ACMPNE(target)
+    case _: InstrIF_ACMPEQ => InstrIF_ACMPEQ(target)
+  }
 }
 
 /**
