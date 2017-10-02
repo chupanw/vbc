@@ -65,41 +65,13 @@ class IterationTransformer {
   // Insert a block for cleaning up the stack after the narrow conditional for each loop
   def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, Block]) = {
     loops.foldLeft((cfg, Map.empty[Loop, Block]))((newCfgAndBlocks, loop) => {
-      val (newCfg, cleanupBlocks) = newCfgAndBlocks
-      // blockIdx is just the index in the list of blocks, so appending will not change any other block indices
-      val cleanupBlock = new Block(List(InstrPOP(), InstrPOP(), InstrGOTO(newCfg.blocks.indexOf(loop.entry))), List())
-      (CFG(newCfg.blocks :+ cleanupBlock), cleanupBlocks + (loop -> cleanupBlock))
+      val (workingCFG, cleanupBlocks) = newCfgAndBlocks
+      val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(workingCFG.blocks.indexOf(loop.entry))), List())
+      val splitInfo = SplitInfo() // todo: continue here
+      val (newCFG, newBlock) = workingCFG.splitBlock(splitInfo)
+      // note that cleanupBlock cannot be used again because splitBlock may return a new Block reference
+      (newCFG, cleanupBlocks + (loop -> newBlock))
     })
-  }
-
-  def insertBlock[jumpInstr <: JumpInstruction](cfg: CFG, splitting: Block, block: Block): CFG = {
-    var splittingIdx = cfg.blocks.indexOf(splitting)
-    // assume that block indices are just literally their indices in the cfg.blocks list
-    // therefore adding two blocks after splitting will just shift all blocks after splitting
-    // back two.
-
-    // newIndex maps old indices to what the new indices will be
-    val newIndex = cfg.blocks.indices.zipWithIndex.map {
-      case (old, aboveSplit) if aboveSplit > splittingIdx => old -> (aboveSplit + 2)
-      case (old, belowSplit) => old -> belowSplit
-    }
-
-    // map over the blocks and change all the jump insns to refer to the new indices
-    val blocksWithNewIndices = cfg.blocks.map(b => Block(b.instr.map {
-      case jump: JumpInstruction =>
-        val jumpSucc = jump.getSuccessor()
-        val oldJumpDest = jumpSucc._1.getOrElse(jumpSucc._2.get)
-        val newJumpDest = newIndex(oldJumpDest)
-        val jumpTypeConstructor = jump.getClass.getConstructors()(0)
-        jumpTypeConstructor(newJumpDest)
-    }, b.exceptionHandlers))
-
-    // actually insert the new blocks
-    val newBlocks = cfg.blocks.flatMap {
-      case theBlock if theBlock == splitting =>
-        List(Block(theBlock.instr :+ jumpInstr(splittingIdx + 2)))
-      case b => List(b)
-    }
   }
 
   def transformEntryPred(entryPred: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
