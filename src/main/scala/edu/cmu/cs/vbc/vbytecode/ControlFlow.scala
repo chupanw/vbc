@@ -312,7 +312,63 @@ case class CFG(blocks: List[Block]) {
     blocks.filterNot(lastVBlock.contains).foreach(_.toVByteCode(mv, env))
     blocks.filter(lastVBlock.contains).foreach(_.toVByteCode(mv, env))
   }
+
+
+
+  // Returns the new CFG and the block inserted
+  // Note that the block returned will not be the same Block object passed in because
+  // all jump references in the passed in block will be updated to reflect the new CFG's indexing
+  def splitBlock(info: SplitInfo): (CFG, Block) = {
+    var splittingIdx = this.blocks.indexOf(info.blockToSplit)
+    // assume that block indices are just literally their indices in the cfg.blocks list
+    // therefore adding two blocks after splitting will just shift all blocks after splitting
+    // back two.
+
+    // also assume the newBlock will have a jump insn using an OLD INDEX that will be translated
+    // by this function
+
+    val (updatedBlocks, updatedNewBlock) = updateBlockJumps(info, splittingIdx)
+
+    val newBlocks = updatedBlocks.flatMap {
+      case theBlock if theBlock == info.blockToSplit =>
+        val splitIndex = theBlock.instr.indexOf(info.splitAfter)
+        val instrsBeforeSplit = theBlock.instr.take(splitIndex + 1)
+        val instrsAfterSplit = theBlock.instr.takeRight(theBlock.instr.size - splitIndex - 1)
+        List(Block(instrsBeforeSplit :+ info.jumpInsn(splittingIdx + 2), info.beforeSplitExceptionHandlers),
+          updatedNewBlock,
+          Block(instrsAfterSplit, info.afterSplitExceptionHandlers))
+      case b => List(b)
+    }
+
+    (CFG(newBlocks), updatedNewBlock)
+  }
+
+  private def updateBlockJumps(info: SplitInfo, splittingIdx: Int) = {
+    // newIndex maps old indices to what the new indices will be
+    val newIndex = this.blocks.indices.zipWithIndex.map({
+      case (old, aboveSplit) if aboveSplit > splittingIdx => old -> (aboveSplit + 2)
+      case (old, belowSplit) => old -> belowSplit
+    }).toMap
+
+    // map over the blocks and change all the jump insns to refer to the new indices
+    val updateJumpIndices: Instruction => Instruction = {
+      case jump: JumpInstruction =>
+        val jumpSucc = jump.getSuccessor()
+        val oldJumpDest = jumpSucc._1.getOrElse(jumpSucc._2.get)
+        val newJumpDest = newIndex(oldJumpDest)
+        jump.copy(newJumpDest)
+
+      case other => other
+    }
+    val blocksWithNewIndices = this.blocks.map(b => Block(b.instr.map(updateJumpIndices), b.exceptionHandlers))
+    val newBlockWithNewIndices = Block(info.newBlock.instr.map(updateJumpIndices), info.newBlock.exceptionHandlers)
+    (blocksWithNewIndices, newBlockWithNewIndices)
+  }
 }
+case class SplitInfo(blockToSplit: Block, splitAfter: Instruction,
+                     jumpInsn: Int => JumpInstruction, newBlock: Block,
+                     beforeSplitExceptionHandlers: Seq[VBCHandler] = Seq.empty,
+                     afterSplitExceptionHandlers: Seq[VBCHandler] = Seq.empty)
 
 // All of the Vs that get introduced are inserted to store intermediate values
 // used between VBlocks which in a normal program would just be stored in the stack
