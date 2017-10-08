@@ -315,10 +315,10 @@ case class CFG(blocks: List[Block]) {
 
 
 
-  // Returns the new CFG and the block inserted
+  // Returns the new CFG, the block inserted, and a map from the old cfg block references to new ones
   // Note that the block returned will not be the same Block object passed in because
   // all jump references in the passed in block will be updated to reflect the new CFG's indexing
-  def splitBlock(info: SplitInfo): (CFG, Block) = {
+  def splitBlock(info: SplitInfo): (CFG, Block, Map[Block, Block]) = {
     var splittingIdx = this.blocks.indexOf(info.blockToSplit)
     // assume that block indices are just literally their indices in the cfg.blocks list
     // therefore adding two blocks after splitting will just shift all blocks after splitting
@@ -327,20 +327,30 @@ case class CFG(blocks: List[Block]) {
     // also assume the newBlock will have a jump insn using an OLD INDEX that will be translated
     // by this function
 
-    val (updatedBlocks, updatedNewBlock) = updateBlockJumps(info, splittingIdx)
+    // Need to build a map from the old block references of cfg to the new ones returned
+    // so that references to the old blocks can be updated easily.
+    val (updatedBlocks, updatedNewBlock, initialBlockUpdates) = updateBlockJumps(info, splittingIdx)
 
-    val newBlocks = updatedBlocks.flatMap {
+    val newBlockUpdates = updatedBlocks.map {
       case theBlock if theBlock == info.blockToSplit =>
         val splitIndex = theBlock.instr.indexOf(info.splitAfter)
         val instrsBeforeSplit = theBlock.instr.take(splitIndex + 1)
         val instrsAfterSplit = theBlock.instr.takeRight(theBlock.instr.size - splitIndex - 1)
-        List(Block(instrsBeforeSplit :+ info.jumpInsn(splittingIdx + 2), info.beforeSplitExceptionHandlers),
+        val before = Block(instrsBeforeSplit :+ info.jumpInsn(splittingIdx + 2), info.beforeSplitExceptionHandlers)
+        val after = Block(instrsAfterSplit, info.afterSplitExceptionHandlers)
+        (List(before,
           updatedNewBlock,
-          Block(instrsAfterSplit, info.afterSplitExceptionHandlers))
-      case b => List(b)
+          after),
+          Map(theBlock -> before))
+      case b => (List(b), Map.empty)
     }
+    val newBlocks = newBlockUpdates.flatMap(_._1).toList
+    val secondBlockUpdates = newBlockUpdates.flatMap(_._2).toMap
 
-    (CFG(newBlocks), updatedNewBlock)
+    // Map the original cfg references to the new references by linking initialBlockUpdates to secondBlockUpdates
+    val blockUpdates = initialBlockUpdates.map(upd => upd._1 -> secondBlockUpdates(upd._2))
+
+    (CFG(newBlocks), updatedNewBlock, blockUpdates)
   }
 
   private def updateBlockJumps(info: SplitInfo, splittingIdx: Int) = {
@@ -360,9 +370,11 @@ case class CFG(blocks: List[Block]) {
 
       case other => other
     }
-    val blocksWithNewIndices = this.blocks.map(b => Block(b.instr.map(updateJumpIndices), b.exceptionHandlers))
-    val newBlockWithNewIndices = Block(info.newBlock.instr.map(updateJumpIndices), info.newBlock.exceptionHandlers)
-    (blocksWithNewIndices, newBlockWithNewIndices)
+//    val blocksWithNewJumps = this.blocks.map(b => Block(b.instr.map(updateJumpIndices), b.exceptionHandlers))
+    val blockUpdates = this.blocks.map(b => b -> Block(b.instr.map(updateJumpIndices), b.exceptionHandlers)).toMap
+    val blocksWithNewJumps = blockUpdates.values
+    val newBlockWithNewJumps = Block(info.newBlock.instr.map(updateJumpIndices), info.newBlock.exceptionHandlers)
+    (blocksWithNewJumps, newBlockWithNewJumps, blockUpdates)
   }
 }
 case class SplitInfo(blockToSplit: Block, splitAfter: Instruction,
