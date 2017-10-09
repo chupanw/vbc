@@ -18,6 +18,7 @@ class IterationTransformer {
   val ctxListClassType = s"L$ctxListClassName;"
   val objectClassType = "Ljava/lang/Object;"
 
+  type BlockIndex = Int
 
   def transformListIteration(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
@@ -74,25 +75,34 @@ class IterationTransformer {
   // Insert a block for cleaning up the stack after the narrow conditional for each loop
   // Returns a new CFG containing the cleanup blocks, a mapping for each loop's cleanup block, and a
   // map for translating old references
-  def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, Block], Map[Block, Block]) = {
-    loops.foldLeft((cfg, Map.empty[Loop, Block], Map.empty[Block, Block]))((newCfgAndBlocks, loop) => {
-      val (workingCFG, cleanupBlocks, prevBlockUpdates) = newCfgAndBlocks
+  def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, BlockIndex], Map[BlockIndex, BlockIndex]) = {
+    val insertBlocks = loops.foldLeft((cfg, Map.empty[Loop, BlockIndex], cfg.blocks.indices.map(i => i -> i).toMap))
+
+    insertBlocks((collected, loop) => {
+      val (workingCFG, cleanupBlocks, prevBlockUpdates) = collected
       val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(workingCFG.blocks.indexOf(loop.entry))), List())
 
-      val result = for {
-        (nextInvocation, blockToSplit) <- loadUtil.findSome(loop.body, (block: Block) =>
-          loadUtil.findSome(block.instr, (insn: Instruction) =>
-            insn match {
-              case nextInvocation: InstrINVOKEINTERFACE if
-              nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") => Some((nextInvocation, block))
+      // todo: I actually need to find the block to split based on index using prevBlockUpdates
 
-              case _ => None
-            }))
-        splitInfo = SplitInfo(blockToSplit, nextInvocation, InstrIFEQ, cleanupBlock, Seq.empty, blockToSplit.exceptionHandlers)
-        (newCFG, newBlock, blockUpdates) = workingCFG.splitBlock(splitInfo)
+      val findBlockToSplit =
+        (block: Block) => loadUtil.findSome(block.instr, (insn: Instruction) =>
+          insn match {
+            case nextInvocation: InstrINVOKEINTERFACE if
+            nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") => Some((nextInvocation, block))
+
+            case _ => None
+          })
+      val result = for {
+        (nextInvocation, block) <- loadUtil.findSome(loop.body, findBlockToSplit)
+        blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
+        splitInfo = SplitInfo(blockToSplit, nextInvocation, InstrIFEQ, cleanupBlock,
+          Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
+        (newCFG, newBlock, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
         // note that cleanupBlock cannot be used again because splitBlock may return a new Block reference
-        (newCFG, cleanupBlocks.map(lb => lb._1 -> blockUpdates(lb._2)) + (loop -> newBlock), prevBlockUpdates ++ blockUpdates)
+        (newCFG,
+          cleanupBlocks.map(lb => lb._1 -> newIndices(lb._2)) + (loop -> (blockToSplit + 1)),
+          prevBlockUpdates.map(idxChg => idxChg._1 -> newIndices(idxChg._2)))
       }
       result.get // refactor to remove get possible?
     })
