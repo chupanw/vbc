@@ -38,9 +38,17 @@ class IterationTransformer {
 
       case bodyBlock if loopBodyBlocks contains bodyBlock =>
         val updatedBodyBlock = blockUpdates(bodyBlock)
-        val loop = loops.find(_.body.contains(updatedBodyBlock)).get
-        val cleanupBlockIdx = newCFG.blocks.indexOf(cleanupBlocks(loop))
-        transformBodyBlock(updatedBodyBlock, env, loop, cleanupBlockIdx)
+        val loop = loops.find(_.body.contains(bodyBlock)).get
+        val inserted = cleanupBlocks(loop)
+        val cleanupBlockIdx = newCFG.blocks.indexOf(inserted)
+        val before: BlockTransformation = transformBodyBeforeSplit(updatedBodyBlock, env, loop, cleanupBlockIdx)
+        val afterBlock =
+        val after: BlockTransformation = transformBodyAfterSplit(updatedBodyBlock, env, loop, inserted) // find the succ that is the after-split block
+        val bodyBlockStartInsnIdx = env.getInsnIdx(bodyBlock.instr.head)
+        val totalNewBlocks = (before.newBlocks :+ inserted) ++ after.newBlocks
+        val insertedInsnIndeces = inserted.instr.indices.map(_ + bodyBlockStartInsnIdx)
+        val totalNewInsnIndeces = before.newInsnIndeces ++ insertedInsnIndeces ++ after.newInsnIndeces
+        BlockTransformation(totalNewBlocks, totalNewInsnIndeces, before.newVars ++ after.newVars)
 
       case block => BlockTransformation(List(block), List(), List())
     }
@@ -203,6 +211,13 @@ class IterationTransformer {
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
         MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
     )
+  }
+  def transformBodyBeforeSplit(bodyBlock: Block, env: VMethodEnv, loop: Loop, cleanupBlockIdx: Int): BlockTransformation = {
+
+  }
+  def transformBodyAfterSplit(bodyBlock: Block, env: VMethodEnv, loop: Loop, insertedBlock: Block): BlockTransformation = {
+    // find the succ of the before-split block
+
   }
 
 
