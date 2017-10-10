@@ -28,28 +28,49 @@ class IterationTransformer {
     val (newCFG, cleanupBlocks, blockUpdates) = insertCleanupBlocks(cfg, loops)
 
     val loopBodyBlocks = loops.flatMap(_.body)
+    def toUpdatedIndex(block: Block): BlockIndex = blockUpdates(cfg.blocks.indexOf(block))
     // the last body block(s) of loops are technically predecessors of the loop, but we are not interested in them
     val loopPredecessors = loops.flatMap(l => env.getPredecessors(l.entry)) diff loopBodyBlocks
+    val loopPredecessorIndices = loopPredecessors map toUpdatedIndex
+    val loopBodyStartBlocks = loopBodyBlocks collect {
+      case block if block.instr.exists(isIteratorNextInvocation) => block
+    }
+    val loopBodyStartBlockIndices = loopBodyStartBlocks map toUpdatedIndex
 
     // todo: modify newBlocks and add newVars & newInsns here
-    var blockTransformations = newCFG.blocks map {
+    var blockTransformations = newCFG.blocks.zipWithIndex map {
       // todo: re-enable simplify invocation
 //      case entryPred if loopPredecessors contains entryPred =>
 //        transformEntryPred(entryPred, env, cw)
 
+      case (loopPredecessor, index) if loopPredecessorIndices contains index =>
+        // Modify loopPredecessor to call CtxList.Simplify()
+        transformLoopPredecessor(loopPredecessor, env, cw)
+
+      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index =>
+        // Modify bodyStartBlock to unpack FEPair and check satisfiability
+        // No need to jump, the jump insn was inserted by splitBlock
+        // No need to modify the second split half of the bodyStartBlock, the value of the FEPair will be on top
+        val transform1 = transformBodyStartBlock(bodyStartBlock, env)
+
+        // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
+        val transform2 = transformBodyStartBlockAfterSplit(newCFG.blocks(index + 2), env)
+        transform1 + transform2
+
       case bodyBlock if loopBodyBlocks contains bodyBlock =>
-        val updatedBodyBlock = blockUpdates(bodyBlock)
-        val loop = loops.find(_.body.contains(bodyBlock)).get
-        val inserted = cleanupBlocks(loop)
-        val cleanupBlockIdx = newCFG.blocks.indexOf(inserted)
-        val before: BlockTransformation = transformBodyBeforeSplit(updatedBodyBlock, env, loop, cleanupBlockIdx)
-        val afterBlock =
-        val after: BlockTransformation = transformBodyAfterSplit(updatedBodyBlock, env, loop, inserted) // find the succ that is the after-split block
-        val bodyBlockStartInsnIdx = env.getInsnIdx(bodyBlock.instr.head)
-        val totalNewBlocks = (before.newBlocks :+ inserted) ++ after.newBlocks
-        val insertedInsnIndeces = inserted.instr.indices.map(_ + bodyBlockStartInsnIdx)
-        val totalNewInsnIndeces = before.newInsnIndeces ++ insertedInsnIndeces ++ after.newInsnIndeces
-        BlockTransformation(totalNewBlocks, totalNewInsnIndeces, before.newVars ++ after.newVars)
+//        val updatedBodyBlock = blockUpdates(bodyBlock)
+//        val loop = loops.find(_.body.contains(bodyBlock)).get
+//        val inserted = cleanupBlocks(loop)
+//        val cleanupBlockIdx = newCFG.blocks.indexOf(inserted)
+//        val before: BlockTransformation = transformBodyBeforeSplit(updatedBodyBlock, env, loop, cleanupBlockIdx)
+//        val afterBlock =
+//        val after: BlockTransformation = transformBodyAfterSplit(updatedBodyBlock, env, loop, inserted) // find the succ that is the after-split block
+//        val bodyBlockStartInsnIdx = env.getInsnIdx(bodyBlock.instr.head)
+//        val totalNewBlocks = (before.newBlocks :+ inserted) ++ after.newBlocks
+//        val insertedInsnIndeces = inserted.instr.indices.map(_ + bodyBlockStartInsnIdx)
+//        val totalNewInsnIndeces = before.newInsnIndeces ++ insertedInsnIndeces ++ after.newInsnIndeces
+//        BlockTransformation(totalNewBlocks, totalNewInsnIndeces, before.newVars ++ after.newVars)
+        ???
 
       case block => BlockTransformation(List(block), List(), List())
     }
@@ -71,31 +92,34 @@ class IterationTransformer {
 
     (finalCFG, newEnv)
   }
+  def isIteratorNextInvocation(insn: Instruction): Boolean = {
+    case insn: InstrINVOKEINTERFACE => insn.name.name == "next" && insn.owner.contains ("Iterator")
+    case _ => false
+  }
 
   // Insert a block for cleaning up the stack after the narrow conditional for each loop
   // Returns a new CFG containing the cleanup blocks, a mapping for each loop's cleanup block, and a
   // map for translating old references
+  // todo: unit tests
   def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, BlockIndex], Map[BlockIndex, BlockIndex]) = {
-    val insertBlocks = loops.foldLeft((cfg, Map.empty[Loop, BlockIndex], cfg.blocks.indices.map(i => i -> i).toMap))
+    val insertBlocks = loops.foldLeft((cfg, Map.empty[Loop, BlockIndex], cfg.blocks.indices.map(i => i -> i).toMap)) _
 
     insertBlocks((collected, loop) => {
       val (workingCFG, cleanupBlocks, prevBlockUpdates) = collected
       val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(workingCFG.blocks.indexOf(loop.entry))), List())
 
-      // todo: I actually need to find the block to split based on index using prevBlockUpdates
-
       val findBlockToSplit =
-        (block: Block) => loadUtil.findSome(block.instr, (insn: Instruction) =>
-          insn match {
-            case nextInvocation: InstrINVOKEINTERFACE if
-            nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") => Some((nextInvocation, block))
-
+        (block: Block) => loadUtil.findSome(block.instr.zipWithIndex, (pair: (Instruction, Int)) =>
+          pair._1 match {
+            case nextInvocation if isIteratorNextInvocation(nextInvocation) => Some((pair._2, block))
             case _ => None
           })
       val result = for {
-        (nextInvocation, block) <- loadUtil.findSome(loop.body, findBlockToSplit)
+        (nextInvocationIdx, block) <- loadUtil.findSome(loop.body, findBlockToSplit)
         blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
-        splitInfo = SplitInfo(blockToSplit, nextInvocation, InstrIFEQ, cleanupBlock,
+        // InstrIFEQ: The inserted block is the cleanup block, so if the satisfiability check comes out True
+        // (i.e. not equal to zero) we should jump over it
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, cleanupBlock,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
         (newCFG, newBlock, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
@@ -108,7 +132,8 @@ class IterationTransformer {
     })
   }
 
-  def transformEntryPred(entryPred: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
+  // todo: unit tests
+  def transformLoopPredecessor(loopPredecessor: Block, env: VMethodEnv, cw: ClassVisitor): BlockTransformation = {
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
     val lambdaDesc = s"($ctxListClassType)V"
     createSimplifyLambda(cw, lambdaName, lambdaDesc)
@@ -116,7 +141,7 @@ class IterationTransformer {
     // Add an invocation to ctxlist.simplify before the iterator invocation
     var newInsns = List.empty[Int]
     BlockTransformation(
-      List(Block(entryPred.instr flatMap {
+      List(Block(loopPredecessor.instr flatMap {
         case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
           val simplifyInsns = invokeSimplify(env.clazz.name, lambdaName, lambdaDesc)
 
@@ -127,10 +152,11 @@ class IterationTransformer {
           simplifyInsns :+ itInvoke
 
         case block => List(block)
-      }, entryPred.exceptionHandlers)),
+      }, loopPredecessor.exceptionHandlers)),
       newInsns,
       List())
   }
+  // todo: unit tests
   var createdSimplifyLambdaMtd = false
   def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
     if (!createdSimplifyLambdaMtd) {
@@ -167,30 +193,25 @@ class IterationTransformer {
     )
   }
 
-  def transformBodyBlock(bodyBlock: Block, env: VMethodEnv, loop: Loop, cleanupBlockIdx: Int): BlockTransformation = {
-    // Unpack FEPair iterator after the iterator.next invocation, and add condition testing context of FEPair
+  def transformBodyStartBlock(bodyStartBlock: Block, env: VMethodEnv): BlockTransformation = {
+    // Unpack FEPair iterator after the iterator.next invocation, and test satisfiability of FEPair context
+    // the jump using the result of the satisfiability test is already present after the next invocation
+    // -- it was inserted by insertCleanupBlocks
     var newInsns = List.empty[Int]
     BlockTransformation(
-      List(Block(bodyBlock.instr flatMap {
-        case nextInvocation: InstrINVOKEINTERFACE if
-        nextInvocation.name.name == "next" && nextInvocation.owner.contains("Iterator") =>
-          val unpackInsns = unpackFEPair(loop, env, cleanupBlockIdx)
-
+      List(Block(bodyStartBlock.instr flatMap {
+        case nextInvocation if isIteratorNextInvocation(nextInvocation) =>
+          val unpackInsns = unpackFEPair()
           val nextInvIndex = env.getInsnIdx(nextInvocation)
-          val condInsnIndex = unpackInsns.indexWhere(_.isJumpInstr)
-          // Range from index + 1 because new instructions come after nextInvocation
-          // Do not mark conditional as a "new instruction" so that it will be lifted (thereby narrowing context)
-          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + condInsnIndex)
-          newInsns ++= List.range(nextInvIndex + 1 + condInsnIndex + 1, nextInvIndex + 1 + unpackInsns.size)
-
+          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
           nextInvocation :: unpackInsns
 
         case otherInsn => List(otherInsn)
-      }, bodyBlock.exceptionHandlers)),
+      }, bodyStartBlock.exceptionHandlers)),
       newInsns,
       List())
   }
-  def unpackFEPair(loop: Loop, env: VMethodEnv, cleanupBlockIdx: Int): List[Instruction] = {
+  def unpackFEPair(): List[Instruction] = {
     List(
       // stack: ..., One(FEPair)
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
@@ -206,7 +227,7 @@ class IterationTransformer {
       // ..., v, ctx
       InstrDUP(),
       // ..., v, ctx, ctx
-      InstrLOAD_LOOP_CTX(loop),
+      InstrLOAD_LOOP_CTX(),
 //      InstrALOAD(loopCtxVar),
       // ..., v, ctx, ctx, loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
@@ -214,7 +235,28 @@ class IterationTransformer {
       // ..., v, ctx, FE
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
       // ..., v, ctx, isSat?
-      InstrIFEQ(cleanupBlockIdx),
+    )
+  }
+  def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, env: VMethodEnv): BlockTransformation = {
+    // stack = ..., v, ctx
+    // wrap v in One using wrapFEPairValue()
+    var newInsns = List.empty[Int]
+    // WIP: modify this - just copied from transformBodyBlock
+    BlockTransformation(
+      List(Block(bodyStartBlockAfterSplit.instr flatMap {
+        case nextInvocation if isIteratorNextInvocation(nextInvocation) =>
+          val unpackInsns = unpackFEPair()
+          val nextInvIndex = env.getInsnIdx(nextInvocation)
+          newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
+          nextInvocation :: unpackInsns
+
+        case otherInsn => List(otherInsn)
+      }, bodyStartBlock.exceptionHandlers)),
+      newInsns,
+      List())
+  }
+  def wrapFEPairValue(): List[Instruction] = {
+    List(
       // ..., v, ctx
       InstrSWAP(),
       // ..., ctx, v
@@ -223,11 +265,11 @@ class IterationTransformer {
     )
   }
   def transformBodyBeforeSplit(bodyBlock: Block, env: VMethodEnv, loop: Loop, cleanupBlockIdx: Int): BlockTransformation = {
-
+    BlockTransformation(List(), List(), List())
   }
   def transformBodyAfterSplit(bodyBlock: Block, env: VMethodEnv, loop: Loop, insertedBlock: Block): BlockTransformation = {
     // find the succ of the before-split block
-
+    BlockTransformation(List(), List(), List())
   }
 
 
@@ -562,7 +604,7 @@ object loadUtil {
   }
 }
 
-case class InstrLOAD_LOOP_CTX(loop: Loop) extends Instruction {
+case class InstrLOAD_LOOP_CTX() extends Instruction {
   def toByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val thisBlock = env.getBlockForInstruction(this)
     for {
