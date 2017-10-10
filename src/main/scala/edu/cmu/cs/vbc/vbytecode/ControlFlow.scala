@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.utils.{InstrLOAD_LOOP_CTX, LiftUtils}
+import edu.cmu.cs.vbc.utils.{InstrLOAD_LOOP_CTX, LiftUtils, loadUtil}
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree.TypeAnnotationNode
@@ -316,16 +316,14 @@ case class CFG(blocks: List[Block]) {
 
 
 
-  // Returns the new CFG, the block inserted, and a map from the old cfg block references to new ones
-  // Note that the block returned will not be the same Block object passed in because
-  // all jump references in the passed in block will be updated to reflect the new CFG's indexing
+  // Returns the new CFG, the block inserted, and a map from the old cfg block indices to new ones
+  // Note that the blocks returned will not be the same Block object passed in because
+  // all jump references in the passed in blocks will be updated to reflect the new CFG's indexing
   def splitBlock(info: SplitInfo): (CFG, Block, Map[BlockIndex, BlockIndex]) = {
     // assume that block indices are just literally their indices in the cfg.blocks list
     // therefore adding two blocks after splitting will just shift all blocks after splitting
     // back two.
-
-    // also assume the newBlock will have a jump insn using an OLD INDEX that will be translated
-    // by this function
+    // also assume the newBlock jump insn uses an OLD INDEX that will be translated
 
     // Need to build a map from the old block references of cfg to the new ones returned
     // so that references to the old blocks can be updated easily.
@@ -333,12 +331,12 @@ case class CFG(blocks: List[Block]) {
 
     val newBlocks = updatedBlocks.zipWithIndex.flatMap {
       case (theBlock, index) if index == info.blockToSplit =>
-        val splitInstrIndex = theBlock.instr.indexOf(info.splitAfter)
-        val instrsBeforeSplit = theBlock.instr.take(splitInstrIndex + 1)
-        val instrsAfterSplit = theBlock.instr.takeRight(theBlock.instr.size - splitInstrIndex - 1)
-        val before = Block(instrsBeforeSplit :+ info.jumpInsn(info.blockToSplit + 2), info.beforeSplitExceptionHandlers)
+        val instrsBeforeSplit = theBlock.instr.take(info.splitAfterInstrIdx + 1)
+        val instrsAfterSplit = theBlock.instr.takeRight(theBlock.instr.size - info.splitAfterInstrIdx - 1)
+        val before = Block(instrsBeforeSplit :+ info.jumpOverSplit(info.blockToSplit + 2), info.beforeSplitExceptionHandlers)
         val after = Block(instrsAfterSplit, info.afterSplitExceptionHandlers)
         List(before, updatedNewBlock, after)
+
       case (b, _) => List(b)
     }
 
@@ -367,8 +365,8 @@ case class CFG(blocks: List[Block]) {
     (blocksWithNewJumps, newBlockWithNewJumps, newIndex)
   }
 }
-case class SplitInfo(blockToSplit: Int, splitAfter: Instruction,
-                     jumpInsn: Int => JumpInstruction, newBlock: Block,
+case class SplitInfo(blockToSplit: Int, splitAfterInstrIdx: Int,
+                     jumpOverSplit: Int => JumpInstruction, newBlock: Block,
                      beforeSplitExceptionHandlers: Seq[VBCHandler] = Seq.empty,
                      afterSplitExceptionHandlers: Seq[VBCHandler] = Seq.empty)
 
