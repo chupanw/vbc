@@ -23,13 +23,14 @@ class CFGSplitBlockTest extends FunSuite with Matchers {
     }
   }
 
-  test("splitBlock") {
-    val cfg = CFG(List(
+  val cfg = CFG(List(
       Block(InstrPOP(), InstrDUP(), InstrGOTO(1)),
       Block(InstrDUP(), InstrICONST(1), InstrGOTO(2)),
       Block(InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(3)),
       Block(InstrDUP(), InstrPOP(), InstrGOTO(3))
     ))
+
+  test("Basic structure of cfg with split block works") {
     val info = SplitInfo(2, 1, dest => InstrIFNE(dest), Block(InstrPOP(), InstrGOTO(1)))
     val (newCFG, newBlock, newIndices) = cfg.splitBlock(info)
     assert(equal(newCFG, CFG(List(
@@ -40,6 +41,11 @@ class CFGSplitBlockTest extends FunSuite with Matchers {
       Block(InstrDUP(), InstrGOTO(5)),
       Block(InstrDUP(), InstrPOP(), InstrGOTO(5))
       ))), "Block splitting doesn't work as expected")
+  }
+
+  test("newIndices maps old indices correctly") {
+    val info = SplitInfo(2, 1, dest => InstrIFNE(dest), Block(InstrPOP(), InstrGOTO(1)))
+    val (newCFG, newBlock, newIndices) = cfg.splitBlock(info)
     assert(equal(newCFG, CFG(List(
       Block(InstrPOP(), InstrDUP(), InstrGOTO(newIndices(1))),
       Block(InstrDUP(), InstrICONST(1), InstrGOTO(newIndices(2))),
@@ -48,6 +54,9 @@ class CFGSplitBlockTest extends FunSuite with Matchers {
       Block(InstrDUP(), InstrGOTO(newIndices(3))),
       Block(InstrDUP(), InstrPOP(), InstrGOTO(newIndices(3)))
     ))), "newIndices doesn't map old indices to new ones correctly")
+  }
+
+  test("Inserted block has jump index updated") {
     val info2 = SplitInfo(2, 1, dest => InstrIFNE(dest), Block(InstrPOP(), InstrGOTO(3)))
     val (newCFG2, newBlock2, newIndices2) = cfg.splitBlock(info2)
     assert(equal(newCFG2, CFG(List(
