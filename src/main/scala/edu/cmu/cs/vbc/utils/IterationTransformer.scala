@@ -39,11 +39,12 @@ class IterationTransformer {
     val loopBodyStartBlockIndices = loopBodyStartBlocks map toUpdatedIndex
 
     // Get the index of INSN in newCFG
-    def cfgInsnIdx(insn: Instruction): InstructionIndex = {
-      ??? // todo: implement this; I need to verify how VMethodEnv gets the insn index first
+    val cfgInsnIdx: Instruction => InstructionIndex = {
+      // This is the same way that VMethodEnv calculates insn index
+      val newCFGInsns = newCFG.blocks.flatMap(_.instr)
+      insn => newCFGInsns.indexWhere(_ eq insn)
     }
 
-    // todo: modify newBlocks and add newVars & newInsns here
     var blockTransformations = newCFG.blocks.zipWithIndex map {
       case (loopPredecessor, index) if loopPredecessorIndices contains index =>
         // Modify loopPredecessor to call CtxList.Simplify()
