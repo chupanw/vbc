@@ -69,4 +69,7 @@ class CFGSplitBlockTest extends FunSuite with Matchers {
       ))), "Inserted block doesn't have jump index updated")
   }
 
+  test("Splitting multiple blocks works correctly") {
+
+  }
 }
