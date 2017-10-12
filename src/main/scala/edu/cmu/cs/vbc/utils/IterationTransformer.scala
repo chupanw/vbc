@@ -80,8 +80,8 @@ class IterationTransformer {
 
     (finalCFG, newEnv)
   }
-  def isIteratorNextInvocation(insn: Instruction): Boolean = {
-    case insn: InstrINVOKEINTERFACE => insn.name.name == "next" && insn.owner.contains ("Iterator")
+  def isIteratorNextInvocation(insn: Instruction): Boolean = insn match {
+    case invoke: InstrINVOKEINTERFACE => invoke.name.name == "next" && invoke.owner.contains("Iterator")
     case _ => false
   }
 
@@ -222,7 +222,7 @@ class IterationTransformer {
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
       // ..., v, ctx, FE
-      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true)
       // ..., v, ctx, isSat?
     )
   }
