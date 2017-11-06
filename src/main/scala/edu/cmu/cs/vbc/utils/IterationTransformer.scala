@@ -88,7 +88,6 @@ class IterationTransformer {
   // Insert a block for cleaning up the stack after the narrow conditional for each loop
   // Returns a new CFG containing the cleanup blocks, a mapping for each loop's cleanup block, and a
   // map for translating old references
-  // todo: unit tests
   def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, BlockIndex], Map[BlockIndex, BlockIndex]) = {
     val insertBlocks = loops.foldLeft((cfg, Map.empty[Loop, BlockIndex], cfg.blocks.indices.map(i => i -> i).toMap)) _
 
