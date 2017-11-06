@@ -57,28 +57,28 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 12"), InstrDUP(), InstrPOP(), InstrGOTO(11)) // 11
     ))
 
-  test("insertCleanupBlocks works for one loop") {
-    val itt = new IterationTransformer()
-    val loopEntry = cfg_1loop.blocks(3)
-    val loopBody = Set(cfg_1loop.blocks(4), cfg_1loop.blocks(5))
-    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(cfg_1loop, List(Loop(loopEntry, loopBody)))
-    assert(equal(newCFG, CFG(List(
-      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)), // 0
-      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(2)), // 1
-      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), // 2
-        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
-        InstrDUP(), InstrGOTO(3)),
-      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4)), // 3: loop entry
-      Block(InstrLDC("orig 5"), // 4
-        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-        InstrIFNE(6)),
-      Block(List(InstrPOP(), InstrPOP(), InstrGOTO(3)), Nil), // 5: cleanup block
-      Block(InstrDUP(), InstrPOP(), InstrGOTO(7)), // 6: second split-half
-      Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
-      Block(InstrLDC("orig 7"), InstrDUP(), InstrPOP(), InstrGOTO(9)), // 8
-      Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(9)) // 9
-    ))), "Block splitting doesn't work as expected")
-  }
+//  test("insertCleanupBlocks works for one loop") {
+//    val itt = new IterationTransformer()
+//    val loopEntry = cfg_1loop.blocks(3)
+//    val loopBody = Set(cfg_1loop.blocks(4), cfg_1loop.blocks(5))
+//    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(cfg_1loop, List(Loop(loopEntry, loopBody)))
+//    assert(equal(newCFG, CFG(List(
+//      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)), // 0
+//      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(2)), // 1
+//      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), // 2
+//        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+//        InstrDUP(), InstrGOTO(3)),
+//      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4)), // 3: loop entry
+//      Block(InstrLDC("orig 5"), // 4
+//        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+//        InstrIFNE(6)),
+//      Block(List(InstrPOP(), InstrPOP(), InstrGOTO(3)), Nil), // 5: cleanup block
+//      Block(InstrDUP(), InstrPOP(), InstrGOTO(7)), // 6: second split-half
+//      Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
+//      Block(InstrLDC("orig 7"), InstrDUP(), InstrPOP(), InstrGOTO(9)), // 8
+//      Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(9)) // 9
+//    ))), "Block splitting doesn't work as expected")
+//  }
 
   test("insertCleanupBlocks works for multiple loops") {
     val itt = new IterationTransformer()
@@ -86,7 +86,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
     val loop1Body = Set(cfg_2loop.blocks(4), cfg_2loop.blocks(5))
     val loop2Entry = cfg_2loop.blocks(7)
     val loop2Body = Set(cfg_2loop.blocks(8), cfg_2loop.blocks(9), cfg_2loop.blocks(10))
-    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(cfg_1loop,
+    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(cfg_2loop,
       List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
     assert(equal(newCFG, CFG(List(
       Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)), // 0
@@ -103,8 +103,8 @@ class IterationTransformerTest extends FunSuite with Matchers {
       Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
       Block(InstrLDC("orig 7"), InstrDUP(), // 8
         InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
-        InstrPOP(), InstrGOTO(7)),
-      Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(8)), // 9: loop entry
+        InstrPOP(), InstrGOTO(9)),
+      Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(10)), // 9: loop entry
       Block(InstrLDC("orig 9"), // 10
         InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
         InstrIFNE(12)),
@@ -116,17 +116,40 @@ class IterationTransformerTest extends FunSuite with Matchers {
     ))), "Block splitting doesn't work as expected")
   }
 
-  test("Inserted block has jump index updated") {
-//    val info = SplitInfo(2, 2, dest => InstrIFNE(dest), Block(InstrLDC("inserted 1"), InstrPOP(), InstrGOTO(3)))
-//    val (newCFG, newBlock, newIndices) = cfg.splitBlock(info)
-//    assert(equal(newCFG, CFG(List(
-//      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)),
-//      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(2)),
-//      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrIFNE(4)),
-//      Block(InstrLDC("inserted 1"), InstrPOP(), InstrGOTO(5)),
-//      Block(InstrDUP(), InstrGOTO(5)),
-//      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(5))
-//      ))), "Inserted block doesn't have jump index updated")
+  test("insertCleanupBlocks returns valid map from loop to cleanup blocks") {
+    val itt = new IterationTransformer()
+    val loop1Entry = cfg_2loop.blocks(3)
+    val loop1Body = Set(cfg_2loop.blocks(4), cfg_2loop.blocks(5))
+    val loop2Entry = cfg_2loop.blocks(7)
+    val loop2Body = Set(cfg_2loop.blocks(8), cfg_2loop.blocks(9), cfg_2loop.blocks(10))
+    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)), // 0
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(2)), // 1
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), // 2
+        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+        InstrDUP(), InstrGOTO(3)),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4)), // 3: loop entry
+      Block(InstrLDC("orig 5"), // 4
+        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+        InstrIFNE(6)),
+      Block(List(InstrPOP(), InstrPOP(), InstrGOTO(3)), Nil), // 5: cleanup block
+      Block(InstrDUP(), InstrPOP(), InstrGOTO(7)), // 6: second split-half
+      Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
+      Block(InstrLDC("orig 7"), InstrDUP(), // 8
+        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+        InstrPOP(), InstrGOTO(9)),
+      Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(10)), // 9: loop entry
+      Block(InstrLDC("orig 9"), // 10
+        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+        InstrIFNE(12)),
+      Block(List(InstrPOP(), InstrPOP(), InstrGOTO(9)), Nil), // 11: cleanup block
+      Block(List(InstrDUP(), InstrPOP(), InstrGOTO(13)), Nil), // 12: second split-half
+      Block(InstrLDC("orig 10"), InstrDUP(), InstrPOP(), InstrIFEQ(14)), // 13
+      Block(InstrLDC("orig 11"), InstrDUP(), InstrPOP(), InstrGOTO(9)), // 14: loop ^
+      Block(InstrLDC("orig 12"), InstrDUP(), InstrPOP(), InstrGOTO(15)) // 15
+    ))), "Block splitting doesn't work as expected")
   }
 
   test("Splitting multiple blocks works correctly") {

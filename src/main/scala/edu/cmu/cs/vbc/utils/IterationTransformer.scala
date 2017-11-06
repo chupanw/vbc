@@ -94,7 +94,10 @@ class IterationTransformer {
 
     insertBlocks((collected, loop) => {
       val (workingCFG, cleanupBlocks, prevBlockUpdates) = collected
-      val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(workingCFG.blocks.indexOf(loop.entry))), List())
+      // loop contains old block references; update
+      val loopEntryIdx = prevBlockUpdates(cfg.blocks.indexOf(loop.entry))
+      val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(loopEntryIdx)), List())
+
 
       val findBlockToSplit =
         (block: Block) => loadUtil.findSome(block.instr.zipWithIndex, (pair: (Instruction, Int)) =>
