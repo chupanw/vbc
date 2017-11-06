@@ -2,6 +2,8 @@ package edu.cmu.cs.vbc.utils
 
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import edu.cmu.cs.vbc.vbytecode._
+import org.objectweb.asm.util.{Textifier, TraceClassVisitor}
+import org.objectweb.asm.{ClassReader, ClassVisitor, ClassWriter}
 import org.scalatest.{FunSuite, Matchers}
 
 
@@ -57,6 +59,8 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 12"), InstrDUP(), InstrPOP(), InstrGOTO(11)) // 11
     ))
 
+
+  // ===== insertCleanupBlocks =====
   test("insertCleanupBlocks works for one loop") {
     val itt = new IterationTransformer()
     val loopEntry = cfg_1loop.blocks(3)
@@ -155,5 +159,28 @@ class IterationTransformerTest extends FunSuite with Matchers {
   }
 
 
+  // ===== transformLoopPredecessor =====
+  test("transformLoopPredecessor works") {
+    val loopPredecessor = cfg_2loop.blocks(2)
+    val env = ???
+  }
 
+  // ===== createSimplifyLambda =====
+  test("createSimplifyLambda creates lambda") {
+    val itt = new IterationTransformer()
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+    val cv = new TraceClassVisitor(cw, new Textifier(), null)
+
+    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
+    val lambdaDesc = s"(${itt.ctxListClassType})V"
+    itt.createSimplifyLambda(cw, lambdaName, lambdaDesc)
+    // todo: verify that class has the added method ...
+    val cr = new ClassReader(cw.toByteArray)
+  }
+
+
+  // ===== transformBodyStartBlock =====
+  test("transformBodyStartBlock works") {
+    
+  }
 }
