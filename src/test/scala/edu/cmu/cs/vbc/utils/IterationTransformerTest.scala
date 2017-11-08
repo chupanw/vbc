@@ -387,11 +387,13 @@ class IterationTransformerTest extends FunSuite with Matchers {
     val className = "testclass"
     val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, valid_cfg_2loop)
     val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
-    val env = new VMethodEnv(vbcClazz, vbcMtdNode)    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+    val env = new VMethodEnv(vbcClazz, vbcMtdNode)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
 
     val (newCFG, newEnv) = itt.transformListIteration(valid_cfg_2loop, env, cw)
 
     // todo: check newCFG and newEnv right
     // possibly look into refactoring so I can reuse the checks I already wrote in other tests
+    assert(newCFG.blocks.size == valid_cfg_2loop.blocks.size + 4)
   }
 }
