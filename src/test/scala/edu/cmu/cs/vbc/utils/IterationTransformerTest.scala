@@ -112,7 +112,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
       Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4)), // 3: loop entry
       Block(InstrLDC("orig 5"), // 4
         InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-        InstrIFNE(6)),
+        InstrIFEQ(6)),
       Block(List(InstrPOP(), InstrPOP(), InstrGOTO(3)), Nil), // 5: cleanup block
       Block(InstrDUP(), InstrPOP(), InstrGOTO(7)), // 6: second split-half
       Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
@@ -138,7 +138,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
       Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4)), // 3: loop entry
       Block(InstrLDC("orig 5"), // 4
         InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-        InstrIFNE(6)),
+        InstrIFEQ(6)),
       Block(List(InstrPOP(), InstrPOP(), InstrGOTO(3)), Nil), // 5: cleanup block
       Block(InstrDUP(), InstrPOP(), InstrGOTO(7)), // 6: second split-half
       Block(InstrLDC("orig 6"), InstrDUP(), InstrPOP(), InstrIFEQ(3)), // 7: loop ^
@@ -148,7 +148,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
       Block(InstrLDC("orig 8"), InstrDUP(), InstrPOP(), InstrGOTO(10)), // 9: loop entry
       Block(InstrLDC("orig 9"), // 10
         InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-        InstrIFNE(12)),
+        InstrIFEQ(12)),
       Block(List(InstrPOP(), InstrPOP(), InstrGOTO(9)), Nil), // 11: cleanup block
       Block(List(InstrDUP(), InstrPOP(), InstrGOTO(13)), Nil), // 12: second split-half
       Block(InstrLDC("orig 10"), InstrDUP(), InstrPOP(), InstrIFEQ(15)), // 13

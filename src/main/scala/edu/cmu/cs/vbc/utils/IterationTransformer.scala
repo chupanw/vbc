@@ -109,7 +109,7 @@ class IterationTransformer {
         blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
         // InstrIFEQ: The inserted block is the cleanup block, so if the satisfiability check comes out True
         // (i.e. not equal to zero) we should jump over it
-        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, cleanupBlock,
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFEQ, cleanupBlock,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
         (newCFG, _, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
@@ -121,7 +121,6 @@ class IterationTransformer {
     })
   }
 
-  // todo: unit tests
   def transformLoopPredecessor(loopPredecessor: Block, env: VMethodEnv, cw: ClassVisitor,
                                cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
@@ -146,7 +145,7 @@ class IterationTransformer {
       newInsns,
       List())
   }
-  // todo: unit tests
+
   var createdSimplifyLambdaMtd = false
   def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
     if (!createdSimplifyLambdaMtd) {
@@ -183,7 +182,6 @@ class IterationTransformer {
     )
   }
 
-  // todo: unit tests
   def transformBodyStartBlock(bodyStartBlock: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
     // Unpack FEPair iterator after the iterator.next invocation, and test satisfiability of FEPair context
     // the jump using the result of the satisfiability test is already present after the next invocation
