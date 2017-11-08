@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 import scala.collection.JavaConversions._
 import PartialFunction.cond
 
-import edu.cmu.cs.vbc.utils.LiftUtils.vclassname
+import edu.cmu.cs.vbc.utils.LiftUtils.{vclassname, fexprclassname, fexprclasstype}
 
 class IterationTransformerTest extends FunSuite with Matchers {
 
@@ -94,6 +94,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 11"), InstrPOP(), InstrICONST(8), InstrPOP(), InstrGOTO(7)), // 10: loop ^
     Block(InstrLDC("orig 12"), InstrPOP(), InstrICONST(9), InstrPOP(), InstrRETURN()) // 11
   ))
+  def valid_cfg_2loop_insnIdx(insn: Instruction) = valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn)
 
 
   // ===== insertCleanupBlocks =====
@@ -250,8 +251,9 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     val loopPredecessor = valid_cfg_2loop.blocks(2)
 
-    val blockTrans = itt.transformLoopPredecessor(loopPredecessor, env, cw,
-      insn => valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn))
+
+
+    val blockTrans = itt.transformLoopPredecessor(loopPredecessor, env, cw, valid_cfg_2loop_insnIdx)
 
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
     val lambdaDesc = s"(${itt.ctxListClassType})V"
@@ -286,6 +288,44 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
   // ===== transformBodyStartBlock =====
   test("transformBodyStartBlock works") {
+    val itt = new IterationTransformer()
+    val bodyStartBlock = valid_cfg_2loop.blocks(4)
+    val blockTrans = itt.transformBodyStartBlock(bodyStartBlock, valid_cfg_2loop_insnIdx)
 
+    assert(blockTrans.newVars.isEmpty)
+    assert(equal(blockTrans.newBlocks, List(Block(
+      InstrLDC("orig 5"),
+      InstrPOP(),
+      InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+
+      // stack: ..., One(FEPair)
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      // ..., FEPair
+      InstrCHECKCAST(Owner(itt.fePairClassName)),
+      InstrDUP(),
+      // ..., FEPair, FEPair
+      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("v"), TypeDesc(itt.objectClassType)),
+      // ..., FEPair, v
+      InstrSWAP(),
+      // ..., v, FEPair
+      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      // ..., v, ctx
+      InstrDUP(),
+      // ..., v, ctx, ctx
+      InstrLOAD_LOOP_CTX(),
+//      InstrALOAD(loopCtxVar),
+      // ..., v, ctx, ctx, loopCtx
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
+        MethodDesc(s"(${fexprclasstype})${fexprclasstype}"), true),
+      // ..., v, ctx, FE
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      // ..., v, ctx, isSat?
+
+      InstrDUP(),
+      InstrPOP(),
+      InstrGOTO(5)
+    ))))
+    val nextInvIndex = 23
+    assert(blockTrans.newInsnIndeces == List.range(nextInvIndex + 1, nextInvIndex + 11))
   }
 }
