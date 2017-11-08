@@ -371,4 +371,27 @@ class IterationTransformerTest extends FunSuite with Matchers {
     val blockStartInsnIndex = newCFG_insnIdx(firstInsn)
     assert(blockTrans.newInsnIndeces == List.range(blockStartInsnIndex, blockStartInsnIndex + 2))
   }
+
+
+
+
+
+  test("transformListIteration works") {
+    val itt = new IterationTransformer()
+
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+
+    val className = "testclass"
+    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, valid_cfg_2loop)
+    val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
+    val env = new VMethodEnv(vbcClazz, vbcMtdNode)    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+
+    val (newCFG, newEnv) = itt.transformListIteration(valid_cfg_2loop, env, cw)
+
+    // todo: check newCFG and newEnv right
+    // possibly look into refactoring so I can reuse the checks I already wrote in other tests
+  }
 }
