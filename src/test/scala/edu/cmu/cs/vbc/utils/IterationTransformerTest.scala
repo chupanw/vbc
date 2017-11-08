@@ -2,9 +2,15 @@ package edu.cmu.cs.vbc.utils
 
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import edu.cmu.cs.vbc.vbytecode._
-import org.objectweb.asm.util.{Textifier, TraceClassVisitor}
+import org.objectweb.asm.tree._
+import org.objectweb.asm.util.{CheckClassAdapter, Textifier, TraceClassVisitor}
 import org.objectweb.asm.{ClassReader, ClassVisitor, ClassWriter}
+import org.objectweb.asm.Opcodes._
 import org.scalatest.{FunSuite, Matchers}
+
+import scala.collection.JavaConversions._
+
+import PartialFunction.cond
 
 
 class IterationTransformerTest extends FunSuite with Matchers {
@@ -169,18 +175,48 @@ class IterationTransformerTest extends FunSuite with Matchers {
   test("createSimplifyLambda creates lambda") {
     val itt = new IterationTransformer()
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
-    val cv = new TraceClassVisitor(cw, new Textifier(), null)
 
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
     val lambdaDesc = s"(${itt.ctxListClassType})V"
+
     itt.createSimplifyLambda(cw, lambdaName, lambdaDesc)
+
     // todo: verify that class has the added method ...
     val cr = new ClassReader(cw.toByteArray)
+    val classNode = new ClassNode(ASM5)
+    cr.accept(classNode, 0)
+    def isTheLambda(mn: MethodNode) = mn.name == lambdaName && mn.desc == lambdaDesc
+
+    assert(classNode.methods.toList.exists(isTheLambda))
+
+    val insns = new InsnList()
+    insns.add(new VarInsnNode(ALOAD, 0))
+    val invOwner = itt.ctxListClassName
+    val invName = "simplify____V"
+    val invDesc = "()V"
+    insns.add(new MethodInsnNode(INVOKEVIRTUAL, invOwner, invName, invDesc, false))
+    insns.add(new InsnNode(RETURN))
+
+    for { mn <- classNode.methods.find(isTheLambda) }
+      yield {
+        assert(cond(mn.instructions.get(0)) {
+          case v: VarInsnNode => v.getOpcode == ALOAD && v.`var` == 0
+        })
+        assert(cond(mn.instructions.get(1)) {
+          case m: MethodInsnNode =>
+            m.getOpcode == INVOKEVIRTUAL && m.owner == invOwner && m.name == invName && m.desc == invDesc
+        })
+        assert(cond(mn.instructions.get(2)) {
+          case r: InsnNode => r.getOpcode == RETURN
+        })
+      }
+    // todo: figure out checking JVM compliance
+//    cr.accept(new CheckClassAdapter(cw), 0) // throws null exception
   }
 
 
   // ===== transformBodyStartBlock =====
   test("transformBodyStartBlock works") {
-    
+
   }
 }
