@@ -94,7 +94,14 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 11"), InstrPOP(), InstrICONST(8), InstrPOP(), InstrGOTO(7)), // 10: loop ^
     Block(InstrLDC("orig 12"), InstrPOP(), InstrICONST(9), InstrPOP(), InstrRETURN()) // 11
   ))
-  def valid_cfg_2loop_insnIdx(insn: Instruction) = valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+
+
+
+
+
+
+
+
 
 
   // ===== insertCleanupBlocks =====
@@ -251,8 +258,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     val loopPredecessor = valid_cfg_2loop.blocks(2)
 
-
-
+    def valid_cfg_2loop_insnIdx(insn: Instruction) = valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn)
     val blockTrans = itt.transformLoopPredecessor(loopPredecessor, env, cw, valid_cfg_2loop_insnIdx)
 
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
@@ -289,8 +295,17 @@ class IterationTransformerTest extends FunSuite with Matchers {
   // ===== transformBodyStartBlock =====
   test("transformBodyStartBlock works") {
     val itt = new IterationTransformer()
-    val bodyStartBlock = valid_cfg_2loop.blocks(4)
-    val blockTrans = itt.transformBodyStartBlock(bodyStartBlock, valid_cfg_2loop_insnIdx)
+
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(valid_cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+
+    val bodyStartBlock = newCFG.blocks(blockUpdates(4))
+    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+    val blockTrans = itt.transformBodyStartBlock(bodyStartBlock, newCFG_insnIdx)
 
     assert(blockTrans.newVars.isEmpty)
     assert(equal(blockTrans.newBlocks, List(Block(
@@ -321,11 +336,8 @@ class IterationTransformerTest extends FunSuite with Matchers {
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
       // ..., v, ctx, isSat?
 
-      InstrDUP(),
-      InstrPOP(),
-      InstrGOTO(5)
+      InstrIFEQ(blockUpdates(5) - 1)
     ))))
-    val nextInvIndex = 23
+    val nextInvIndex = newCFG.blocks.flatMap(_.instr).indexWhere(itt.isIteratorNextInvocation)
     assert(blockTrans.newInsnIndeces == List.range(nextInvIndex + 1, nextInvIndex + 11))
   }
-}
