@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 import scala.collection.JavaConversions._
 import PartialFunction.cond
 
-import edu.cmu.cs.vbc.utils.LiftUtils.{vclassname, fexprclassname, fexprclasstype}
+import edu.cmu.cs.vbc.utils.LiftUtils.{vclassname, vclasstype, fexprclassname, fexprclasstype}
 
 class IterationTransformerTest extends FunSuite with Matchers {
 
@@ -341,3 +341,34 @@ class IterationTransformerTest extends FunSuite with Matchers {
     val nextInvIndex = newCFG.blocks.flatMap(_.instr).indexWhere(itt.isIteratorNextInvocation)
     assert(blockTrans.newInsnIndeces == List.range(nextInvIndex + 1, nextInvIndex + 11))
   }
+
+  // ===== transformBodyStartBlockAfterSplit =====
+  test("transformBodyStartBlockAfterSplit") {
+    val itt = new IterationTransformer()
+
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertCleanupBlocks(valid_cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+
+    val bodyStartBlockAfterSplit = newCFG.blocks(blockUpdates(5) - 1)
+    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+    val blockTrans = itt.transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit, newCFG_insnIdx)
+
+    assert(blockTrans.newVars.isEmpty)
+    assert(equal(blockTrans.newBlocks, List(Block(
+      InstrSWAP(),
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
+        MethodDesc(s"($fexprclasstype${itt.objectClassType})$vclasstype"), true),
+
+      InstrDUP(),
+      InstrPOP(),
+      InstrGOTO(blockUpdates(5)))
+    )))
+    val firstInsn = newCFG.blocks(blockUpdates(5) - 1).instr.head
+    val blockStartInsnIndex = newCFG_insnIdx(firstInsn)
+    assert(blockTrans.newInsnIndeces == List.range(blockStartInsnIndex, blockStartInsnIndex + 2))
+  }
+}

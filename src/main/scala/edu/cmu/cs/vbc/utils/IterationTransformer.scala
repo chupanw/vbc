@@ -57,7 +57,7 @@ class IterationTransformer {
         val transform1 = transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
 
         // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
-        val transform2 = transformBodyStartBlockAfterSplit(newCFG.blocks(index + 2), env)
+        val transform2 = transformBodyStartBlockAfterSplit(newCFG.blocks(index + 2), cfgInsnIdx)
         transform1 + transform2
 
       case (otherBlock, _) => BlockTransformation(List(otherBlock), List(), List())
@@ -226,12 +226,12 @@ class IterationTransformer {
       // ..., v, ctx, isSat?
     )
   }
-  // todo: unit tests
-  def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, env: VMethodEnv): BlockTransformation = {
+  def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
     // stack = ..., v, ctx
     // wrap v in One using wrapFEPairValue()
     val wrapInsns = wrapFEPairValue()
-    val newInsns = List.range(0, wrapInsns.size)
+    val firstInsnOfBlockIdx = cfgInsnIdx(bodyStartBlockAfterSplit.instr.head)
+    val newInsns = List.range(firstInsnOfBlockIdx, firstInsnOfBlockIdx + wrapInsns.size)
     // WIP: modify this - just copied from transformBodyBlock
     BlockTransformation(
       List(Block(wrapInsns ++ bodyStartBlockAfterSplit.instr, bodyStartBlockAfterSplit.exceptionHandlers)),
