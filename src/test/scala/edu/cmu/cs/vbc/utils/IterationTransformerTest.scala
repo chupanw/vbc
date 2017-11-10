@@ -1,5 +1,6 @@
 package edu.cmu.cs.vbc.utils
 
+import edu.cmu.cs.vbc.loader.Loader
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.tree._
@@ -10,8 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 import scala.collection.JavaConversions._
 import PartialFunction.cond
-
-import edu.cmu.cs.vbc.utils.LiftUtils.{vclassname, vclasstype, fexprclassname, fexprclasstype}
+import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclassname, fexprclasstype, vclassname, vclasstype}
 
 class IterationTransformerTest extends FunSuite with Matchers {
 
@@ -70,8 +70,6 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 12"), InstrDUP(), InstrPOP(), InstrGOTO(11)) // 11
     ))
 
-//  val valid_cfg_2loop = CFG(List(
-//    Block(InstrLDC("orig 1"), InstrPOP(), InstrICONST(1), InstrPOP(), InstrRETURN())))
   val valid_cfg_2loop = CFG(List(
     Block(InstrLDC("orig 1"), InstrPOP(), InstrICONST(1), InstrDUP(), InstrGOTO(1)), // 0
     Block(InstrLDC("orig 2"), InstrPOP(), InstrPOP(), InstrICONST(2), InstrGOTO(2)), // 1
@@ -94,6 +92,165 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 11"), InstrPOP(), InstrICONST(8), InstrPOP(), InstrGOTO(7)), // 10: loop ^
     Block(InstrLDC("orig 12"), InstrPOP(), InstrICONST(9), InstrPOP(), InstrRETURN()) // 11
   ))
+
+  val real_cfg_2loop = {
+    val llist_name = Owner("java/util/LinkedList")
+    val list_name = Owner("java/util/List")
+    val it_name = Owner("java/util/Iterator")
+    val it_desc = MethodDesc("()Ljava/util/Iterator;")
+    val int_name = Owner("java/lang/Integer")
+
+    def instrLListInit = InstrINVOKESPECIAL(llist_name, MethodName("<init>"), MethodDesc("()V"), false)
+    def instrListIterator = InstrINVOKEINTERFACE(list_name, MethodName("iterator"), it_desc, true)
+    def instrHasNext = InstrINVOKEINTERFACE(it_name, MethodName("hasNext"), MethodDesc("()Z"), true)
+    def instrNext = InstrINVOKEINTERFACE(it_name, MethodName("next"), MethodDesc("()Ljava/lang/Object;"), true)
+    def instrIntValue = InstrINVOKEVIRTUAL(int_name, MethodName("intValue"), MethodDesc("()I"), false)
+    def instrValueOf = InstrINVOKESTATIC(int_name, MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), false)
+
+    val var1 = new LocalVar("1", "Ljava/util/object;")
+    val var2 = new LocalVar("2", "Ljava/util/object;")
+    val var3 = new LocalVar("3", "Ljava/util/object;")
+    val var4 = new LocalVar("4", "Ljava/util/object;")
+    val l0 = 0
+    val l1 = 1
+    val l2 = 2
+    val l3 = 3
+    val l4 = 7
+    val l5 = 5
+    val l6 = 6
+    val l7 = 8
+    val l8 = 12
+
+    CFG(List(
+      Block(InstrNEW(llist_name), // 0 = l0
+        InstrDUP(),
+        instrLListInit,
+        InstrASTORE(var1)),
+      Block(InstrNEW(llist_name),  // 1 = l1
+        InstrDUP(),
+        instrLListInit,
+        InstrASTORE(var2)),
+      Block(InstrALOAD(var1),  // 2 = l2
+        instrListIterator,
+        InstrASTORE(var3)),
+      Block(InstrALOAD(var3), // 3 = l3 : loop 1 entry
+        instrHasNext,
+        InstrIFEQ(l4)),
+      Block(InstrALOAD(var3), // 4 = no label
+        instrNext,
+        InstrCHECKCAST(int_name),
+        InstrASTORE(var4)),
+      Block(InstrALOAD(var4), // 5 = l5
+        instrIntValue,
+        InstrICONST(1),
+        InstrIADD(),
+        instrValueOf,
+        InstrASTORE(var4)),
+      Block(InstrGOTO(l3)), // 6 = l6 : loop 1 ^
+      Block(InstrALOAD(var2), // 7 = l4
+        instrListIterator,
+        InstrASTORE(var3)),
+      Block(InstrALOAD(var3), // 8 = l7 : loop 2 entry
+        instrHasNext,
+        InstrIFEQ(l8)),
+      Block(InstrALOAD(var3), // 9 = no label
+        instrNext,
+        InstrCHECKCAST(int_name),
+        InstrASTORE(var4)),
+      Block(InstrALOAD(var4), // 10 = l9
+        instrIntValue,
+        InstrICONST(1),
+        InstrIADD(),
+        instrValueOf,
+        InstrASTORE(var4)),
+      Block(InstrGOTO(l7)), // 11 = l10 : loop 2 ^
+      Block(InstrRETURN()) // 12 = l8
+    ))
+  }
+
+  val real_cfg_2loop2 = {
+    var mv = new MethodNode(ACC_PUBLIC, "test", "()V", null, null)
+    mv.visitCode
+    val labels = List.range(0, 12).map(l => new Label("L" + l))
+    mv.visitLabel(labels(0))
+    mv.visitLineNumber(73, labels(0))
+    mv.visitTypeInsn(NEW, "java/util/LinkedList")
+    mv.visitInsn(DUP)
+    mv.visitMethodInsn(INVOKESPECIAL, "java/util/LinkedList", "<init>", "()V", false)
+    mv.visitVarInsn(ASTORE, 1)
+    mv.visitLabel(labels(1))
+    mv.visitLineNumber(74, labels(1))
+    mv.visitTypeInsn(NEW, "java/util/LinkedList")
+    mv.visitInsn(DUP)
+    mv.visitMethodInsn(INVOKESPECIAL, "java/util/LinkedList", "<init>", "()V", false)
+    mv.visitVarInsn(ASTORE, 2)
+    mv.visitLabel(labels(2))
+    mv.visitLineNumber(75, labels(2))
+    mv.visitVarInsn(ALOAD, 1)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "iterator", "()Ljava/util/Iterator;", true)
+    mv.visitVarInsn(ASTORE, 3)
+    mv.visitLabel(labels(3))
+    mv.visitFrame(Opcodes.F_APPEND, 3, Array[AnyRef]("java/util/List", "java/util/List", "java/util/Iterator"), 0, null)
+    mv.visitVarInsn(ALOAD, 3)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true)
+    mv.visitJumpInsn(IFEQ, labels(4))
+    mv.visitVarInsn(ALOAD, 3)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "java/lang/Integer")
+    mv.visitVarInsn(ASTORE, 4)
+    mv.visitLabel(labels(5))
+    mv.visitLineNumber(76, labels(5))
+    mv.visitVarInsn(ALOAD, 4)
+    mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false)
+    mv.visitInsn(ICONST_1)
+    mv.visitInsn(IADD)
+    mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false)
+    mv.visitVarInsn(ASTORE, 4)
+    mv.visitLabel(labels(6))
+    mv.visitLineNumber(77, labels(6))
+    mv.visitJumpInsn(GOTO, labels(3))
+    mv.visitLabel(labels(4))
+    mv.visitLineNumber(78, labels(4))
+    mv.visitFrame(Opcodes.F_CHOP, 1, null, 0, null)
+    mv.visitVarInsn(ALOAD, 2)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "iterator", "()Ljava/util/Iterator;", true)
+    mv.visitVarInsn(ASTORE, 3)
+    mv.visitLabel(labels(7))
+    mv.visitFrame(Opcodes.F_APPEND, 1, Array[AnyRef]("java/util/Iterator"), 0, null)
+    mv.visitVarInsn(ALOAD, 3)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true)
+    mv.visitJumpInsn(IFEQ, labels(8))
+    mv.visitVarInsn(ALOAD, 3)
+    mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "java/lang/Integer")
+    mv.visitVarInsn(ASTORE, 4)
+    mv.visitLabel(labels(9))
+    mv.visitLineNumber(79, labels(9))
+    mv.visitVarInsn(ALOAD, 4)
+    mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false)
+    mv.visitInsn(ICONST_1)
+    mv.visitInsn(IADD)
+    mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false)
+    mv.visitVarInsn(ASTORE, 4)
+    mv.visitLabel(labels(10))
+    mv.visitLineNumber(80, labels(10))
+    mv.visitJumpInsn(GOTO, labels(7))
+    mv.visitLabel(labels(8))
+    mv.visitLineNumber(81, labels(8))
+    mv.visitFrame(Opcodes.F_CHOP, 1, null, 0, null)
+    mv.visitInsn(RETURN)
+    mv.visitLabel(labels(11))
+    mv.visitLocalVariable("el", "Ljava/lang/Integer;", null, labels(5), labels(6), 4)
+    mv.visitLocalVariable("el", "Ljava/lang/Integer;", null, labels(9), labels(10), 4)
+    mv.visitLocalVariable("this", "Ledu/cmu/cs/vbc/prog/IterationExample;", null, labels(0), labels(11), 0)
+    mv.visitLocalVariable("l1", "Ljava/util/List;", "Ljava/util/List<Ljava/lang/Integer;>;", labels(1), labels(11), 1)
+    mv.visitLocalVariable("l2", "Ljava/util/List;", "Ljava/util/List<Ljava/lang/Integer;>;", labels(2), labels(11), 2)
+    mv.visitMaxs(2, 5)
+    mv.visitEnd()
+
+    val loader = new Loader()
+    loader.adaptMethod(Owner("testclass"), mv).body
+  }
 
 
 
@@ -379,21 +536,16 @@ class IterationTransformerTest extends FunSuite with Matchers {
   test("transformListIteration works") {
     val itt = new IterationTransformer()
 
-    val loop1Entry = valid_cfg_2loop.blocks(3)
-    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
-    val loop2Entry = valid_cfg_2loop.blocks(7)
-    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
-
     val className = "testclass"
-    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, valid_cfg_2loop)
+    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, real_cfg_2loop2)
     val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
     val env = new VMethodEnv(vbcClazz, vbcMtdNode)
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
 
-    val (newCFG, newEnv) = itt.transformListIteration(valid_cfg_2loop, env, cw)
+    val (newCFG, newEnv) = itt.transformListIteration(real_cfg_2loop2, env, cw)
 
     // todo: check newCFG and newEnv right
     // possibly look into refactoring so I can reuse the checks I already wrote in other tests
-    assert(newCFG.blocks.size == valid_cfg_2loop.blocks.size + 4)
+    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
   }
 }
