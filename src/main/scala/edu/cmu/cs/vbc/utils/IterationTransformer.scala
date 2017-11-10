@@ -37,6 +37,9 @@ class IterationTransformer {
       case block if block.instr.exists(isIteratorNextInvocation) => block
     }
     val loopBodyStartBlockIndices = loopBodyStartBlocks map toUpdatedIndex
+    val bodyAfterSplitIndices = newCFG.blocks.zipWithIndex collect {
+      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index => index + 2
+    }
 
     // Get the index of INSN in newCFG
     val cfgInsnIdx: Instruction => InstructionIndex = {
@@ -45,28 +48,49 @@ class IterationTransformer {
       insn => newCFGInsns.indexWhere(_ eq insn)
     }
 
-    var bodyAfterSplitIndices = newCFG.blocks.zipWithIndex collect {
-      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index => index + 2
-    }
-    var blockTransformations = newCFG.blocks.zipWithIndex map {
+    def pairWithRelativeOrder(bt: BlockTransformation, block: Block) = (bt, bt -> cfgInsnIdx(block.instr.head))
+    val (blockTransformations, blockTransformOrdering) = newCFG.blocks.zipWithIndex.map({
       case (loopPredecessor, index) if loopPredecessorIndices contains index =>
         // Modify loopPredecessor to call CtxList.Simplify()
-        transformLoopPredecessor(loopPredecessor, env, cw, cfgInsnIdx)
+        val bt = transformLoopPredecessor(loopPredecessor, env, cw, cfgInsnIdx)
+        pairWithRelativeOrder(bt, loopPredecessor)
 
       case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index =>
         // Modify bodyStartBlock to unpack FEPair and check satisfiability
         // No need to jump, the jump insn was inserted by splitBlock
-        transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
+        val bt = transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
+        pairWithRelativeOrder(bt, bodyStartBlock)
 
       case (bodyAfterSplit, index) if bodyAfterSplitIndices contains index =>
         // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
-        transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx)
+        val bt = transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx)
+        pairWithRelativeOrder(bt, bodyAfterSplit)
 
-      case (otherBlock, _) => BlockTransformation(List(otherBlock), List(), List())
-    }
+      case (otherBlock, _) =>
+        val bt = BlockTransformation(List(otherBlock), List(), List())
+        pairWithRelativeOrder(bt, otherBlock)
+    }).unzip
 
+    // build a map from blocktransforms to the number that the newInsns need to be offset by
+    val blockTransformsSortedByInstruction = blockTransformOrdering.sortBy(_._2).map(_._1)
+    val blockTransformInsnOffset =
+      blockTransformsSortedByInstruction.zipWithIndex.foldLeft(List.empty[(BlockTransformation, Int)])({
+        case (offsetsSoFar, (bt, 0)) =>
+          (bt -> 0) +: offsetsSoFar
+
+        case (offsetsSoFar, (bt, index)) =>
+          val offsetOfPrevTransform = offsetsSoFar.head._2
+          val newInsnsInPrevTransform = offsetsSoFar.head._1.newInsnIndeces.length
+          (bt -> (offsetOfPrevTransform + newInsnsInPrevTransform)) +: offsetsSoFar
+    }).toMap
+    // then, map the transformations to update the newInsnIndices using those offsets
+    val correctedTransformations = blockTransformations.map(bt => {
+      val offset = blockTransformInsnOffset(bt)
+      val correctedNewInsnIndices = bt.newInsnIndeces.map(_ + offset)
+      BlockTransformation(bt.newBlocks, correctedNewInsnIndices, bt.newVars)
+    })
     val collectTransformations =
-      blockTransformations.foldRight((List.empty[Block], List.empty[Int], List.empty[Variable])) _
+      correctedTransformations.foldRight((List.empty[Block], List.empty[Int], List.empty[Variable])) _
     val (newBlocks, newInsns, newVars) = collectTransformations((bt, collected) =>
       (bt.newBlocks ++ collected._1,
         bt.newInsnIndeces ++ collected._2,
@@ -234,7 +258,6 @@ class IterationTransformer {
     val wrapInsns = wrapFEPairValue()
     val firstInsnOfBlockIdx = cfgInsnIdx(bodyStartBlockAfterSplit.instr.head)
     val newInsns = List.range(firstInsnOfBlockIdx, firstInsnOfBlockIdx + wrapInsns.size)
-    // WIP: modify this - just copied from transformBodyBlock
     BlockTransformation(
       List(Block(wrapInsns ++ bodyStartBlockAfterSplit.instr, bodyStartBlockAfterSplit.exceptionHandlers)),
       newInsns,
