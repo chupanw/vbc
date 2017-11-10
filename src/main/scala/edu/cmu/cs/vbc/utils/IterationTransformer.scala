@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.utils
 
-import edu.cmu.cs.vbc.analysis.VBCFrame
+import edu.cmu.cs.vbc.analysis.{REF_TYPE, VBCFrame, V_TYPE}
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
 import edu.cmu.cs.vbc.loader.{BasicBlock, MethodAnalyzer}
 import edu.cmu.cs.vbc.vbytecode._
@@ -45,6 +45,9 @@ class IterationTransformer {
       insn => newCFGInsns.indexWhere(_ eq insn)
     }
 
+    var bodyAfterSplitIndices = newCFG.blocks.zipWithIndex collect {
+      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index => index + 2
+    }
     var blockTransformations = newCFG.blocks.zipWithIndex map {
       case (loopPredecessor, index) if loopPredecessorIndices contains index =>
         // Modify loopPredecessor to call CtxList.Simplify()
@@ -53,12 +56,11 @@ class IterationTransformer {
       case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index =>
         // Modify bodyStartBlock to unpack FEPair and check satisfiability
         // No need to jump, the jump insn was inserted by splitBlock
-        // No need to modify the second split half of the bodyStartBlock, the value of the FEPair will be on top
-        val transform1 = transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
+        transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
 
+      case (bodyAfterSplit, index) if bodyAfterSplitIndices contains index =>
         // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
-        val transform2 = transformBodyStartBlockAfterSplit(newCFG.blocks(index + 2), cfgInsnIdx)
-        transform1 + transform2
+        transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx)
 
       case (otherBlock, _) => BlockTransformation(List(otherBlock), List(), List())
     }
@@ -131,7 +133,7 @@ class IterationTransformer {
     var newInsns = List.empty[Int]
     BlockTransformation(
       List(Block(loopPredecessor.instr flatMap {
-        case itInvoke: InstrINVOKEVIRTUAL if isIteratorInvocation(itInvoke) =>
+        case itInvoke if isIteratorInvocation(itInvoke) =>
           val simplifyInsns = invokeSimplify(env.clazz.name, lambdaName, lambdaDesc)
 
           val iteratorIndex = cfgInsnIdx(itInvoke)
@@ -166,6 +168,7 @@ class IterationTransformer {
     val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
     List(
+      InstrDUP(), // todo: tmp, I don't think this should be here but it's complaining about empty stack after the foreach
       InstrDUP(),
       // Could assume the V is a One. It should be, but I'm not certain.
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
@@ -257,13 +260,18 @@ class IterationTransformer {
 
 
 
-  def isListIteration(loop: Loop, env: VMethodEnv): Boolean =
-    env.getPredecessors(loop.entry).exists(_.instr.exists(isIteratorInvocation))
+  def isListIteration(loop: Loop, env: VMethodEnv): Boolean = {
+    val predecessors = env.getPredecessors(loop.entry)
+    predecessors.exists(_.instr.exists(isIteratorInvocation))
+  }
 
   def isIteratorInvocation(insn: Instruction): Boolean = cond(insn) {
     case inv: InstrINVOKEVIRTUAL => isIteratorInvocation(inv)
+    case inv: InstrINVOKEINTERFACE => isIteratorInvocation(inv)
   }
   def isIteratorInvocation(insn: InstrINVOKEVIRTUAL): Boolean =
+    insn.name.name.equals("iterator") && insn.owner.name.contains("List")
+  def isIteratorInvocation(insn: InstrINVOKEINTERFACE): Boolean =
     insn.name.name.equals("iterator") && insn.owner.name.contains("List")
 
 
@@ -609,5 +617,18 @@ case class InstrLOAD_LOOP_CTX() extends Instruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     assert(false, "toVByteCode called on fake instruction LOAD_LOOP_CTX. This instruction should not be lifted.")
   }
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set())
+  // this is the same as instrALOAD - I just want it to push a new reference
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    if (!env.shouldLiftInstr(this))
+      (s.push(REF_TYPE(), Set(this)), Set())
+    else {
+      val newFrame = s.push(V_TYPE(), Set(this))
+      val backtrack =
+//        if (newFrame.localVar(variable)._1 != V_TYPE())
+//          newFrame.localVar(variable)._2
+//        else
+          Set[Instruction]()
+      (newFrame, backtrack)
+    }
+  }
 }
