@@ -104,6 +104,17 @@ class CFGLoopAnalysisTest extends FlatSpec {
             System.out.println(el);
         }
      }
+
+    private void iteratorMultiLoop() {
+        List<Integer> l1 = new LinkedList<>();
+        List<Integer> l2 = new LinkedList<>();
+        for (Integer el : l1) {
+            el += 1;
+        }
+        for (Integer el : l2) {
+            el += 1;
+        }
+    }
   */
   val loader = new Loader()
   val clazz = {
@@ -556,6 +567,97 @@ class CFGLoopAnalysisTest extends FlatSpec {
   val iteratorLoopEnv: VMethodEnv = envFor(iteratorLoop)
 
 
+  val iteratorMultiLoop = {
+    var mv = new MethodNode(Opcodes.ACC_PUBLIC, "test", "()V", null, null)
+    mv.visitCode
+    val labels = List.range(0, 12).map(l => new asm.Label("L" + l))
+    mv.visitLabel(labels(0))
+    mv.visitLineNumber(73, labels(0))
+    mv.visitTypeInsn(Opcodes.NEW, "java/util/LinkedList")
+    mv.visitInsn(Opcodes.DUP)
+    mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/util/LinkedList", "<init>", "()V", false)
+    mv.visitVarInsn(Opcodes.ASTORE, 1)
+    mv.visitLabel(labels(1))
+    mv.visitLineNumber(74, labels(1))
+    mv.visitTypeInsn(Opcodes.NEW, "java/util/LinkedList")
+    mv.visitInsn(Opcodes.DUP)
+    mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/util/LinkedList", "<init>", "()V", false)
+    mv.visitVarInsn(Opcodes.ASTORE, 2)
+    mv.visitLabel(labels(2))
+    mv.visitLineNumber(75, labels(2))
+    mv.visitVarInsn(Opcodes.ALOAD, 1)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List", "iterator", "()Ljava/util/Iterator;", true)
+    mv.visitVarInsn(Opcodes.ASTORE, 3)
+    mv.visitLabel(labels(3))
+    mv.visitFrame(Opcodes.F_APPEND, 3, Array[AnyRef]("java/util/List", "java/util/List", "java/util/Iterator"), 0, null)
+    mv.visitVarInsn(Opcodes.ALOAD, 3)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true)
+    mv.visitJumpInsn(Opcodes.IFEQ, labels(4))
+    mv.visitVarInsn(Opcodes.ALOAD, 3)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(Opcodes.CHECKCAST, "java/lang/Integer")
+    mv.visitVarInsn(Opcodes.ASTORE, 4)
+    mv.visitLabel(labels(5))
+    mv.visitLineNumber(76, labels(5))
+    mv.visitVarInsn(Opcodes.ALOAD, 4)
+    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false)
+    mv.visitInsn(Opcodes.ICONST_1)
+    mv.visitInsn(Opcodes.IADD)
+    mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false)
+    mv.visitVarInsn(Opcodes.ASTORE, 4)
+    mv.visitLabel(labels(6))
+    mv.visitLineNumber(77, labels(6))
+    mv.visitJumpInsn(Opcodes.GOTO, labels(3))
+    mv.visitLabel(labels(4))
+    mv.visitLineNumber(78, labels(4))
+    mv.visitFrame(Opcodes.F_CHOP, 1, null, 0, null)
+    mv.visitVarInsn(Opcodes.ALOAD, 2)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List", "iterator", "()Ljava/util/Iterator;", true)
+    mv.visitVarInsn(Opcodes.ASTORE, 3)
+    mv.visitLabel(labels(7))
+    mv.visitFrame(Opcodes.F_APPEND, 1, Array[AnyRef]("java/util/Iterator"), 0, null)
+    mv.visitVarInsn(Opcodes.ALOAD, 3)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true)
+    mv.visitJumpInsn(Opcodes.IFEQ, labels(8))
+    mv.visitVarInsn(Opcodes.ALOAD, 3)
+    mv.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/Iterator", "next", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(Opcodes.CHECKCAST, "java/lang/Integer")
+    mv.visitVarInsn(Opcodes.ASTORE, 4)
+    mv.visitLabel(labels(9))
+    mv.visitLineNumber(79, labels(9))
+    mv.visitVarInsn(Opcodes.ALOAD, 4)
+    mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false)
+    mv.visitInsn(Opcodes.ICONST_1)
+    mv.visitInsn(Opcodes.IADD)
+    mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false)
+    mv.visitVarInsn(Opcodes.ASTORE, 4)
+    mv.visitLabel(labels(10))
+    mv.visitLineNumber(80, labels(10))
+    mv.visitJumpInsn(Opcodes.GOTO, labels(7))
+    mv.visitLabel(labels(8))
+    mv.visitLineNumber(81, labels(8))
+    mv.visitFrame(Opcodes.F_CHOP, 1, null, 0, null)
+    mv.visitInsn(Opcodes.RETURN)
+    mv.visitLabel(labels(11))
+    mv.visitLocalVariable("el", "Ljava/lang/Integer;", null, labels(5), labels(6), 4)
+    mv.visitLocalVariable("el", "Ljava/lang/Integer;", null, labels(9), labels(10), 4)
+    mv.visitLocalVariable("this", "Ledu/cmu/cs/vbc/prog/IterationExample;", null, labels(0), labels(11), 0)
+    mv.visitLocalVariable("l1", "Ljava/util/List;", "Ljava/util/List<Ljava/lang/Integer;>;", labels(1), labels(11), 1)
+    mv.visitLocalVariable("l2", "Ljava/util/List;", "Ljava/util/List<Ljava/lang/Integer;>;", labels(2), labels(11), 2)
+    mv.visitMaxs(2, 5)
+    mv.visitEnd()
+
+    mv
+  }
+  val iteratorMultiLoopEnv: VMethodEnv = envFor(iteratorMultiLoop)
+
+
+
+
+
+
+
+
   "retreatingEdges" should "contain all retreating edges" in {
     var msg = "analysis incorrectly finds retreating edges"
     assert(simpleMethodEnv.loopAnalysis.retreatingEdges.isEmpty, msg)
@@ -574,6 +676,9 @@ class CFGLoopAnalysisTest extends FlatSpec {
 
     re = iteratorLoopEnv.loopAnalysis.retreatingEdges
     assert(re.size == 1, msg)
+
+    re = iteratorMultiLoopEnv.loopAnalysis.retreatingEdges
+    assert(re.size == 2, msg)
   }
 
   "loops.size" should "be the correct number of loops" in {
@@ -587,6 +692,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(lessSimpleLoopEnv.loopAnalysis.loops.size == 1, msg)
     assert(multiLoopEnv.loopAnalysis.loops.size == 2, msg)
     assert(iteratorLoopEnv.loopAnalysis.loops.size == 1, msg)
+    assert(iteratorMultiLoopEnv.loopAnalysis.loops.size == 2, msg)
   }
 
   "loops" should "contain the relevant nodes in their bodies" in {
@@ -615,7 +721,7 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(bodyList(3).instr.exists(cond(_) { case a: InstrIADD => true }))
     assert(bodyList(3).instr.exists(cond(_) { case m: InstrIMUL => true }))
 
-    val loops = multiLoopEnv.loopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
+    var loops = multiLoopEnv.loopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
       case l: InstrLINENUMBER => l.line
       case _ => Int.MaxValue
     })
@@ -659,14 +765,35 @@ class CFGLoopAnalysisTest extends FlatSpec {
     assert(loop.entry.instr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "hasNext" }), msg)
     assert(loop.entry.instr.exists(cond(_) { case c: InstrIFEQ => true }), msg)
 
-    val blocksBefore = iteratorLoopEnv.getPredecessors(loop.entry)
+    var blocksBefore = iteratorLoopEnv.getPredecessors(loop.entry)
     assert(blocksBefore.exists(_.instr.exists(cond(_) { case ii: InstrINVOKEVIRTUAL => ii.name == "iterator"})), msg)
 
-    val bodyBlock = body.find(_ => true).get
+    var bodyBlock = body.find(_ => true).get
     assert(bodyBlock.instr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "next" }), msg)
     assert(bodyBlock.instr.exists(cond(_) { case s: InstrASTORE => s.getVariables.exists(_.name == "el") }), msg)
     assert(bodyBlock.instr.exists(cond(_) { case s: InstrALOAD => s.getVariables.exists(_.name == "el") }), msg)
     assert(bodyBlock.instr.exists(cond(_) { case g: InstrGETSTATIC => g.name == "out" }), msg)
     assert(bodyBlock.instr.exists(cond(_) { case iv: InstrINVOKEVIRTUAL => iv.name == "println" }), msg)
+
+
+
+    loops = iteratorMultiLoopEnv.loopAnalysis.loops.toList.sortBy(l => l.body.toList.head.instr.head match {
+      case l: InstrLINENUMBER => l.line
+      case _ => Int.MaxValue
+    })
+    loop = loops.head
+    body = loop.body
+    assert(body.size == 1, msg)
+    assert(loop.entry.instr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "hasNext" }), msg)
+    assert(loop.entry.instr.exists(cond(_) { case c: InstrIFEQ => true }), msg)
+
+    blocksBefore = iteratorMultiLoopEnv.getPredecessors(loop.entry)
+    assert(blocksBefore.exists(_.instr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "iterator"})), msg)
+
+    val bodyBlockInstr = body.flatMap(_.instr)
+    assert(bodyBlockInstr.exists(cond(_) { case ii: InstrINVOKEINTERFACE => ii.name == "next" }), msg)
+    assert(bodyBlockInstr.exists(cond(_) { case s: InstrASTORE => s.getVariables.exists(_.name == "el") }), msg)
+    assert(bodyBlockInstr.exists(cond(_) { case s: InstrALOAD => s.getVariables.exists(_.name == "el") }), msg)
+    assert(bodyBlockInstr.exists(cond(_) { case s: InstrIADD => true }), msg)
   }
 }
