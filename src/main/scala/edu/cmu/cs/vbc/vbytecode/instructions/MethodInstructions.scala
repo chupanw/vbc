@@ -505,7 +505,21 @@ case class InstrINVOKEDYNAMIC(owner: Owner, name: MethodName, desc: MethodDesc, 
     mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs)
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = updateStack(s, env, owner, name, desc)
+//  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = updateStack(s, env, owner, name, desc)
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    if (!env.shouldLiftInstr(this))
+      (s.push(REF_TYPE(), Set()), Set())
+    else {
+      val newFrame = s.push(V_TYPE(), Set(this))
+      val backtrack =
+      //        if (newFrame.localVar(variable)._1 != V_TYPE())
+      //          newFrame.localVar(variable)._2
+      //        else
+        Set[Instruction]()
+      (newFrame, backtrack)
+    }
+  }
+
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     assert(false, "Lifting INVOKEDYNAMIC not implemented.")

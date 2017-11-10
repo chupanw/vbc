@@ -168,7 +168,6 @@ class IterationTransformer {
     val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
     List(
-      InstrDUP(), // todo: tmp, I don't think this should be here but it's complaining about empty stack after the foreach
       InstrDUP(),
       // Could assume the V is a One. It should be, but I'm not certain.
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
