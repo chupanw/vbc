@@ -532,7 +532,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
 
 
-
+  // ===== transformListIteration =====
   test("transformListIteration works") {
     val itt = new IterationTransformer()
 
@@ -544,8 +544,59 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     val (newCFG, newEnv) = itt.transformListIteration(real_cfg_2loop2, env, cw)
 
+    def tagPreserveAppliedToCorrectInstructions(env: VMethodEnv) = {
+      def haveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, hasTagSoFar) =>
+        hasTagSoFar && ((newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) != 0))
+      def dontHaveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, noTagSoFar) => {
+        val insnUntagged = (newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) == 0
+        if (!insnUntagged) println(s"Instr $i: ${env.instructions(i)} has preserve tag!")
+        noTagSoFar && insnUntagged
+      })
+
+      val loopPredecessors = newCFG.blocks.filter(_.instr.exists(cond(_) {
+        case itInvoke: InstrINVOKEINTERFACE => itInvoke.name.name == "iterator"
+        case itInvoke: InstrINVOKEVIRTUAL => itInvoke.name.name == "iterator"
+      }))
+      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
+        val invDynamic = loopPredecessor.instr.find(cond(_) {
+          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
+        })
+        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
+        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
+      })
+      val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
+
+      val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {
+        case nextInvoke: InstrINVOKEINTERFACE => nextInvoke.name.name == "next"
+        case nextInvoke: InstrINVOKEVIRTUAL => nextInvoke.name.name == "next"
+      }))
+      val bodyStartIndices = bodyStarts.flatMap(bodyStart => {
+        val nextInv = bodyStart.instr.find(cond(_) {
+          case i => itt.isIteratorNextInvocation(i)
+        })
+        val nextInvIndex = newEnv.getInsnIdx(nextInv.get)
+        List.range(nextInvIndex + 1, nextInvIndex + 1 + 10)
+      })
+      val bodyStartHasTag = haveTagPreserve(bodyStartIndices)
+
+      val bodyAfterSplits = bodyStarts.map(b => newCFG.blocks(newCFG.blocks.indexOf(b) + 2))
+      val bodyAfterSplitIndices = bodyAfterSplits.flatMap(bodyAfterSplit => {
+        bodyAfterSplit.instr.slice(0, 2).map(newEnv.getInsnIdx)
+      })
+      val bodyAfterSplitHasTag = haveTagPreserve(bodyAfterSplitIndices)
+
+      val expectedPreserveTagsArePresent = loopPredecessorHasTag && bodyStartHasTag && bodyAfterSplitHasTag
+      val unexpectedPreserveTagsAreNotPresent = dontHaveTagPreserve(List.range(0, env.instructions.size)
+        .diff(loopPredecessorIndices)
+        .diff(bodyStartIndices)
+        .diff(bodyAfterSplitIndices))
+
+      expectedPreserveTagsArePresent && unexpectedPreserveTagsAreNotPresent
+    }
+
     // todo: check newCFG and newEnv right
     // possibly look into refactoring so I can reuse the checks I already wrote in other tests
     assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
+    assert(tagPreserveAppliedToCorrectInstructions(newEnv))
   }
 }
