@@ -192,19 +192,20 @@ class IterationTransformer {
     val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
     List(
-      InstrDUP(),
+//      InstrDUP(),
+
       // Could assume the V is a One. It should be, but I'm not certain.
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
 //      InstrCHECKCAST(Owner(ctxListClassName)),
 //      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), true)
 //
-      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
-        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
-          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
-        Type.getType("(Ljava/lang/Object;)V"),
-        new Handle(Opcodes.H_INVOKESTATIC, className, lambdaName, lambdaDesc),
-        Type.getType(lambdaDesc)),
-      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true)
+//      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
+//        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
+//          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
+//        Type.getType("(Ljava/lang/Object;)V"),
+//        new Handle(Opcodes.H_INVOKESTATIC, className, lambdaName, lambdaDesc),
+//        Type.getType(lambdaDesc)),
+//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true)
     )
   }
 
@@ -252,7 +253,7 @@ class IterationTransformer {
       // ..., v, ctx, isSat?
       InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
       // ..., v, ctx, isSat?
-      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc("(Ljava/util/Object;)Ljava/util/Object;"), true)
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($objectClassType)$vclasstype"), true)
       // ..., v, ctx, V<isSat?>
     )
   }
