@@ -500,9 +500,9 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
   }
 }
 
-case class InstrINVOKEDYNAMIC(owner: Owner, name: MethodName, desc: MethodDesc, bsm: Handle, bsmArgs: Any*) extends MethodInstruction {
+case class InstrINVOKEDYNAMIC(owner: Owner, name: MethodName, desc: MethodDesc, bsm: Handle, bsmArgs: Object*) extends MethodInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs)
+    mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs:_*)
   }
 
 //  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = updateStack(s, env, owner, name, desc)
