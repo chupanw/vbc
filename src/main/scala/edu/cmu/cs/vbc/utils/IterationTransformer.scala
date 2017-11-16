@@ -248,8 +248,12 @@ class IterationTransformer {
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
       // ..., v, ctx, FE
-      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true)
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
       // ..., v, ctx, isSat?
+      InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
+      // ..., v, ctx, isSat?
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc("(Ljava/util/Object;)Ljava/util/Object;"), true)
+      // ..., v, ctx, V<isSat?>
     )
   }
   def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
