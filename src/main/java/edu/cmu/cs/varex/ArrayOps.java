@@ -41,7 +41,7 @@ public class ArrayOps {
     }
 
     private static V<?> expandJArrayElements(V<Long>[] array, FeatureExpr ctx, Integer index, ArrayList<Long> soFar) {
-        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+        model.java.vutil.ArrayList list = new model.java.vutil.ArrayList(ctx);
         for (int i = 0; i < array.length; i++) {
             list.add__Ljava_lang_Object__Z(array[i], ctx);
         }
@@ -166,7 +166,7 @@ public class ArrayOps {
     }
 
     private static V<?> expandBArrayElements(V<Integer>[] array, FeatureExpr ctx, Integer index, ArrayList<Byte> soFar) {
-        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+        model.java.vutil.ArrayList list = new model.java.vutil.ArrayList(ctx);
         for (int i = 0; i < array.length; i++) {
             list.add__Ljava_lang_Object__Z(array[i], ctx);
         }
@@ -381,7 +381,7 @@ public class ArrayOps {
      * Helper function for {@link #expandArray(V[], Class, FeatureExpr)}
      */
     private static <T> V<?> expandArrayElements(V<T>[] array, Class c, FeatureExpr ctx) {
-        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+        model.java.vutil.ArrayList list = new model.java.vutil.ArrayList(ctx);
         for (int i = 0; i < array.length; i++) {
             list.add__Ljava_lang_Object__Z(array[i], ctx);
         }

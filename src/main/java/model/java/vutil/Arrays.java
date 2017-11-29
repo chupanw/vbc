@@ -1,4 +1,4 @@
-package model.java.util;
+package model.java.vutil;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.ArrayOps;
@@ -53,7 +53,7 @@ public class Arrays {
         return null;    // dummy return value
     }
 
-    public static <T> void sort(T[] array, model.java.util.Comparator comparator) {
+    public static <T> void sort(T[] array, model.java.vutil.Comparator comparator) {
         java.util.Arrays.sort(array, comparator::compare);
     }
     public static <T> V<?> sort__Array_Ljava_lang_Object_Lmodel_java_util_Comparator__V(V<V<T>[]> vArray, V<Comparator> vComparator, FeatureExpr ctx) {

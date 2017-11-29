@@ -1,4 +1,4 @@
-package model.java.util;
+package model.java.vutil;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.V;
