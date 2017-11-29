@@ -74,7 +74,7 @@ test("conditional field assignment") {
   }
 
   test("ArrayListExample") {
-    testMain(classOf[ArrayListExample])
+    testMain(classOf[ArrayListExample], configFile = Some("util.conf"))
   }
 
   ignore("LongExample") {
@@ -98,6 +98,10 @@ test("conditional field assignment") {
   }
 
   test("HashMapExample") {
-    testMain(classOf[HashMapExample], configFile = Some("hashmap.conf"))
+    testMain(classOf[HashMapExample], configFile = Some("util.conf"))
+  }
+
+  test("HashSetExample") {
+    testMain(classOf[HashSetExample], configFile = Some("util.conf"))
   }
 }
