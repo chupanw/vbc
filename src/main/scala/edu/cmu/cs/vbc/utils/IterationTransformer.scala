@@ -233,6 +233,7 @@ class IterationTransformer {
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
       // ..., FEPair
       InstrCHECKCAST(Owner(fePairClassName)),
+      // ..., FEPair
       InstrDUP(),
       // ..., FEPair, FEPair
       InstrGETFIELD(Owner(fePairClassName), FieldName("v"), TypeDesc(objectClassType)),
@@ -240,21 +241,60 @@ class IterationTransformer {
       InstrSWAP(),
       // ..., v, FEPair
       InstrGETFIELD(Owner(fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
-      // ..., v, ctx
+      // ..., v, FEctx
       InstrDUP(),
-      // ..., v, ctx, ctx
-      InstrLOAD_LOOP_CTX(),
-//      InstrALOAD(loopCtxVar),
-      // ..., v, ctx, ctx, loopCtx
+      // ..., v, FEctx, FEctx
+
+//      InstrDUP(),
+      // tmp: ..., v, FEctx, FEctx, FEctx
+//      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("toString"), MethodDesc("()Ljava/lang/String;"), true),
+      // tmp: ..., v, FEctx, FEctx, "FEctx"
+//      InstrGETSTATIC(Owner("java/lang/System"), FieldName("out"), TypeDesc("Ljava/io/PrintStream;")),
+      // tmp: ..., v, FEctx, FEctx, "FEctx", sysout
+//      InstrDUP(),
+      // tmp: ..., v, FEctx, FEctx, "FEctx", sysout, sysout
+//      InstrLDC("FEPair ctx: "),
+      // tmp: ..., v, FEctx, FEctx, "FEctx", sysout, sysout, "PEPair ctx"
+//      InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("print"), MethodDesc("(Ljava/lang/String;)V"), false),
+      // tmp: ..., v, FEctx, FEctx, "FEctx", sysout
+//      InstrSWAP(),
+      // tmp: ..., v, FEctx, FEctx, sysout, "FEctx"
+//      InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/String;)V"), false),
+      // tmp: ..., v, FEctx, FEctx
+
+      // ..., v, FEctx, FEctx
+      InstrLOAD_LOOP_CTX(), //      InstrALOAD(loopCtxVar),
+      // ..., v, FEctx, FEctx, loopCtx
+
+//      InstrDUP(),
+      //tmp: ..., v, FEctx, FEctx, loopCtx, loopCtx
+//      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("toString"), MethodDesc("()Ljava/lang/String;"), true),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, "loopCtx"
+//      InstrGETSTATIC(Owner("java/lang/System"), FieldName("out"), TypeDesc("Ljava/io/PrintStream;")),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, "loopCtx", sysout
+//      InstrDUP(),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, "loopCtx", sysout, sysout
+//      InstrLDC("loop ctx: "),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, "loopCtx", sysout, sysout, "loop ctx"
+//      InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("print"), MethodDesc("(Ljava/lang/String;)V"), false),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, "loopCtx", sysout
+//      InstrSWAP(),
+      // tmp: ..., v, FEctx, FEctx, loopCtx, sysout, "loopCtx"
+//      InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/String;)V"), false),
+      // tmp: ..., v, FEctx, FEctx, loopCtx
+
+
+
+      // ..., v, FEctx, FEctx, loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
-      // ..., v, ctx, FE
+      // ..., v, FEctx, FEctx&loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
-      // ..., v, ctx, isSat?
+      // ..., v, FEctx, isSat?
       InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
-      // ..., v, ctx, isSat?
+      // ..., v, FEctx, Integer<isSat?>
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($objectClassType)$vclasstype"), true)
-      // ..., v, ctx, V<isSat?>
+      // ..., v, FEctx, V<isSat?>
     )
   }
   def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {

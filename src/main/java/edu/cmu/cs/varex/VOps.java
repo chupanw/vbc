@@ -8,6 +8,12 @@ import de.fosd.typechef.featureexpr.FeatureExpr;
 public class VOps {
 
     public static V<? extends Integer> IADD(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        System.out.print("Adding sum: ");
+        System.out.println(a.toString());
+        System.out.print("with el: ");
+        System.out.println(b.toString());
+        System.out.print("In ctx: ");
+        System.out.println(ctx.toString() + "\n");
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() + bb.intValue()));
     }
 
@@ -39,6 +45,7 @@ public class VOps {
      * @return
      */
     public static FeatureExpr whenNE(V<?> a) {
+        System.out.println("whenNE: " + a.toString());
         return a.when(v -> {
             if (v instanceof Boolean)
                 return (Boolean) v;
