@@ -135,7 +135,7 @@ class IterationTransformer {
         blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
         // InstrIFEQ: The inserted block is the cleanup block, so if the satisfiability check comes out True
         // (i.e. not equal to zero) we should jump over it
-        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFEQ, cleanupBlock,
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, cleanupBlock,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
         (newCFG, _, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
@@ -634,7 +634,7 @@ case class InstrLOAD_LOOP_CTX() extends Instruction {
       thisLoop <- env.loopAnalysis.loops.find(_.body.contains(thisBlock))
       loopCtxVarIdx = env.getVarIdx(env.getVBlockVar(thisLoop.entry))
     } yield {
-      mv.visitVarInsn(Opcodes.ALOAD, loopCtxVarIdx)
+      mv.visitVarInsn(Opcodes.ALOAD, loopCtxVarIdx + 1) // TODO: Not sure why this needs to be +1
     }
   }
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
