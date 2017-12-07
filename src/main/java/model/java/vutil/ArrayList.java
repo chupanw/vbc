@@ -232,7 +232,7 @@ public class ArrayList implements List {
         Profiler.startTimer(id);
         V res = vI.sflatMap(ctx, (fe, i) -> vO.sflatMap(fe, (fe2, o) -> {
             split(fe2);
-            return vActual.smap(fe2, (fe3, l) -> l.set(i, o));
+            return (V) vActual.smap(fe2, l -> l.set(i, o));
         }));
         Profiler.stopTimer(id);
         return res;
