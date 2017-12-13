@@ -109,20 +109,22 @@ class TernaryOperatorAnalyzer(mn: MethodNode) extends SourceInterpreter {
     * 2. The instruction lexically proceeding DUP is NEW
     */
   override def naryOperation(insn: AbstractInsnNode, values: java.util.List[_ <: SourceValue]) = {
-    val methodInsn = insn.asInstanceOf[MethodInsnNode]
-    val methodInsnIndex = mn.instructions.indexOf(insn)
-    if (methodInsn.getOpcode == Opcodes.INVOKESPECIAL && methodInsn.name == "<init>") {
-      val ref = values.get(0)
-      val refSources = ref.insns.toSet
-      assume(refSources.size == 1,
-        "Caller of INVOKESPECIAL comes from more than one source")
-      val isNEW = !isALOAD0(refSources.head)
-      val sourceIndex = if (isNEW) mn.instructions.indexOf(refSources.head) - 1 else mn.instructions.indexOf(refSources.head)
-      if (isNEW)
-        assume(mn.instructions.get(sourceIndex).getOpcode == Opcodes.NEW,
-          "Expecting a NEW, but found " + OpcodePrint.print(mn.instructions.get(sourceIndex).getOpcode))
-      if (hasJumpBetween(sourceIndex, methodInsnIndex))
-        invokeSpecialAndNew = Some(InvokeSpecialWithTernary(sourceIndex, methodInsnIndex, isNEW))
+    if (insn.getOpcode == Opcodes.INVOKESPECIAL) {
+      val methodInsn = insn.asInstanceOf[MethodInsnNode]
+      val methodInsnIndex = mn.instructions.indexOf(insn)
+      if (methodInsn.name == "<init>") {
+        val ref = values.get(0)
+        val refSources = ref.insns.toSet
+        assume(refSources.size == 1,
+          "Caller of INVOKESPECIAL comes from more than one source")
+        val isNEW = !isALOAD0(refSources.head)
+        val sourceIndex = if (isNEW) mn.instructions.indexOf(refSources.head) - 1 else mn.instructions.indexOf(refSources.head)
+        if (isNEW)
+          assume(mn.instructions.get(sourceIndex).getOpcode == Opcodes.NEW,
+            "Expecting a NEW, but found " + OpcodePrint.print(mn.instructions.get(sourceIndex).getOpcode))
+        if (hasJumpBetween(sourceIndex, methodInsnIndex))
+          invokeSpecialAndNew = Some(InvokeSpecialWithTernary(sourceIndex, methodInsnIndex, isNEW))
+      }
     }
     super.naryOperation(insn, values)
   }
