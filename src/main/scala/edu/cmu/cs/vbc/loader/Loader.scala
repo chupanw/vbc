@@ -33,7 +33,13 @@ class Loader {
     if (cl.interfaces == null) Nil else cl.interfaces.toList,
     if (cl.fields == null) Nil else cl.fields.map(adaptField).toList,
     if (cl.methods == null) Nil else cl.methods.map(
-      m => adaptMethod(cl.name, InitRewriter.extractInitSeq(transformSwitches(m), cl))
+      m => adaptMethod(cl.name,
+        TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
+          InitRewriter.extractInitSeq(
+            transformSwitches(m), cl
+          )
+        )
+      )
     ).toList,
     if (cl.sourceDebug != null && cl.sourceFile != null) Some(cl.sourceFile, cl.sourceDebug) else None,
     if (cl.outerClass != null) Some(cl.outerClass, cl.outerMethod, cl.outerMethodDesc) else None,

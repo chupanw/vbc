@@ -104,4 +104,8 @@ test("conditional field assignment") {
   test("HashSetExample") {
     testMain(classOf[HashSetExample], configFile = Some("util.conf"))
   }
+
+  test("TernaryOperatorExample") {
+    testMain(classOf[TernaryOperatorExample], configFile = Some("default.conf"))
+  }
 }
