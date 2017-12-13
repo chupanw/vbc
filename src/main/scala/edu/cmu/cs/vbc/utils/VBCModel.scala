@@ -145,6 +145,11 @@ class VBCModel(fqName: String) extends LazyLogging {
         } catch {
           case e: IllegalArgumentException => t.desc = rewriteTypeDesc(t.desc)
         }
+      case ldc: LdcInsnNode if ldc.cst.isInstanceOf[Type] =>
+        val t = ldc.cst.asInstanceOf[Type]
+        if (t.getSort == Type.OBJECT) {
+          ldc.cst = Type.getType(TypeDesc(t.getDescriptor).toModel.desc)
+        }
       case _ => // keep it as it is
     }
   }
