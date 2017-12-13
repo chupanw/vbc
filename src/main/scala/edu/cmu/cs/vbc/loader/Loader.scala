@@ -229,8 +229,8 @@ class Loader {
       }
       case IALOAD => InstrIALOAD()
       case LALOAD => InstrLALOAD()
-      case FALOAD => UNKNOWN(FALOAD)
-      case DALOAD => UNKNOWN(DALOAD)
+      case FALOAD => InstrFALOAD()
+      case DALOAD => InstrDALOAD()
       case AALOAD => InstrAALOAD()
       case BALOAD => InstrBALOAD()
       case CALOAD => InstrCALOAD()
@@ -255,7 +255,7 @@ class Loader {
       }
       case IASTORE => InstrIASTORE()
       case LASTORE => InstrLASTORE()
-      case FASTORE => UNKNOWN(FASTORE)
+      case FASTORE => InstrFASTORE()
       case DASTORE => InstrDASTORE()
       case AASTORE => InstrAASTORE()
       case BASTORE => InstrBASTORE()

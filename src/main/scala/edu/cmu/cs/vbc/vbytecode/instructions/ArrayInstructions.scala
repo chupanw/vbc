@@ -565,6 +565,21 @@ case class InstrDASTORE() extends ArrayStoreInstructions {
   }
 }
 
+case class InstrDALOAD() extends ArrayLoadInstructions {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(DALOAD)
+  }
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this))
+      loadOperation(mv, env, block)
+    else
+      mv.visitInsn(AALOAD)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, is64Bit = true)
+}
+
 case class InstrLASTORE() extends ArrayStoreInstructions {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(LASTORE)
@@ -596,4 +611,29 @@ case class InstrLALOAD() extends ArrayLoadInstructions {
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv) = updateStackWithReturnType(s, env, true)
+}
+
+
+case class InstrFALOAD() extends ArrayLoadInstructions {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(FALOAD)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this))
+      loadOperation(mv, env, block)
+    else
+      mv.visitInsn(AALOAD)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, is64Bit = false)
+}
+
+case class InstrFASTORE() extends ArrayStoreInstructions {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(FASTORE)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this))
+      storeOperation(mv, env, block)
+    else
+      mv.visitInsn(AASTORE)
+  }
 }
