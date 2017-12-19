@@ -110,7 +110,7 @@ object LiftingPolicy {
         // cpwtodo: handle exception in <init>
         LiftedCall(owner.toModel, name, desc.toVs_AppendFE_AppendArgs, isLifting = true)
       } else {
-        LiftedCall(owner.toModel, name.rename(desc.toModels), desc.toVs.appendFE.toVReturnType, isLifting = true)
+        LiftedCall(owner.toModel, name.rename(desc.toModels), desc.toVs.appendFE.toVReturnTypeIfReturningVoid, isLifting = true)
       }
     }
     else {

@@ -252,7 +252,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * @return
     *         transformed MethodDesc
     */
-  def toVReturnType: MethodDesc = {
+  def toVReturnTypeIfReturningVoid: MethodDesc = {
     if (isReturnVoid) {
       val args = Type.getArgumentTypes(descString)
       val argsString: String = args.map(_.toString).mkString("(", "", ")")

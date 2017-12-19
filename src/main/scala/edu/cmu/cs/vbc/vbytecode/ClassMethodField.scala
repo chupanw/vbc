@@ -32,7 +32,7 @@ case class VBCMethodNode(access: Int,
     logger.info(s"\t lifting $name$desc")
     val liftedMethodDesc =
       if (name != "<init>")
-        MethodDesc(desc).toVs.appendFE.toVReturnType
+        MethodDesc(desc).toVs.appendFE.toVReturnTypeIfReturningVoid
       else
         MethodDesc(desc).toVs_AppendFE_AppendArgs //cpwtodo: exception handling in constructor
     val mv = cw.visitMethod(
@@ -317,7 +317,7 @@ case class VBCClassNode(
     val mv = cv.visitMethod(ACC_STATIC, "<clinit>", "()V", null, Array.empty)
     mv.visitCode()
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKESTATIC, name, "___clinit___", MethodDesc(s"($fexprclasstype)V").toVReturnType, false)
+    mv.visitMethodInsn(INVOKESTATIC, name, "___clinit___", MethodDesc(s"($fexprclasstype)V").toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
@@ -343,7 +343,7 @@ case class VBCClassNode(
       INVOKESTATIC,
       name,
       MethodName("main").rename(MethodDesc(mainMethodSig)),
-      MethodDesc(mainMethodSig).toVs.appendFE.toVReturnType,
+      MethodDesc(mainMethodSig).toVs.appendFE.toVReturnTypeIfReturningVoid,
       false
     )
 
@@ -369,7 +369,7 @@ case class VBCClassNode(
     // todo: avoid this dangerous assumption after figuring out a way to track contexts in Threads
     mv.visitVarInsn(ALOAD, 0)
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("run").rename(MethodDesc("()V")), MethodDesc("()V").appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("run").rename(MethodDesc("()V")), MethodDesc("()V").appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
@@ -382,7 +382,7 @@ case class VBCClassNode(
     // todo: avoid this dangerous assumption after figuring out a way to track contexts in Threads
     mv.visitVarInsn(ALOAD, 0)
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("run").rename(MethodDesc("()V")), MethodDesc("()V").appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("run").rename(MethodDesc("()V")), MethodDesc("()V").appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
@@ -400,7 +400,7 @@ case class VBCClassNode(
     // todo: avoid this dangerous assumption after figuring out a way to track contexts in Threads
     mv.visitVarInsn(ALOAD, 0)
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("initialValue").rename(MethodDesc("()Ljava/lang/Object;")), MethodDesc("()Ljava/lang/Object;").toVs.appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("initialValue").rename(MethodDesc("()Ljava/lang/Object;")), MethodDesc("()Ljava/lang/Object;").toVs.appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(ARETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
@@ -441,7 +441,7 @@ case class VBCClassNode(
     int2Integer(mv)
     callVCreateOne(mv, loadCtx = pushConstantTRUE(_))
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("write").rename(MethodDesc("([CII)V")), MethodDesc("([CII)V").toVs.appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("write").rename(MethodDesc("([CII)V")), MethodDesc("([CII)V").toVs.appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
@@ -457,7 +457,7 @@ case class VBCClassNode(
     int2Integer(mv)
     callVCreateOne(mv, loadCtx = pushConstantTRUE(_))
     pushConstantTRUE(mv)
-    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("write").rename(MethodDesc("(I)V")), MethodDesc("(I)V").toVs.appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("write").rename(MethodDesc("(I)V")), MethodDesc("(I)V").toVs.appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
