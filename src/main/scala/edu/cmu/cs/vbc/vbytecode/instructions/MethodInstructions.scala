@@ -8,7 +8,7 @@ import edu.cmu.cs.vbc.utils.LiftingPolicy.{LiftedCall, liftCall, replaceCall}
 import edu.cmu.cs.vbc.utils.{InvokeDynamicUtils, LiftingPolicy, VCall}
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.Opcodes._
-import org.objectweb.asm.{ClassVisitor, Handle, MethodVisitor, Type}
+import org.objectweb.asm._
 
 /**
   * @author chupanw
@@ -658,12 +658,166 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
   }
 }
 
+/**
+  * Create a function object that implements certain interface.
+  *
+  * There are two cases when transforming this class:
+  * (1) If we lift the interface, we can take V arguments and wrap the returned function object into V
+  * (2) If we do not lift the interface, we would need to explode the arguments and generate V of function objects
+  */
 case class InstrINVOKEDYNAMIC(name: MethodName, desc: MethodDesc, bsm: Handle, bsmArgs: Array[Object]) extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs:_*)
   }
 
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = ???
+  /**
+    * Lifting INVOKEDYNAMIC means we need to explode V arguments
+    *
+    * Example:
+    *   name: compare
+    *   desc: ()Ljava/util/Comparator;
+    *   bsm:
+    *     java/lang/invoke/LambdaMetafactory.metafactory(...)Ljava/lang/invoke/CallSite; (6)  [asm.Handle]
+    *   bsmArgs(0)
+    *     (Ljava/lang/Object;Ljava/lang/Object;)I [asm.Type]
+    *   bsmArgs(1)
+    *     edu/cmu/cs/vbc/prog/InvokeDynamicExample.lambda$lambdaComparator$0(Ljava/lang/Integer;Ljava/lang/Integer;)I (6) [asm.Handle]
+    *   bsmArgs(2)
+    *     (Ljava/lang/Integer;Ljava/lang/Integer;)I [asm.Type]
+    */
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (!env.shouldLiftInstr(this)) {
+      // we are lifting the interface all arguments on the stack should be Vs
+      // 1. rename method name according to parameter types and return type
+      assert(bsmArgs.length > 0, "unexpected empty bsmArgs")
+      assert(bsmArgs(0).isInstanceOf[Type] && bsmArgs(0).asInstanceOf[Type].getSort == Type.METHOD,
+      "unexpected bsmArgs(0), not sure how to get implemented method descriptor then")
+      val implementedMethodDesc: MethodDesc = MethodDesc(bsmArgs(0).toString)
+      val newName = name.rename(implementedMethodDesc)
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = ???
+      // 2. modify desc to return model class type and take V type arguments
+      val newDesc = desc.toModels.toVArguments
+
+      // 3. change part of bsmArgs
+      //  not sure how bsmArgs in general, so we make assertions for cases that we have observed
+      assert(bsmArgs.length >= 3, "not sure how to deal with bsmArgs when length is less than 3")
+
+      // bsmArgs(0) seems to be a general method signature of the implemented method
+      //  assertions about this are made previously
+      val newRoughDesc = MethodDesc(bsmArgs(0).toString).toVs.appendFE.toVReturnType
+
+      // bsmArgs(1) is the lambda method name. Since we are lifting lambda methods, we need to rename this.
+      assert(bsmArgs(1).isInstanceOf[Handle], //&& bsmArgs(1).asInstanceOf[Handle].getTag == Opcodes.H_INVOKESTATIC,
+      "unexpected bsmArgs(1): " + bsmArgs(1))
+      val oldHandle = bsmArgs(1).asInstanceOf[Handle]
+      val newLambdaName: String = MethodName(oldHandle.getName).rename(MethodDesc(oldHandle.getDesc))
+      val newLambdaDesc: String = MethodDesc(oldHandle.getDesc).toVs.appendFE
+      val newHandle = new Handle(oldHandle.getTag, oldHandle.getOwner, newLambdaName, newLambdaDesc)
+
+      // bsmArgs(2) seems to be a refined version of bsmArgs(0)
+      assert(bsmArgs(2).isInstanceOf[Type] && bsmArgs(2).asInstanceOf[Type].getSort == Type.METHOD,
+        "unexpected bsmArgs(2): " + bsmArgs(2))
+      val newRefinedDesc = MethodDesc(bsmArgs(2).toString).toVs.appendFE
+
+      val newbsmArgs: List[Object] = List(
+        Type.getType(newRoughDesc), newHandle, Type.getType(newRefinedDesc)
+      ) ::: bsmArgs.toList.drop(3)
+      mv.visitInvokeDynamicInsn(newName, newDesc, bsm, newbsmArgs.toArray:_*)
+
+      callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    } else {
+      // we are not lifting the interface, that means we need to explode the captured
+      //  arguments and create a V of functional object
+      // todo: the following implementation is not complete
+      ???
+      val capturedArgs = desc.getArgs
+      if (capturedArgs.length == 0) {
+        mv.visitInvokeDynamicInsn(name, desc, bsm, toModelBsmArgs(bsmArgs):_*)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+      else {
+        val firstCapturedArgString = capturedArgs.head.toModel.toString
+        val restCapturedArgsString = capturedArgs.tail.map(_.toModel).mkString("(", "", ")")
+
+        InvokeDynamicUtils.invokeWithCacheClear(
+          VCall.sflatMap,
+          mv,
+          env,
+          loadCtx = loadCurrentCtx(_, env, block),
+          lambdaName = "EXPLODE_INVOKEDYNMAIC_OF_" + name.name,
+          desc = firstCapturedArgString + restCapturedArgsString + vclasstype,
+          nExplodeArgs = capturedArgs.length - 1,
+          expandArgArray = true
+        ) {
+          (m: MethodVisitor) => {
+            if (capturedArgs.length == 1)
+              m.visitVarInsn(ALOAD, 1)
+            else {
+              0 until capturedArgs.length - 1 foreach {i => m.visitVarInsn(ALOAD, i)} // load the first n-1 arguments
+              m.visitVarInsn(ALOAD, capturedArgs.length)  // load the last argument
+            }
+            m.visitInvokeDynamicInsn(name, desc.toModels, bsm, toModelBsmArgs(bsmArgs):_*)
+            callVCreateOne(m, (mm: MethodVisitor) => mm.visitVarInsn(ALOAD, capturedArgs.length - 1))
+            m.visitInsn(ARETURN)
+          }
+        }
+      }
+    }
+  }
+
+  def toModelBsmArgs(bsmArgs: Array[Object]): Array[Object] = {
+    assert(bsmArgs.length >= 3, "not sure how to deal with bsmArgs when length is less than 3")
+
+    // bsmArgs(0) seems to be a general method signature of the implemented method
+    //  assertions about this are made previously
+    assert(bsmArgs(0).isInstanceOf[Type] && bsmArgs(0).asInstanceOf[Type].getSort == Type.METHOD,
+      "unexpected bsmArgs(0), not sure how to get implemented method descriptor then")
+    val newRoughDesc = MethodDesc(bsmArgs(0).toString).toObjects
+
+    // bsmArgs(1) is the lambda method name. Since we are lifting lambda methods, we need to rename this.
+    // todo: we don't need to rename or lift lambda method name if we don't lift the interface
+    assert(bsmArgs(1).isInstanceOf[Handle], "unexpected bsmArgs(1): " + bsmArgs(1))
+    val oldHandle = bsmArgs(1).asInstanceOf[Handle]
+//    val newLambdaName: String = MethodName(oldHandle.getName).rename(MethodDesc(oldHandle.getDesc))
+    val newLambdaName: String = MethodName(oldHandle.getName)
+    val newLambdaDesc: String = MethodDesc(oldHandle.getDesc).toObjects.toModels
+    val newHandle = new Handle(oldHandle.getTag, oldHandle.getOwner, newLambdaName, newLambdaDesc)
+
+    // bsmArgs(2) seems to be a refined version of bsmArgs(0)
+    assert(bsmArgs(2).isInstanceOf[Type] && bsmArgs(2).asInstanceOf[Type].getSort == Type.METHOD,
+      "unexpected bsmArgs(2): " + bsmArgs(2))
+    val newRefinedDesc = MethodDesc(bsmArgs(2).toString).toObjects.toModels
+
+    val newbsmArgs: List[Object] = List(
+      Type.getType(newRoughDesc), newHandle, Type.getType(newRefinedDesc)
+    ) ::: bsmArgs.toList.drop(3)
+
+    newbsmArgs.toArray
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    assert(desc.getReturnType.isDefined, "INVOKEDYNAMIC should always have a return type?")
+    val retType: TypeDesc = desc.getReturnType.get.toModel
+    assert(retType.getOwner.isDefined, "return type of INVOKEDYNAMIC should not be array or primitive?")
+    val isLiftingClass: Boolean = LiftingPolicy.shouldLiftClass(retType.getOwner.get)
+    // this might look counter-intuitive, but lifting INVOKEDYNAMIC means we need to explode arguments
+    if (!isLiftingClass) env.setLift(this)
+
+    val args = desc.getArgs
+    val argCount = args.length
+    val hasVArg = s.stack.take(argCount).exists(_._1.isInstanceOf[V_TYPE])
+    if (hasVArg || env.shouldLiftInstr(this)) {
+      val firstNonVStackEntry: Option[FrameEntry] = s.stack.take(argCount).find(!_._1.isInstanceOf[V_TYPE])
+      if (firstNonVStackEntry.isDefined) return (s, firstNonVStackEntry.get._2)
+    }
+
+    var frame: VBCFrame = s
+    1 to argCount foreach {_ => frame = frame.pop()._3}
+    if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
+      (frame.push(V_TYPE(false), Set(this)), Set())
+    else
+      (frame.push(REF_TYPE(), Set(this)), Set())
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }

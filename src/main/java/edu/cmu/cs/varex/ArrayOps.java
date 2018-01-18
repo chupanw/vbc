@@ -17,7 +17,7 @@ import java.util.function.Function;
  */
 public class ArrayOps {
 
-    private static HashMap<V[], V> cached = new HashMap<>();
+    private static HashMap<FeatureExpr, HashMap<V[], V>> cached = new HashMap<>();
 
     //////////////////////////////////////////////////
     // long
@@ -357,10 +357,15 @@ public class ArrayOps {
 
     /**
      * Transform V<T>[] to V<T[]>
+     *
+     * We need the cache because the array being expaneded might be used multiple times
+     * in one function call, e.g., System.arrayCopy
      */
     public static <T> V<T[]> expandArray(V<T>[] array, Class c, FeatureExpr ctx) {
-        if (cached.containsKey(array)) {
-            return cached.get(array);
+        if (cached.containsKey(ctx)) {
+            HashMap<V[], V> subMap = cached.get(ctx);
+            if (subMap.containsKey(array))
+                return subMap.get(array);
         }
         V result;
         if (array.length == 0) {
@@ -369,7 +374,13 @@ public class ArrayOps {
         else {
             result = expandArrayElements(array, c, ctx);
         }
-        cached.put(array, result);
+        if (!cached.containsKey(ctx)) {
+            HashMap<V[], V> subMap = new HashMap<>();
+            subMap.put(array, result);
+            cached.put(ctx, subMap);
+        } else {
+            cached.get(ctx).put(array, result);
+        }
         return result;
     }
 

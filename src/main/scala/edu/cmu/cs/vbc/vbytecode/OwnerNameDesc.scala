@@ -235,6 +235,15 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     MethodDesc(argsString + retString)
   }
 
+  /**
+    * Only arguments are transformed to V type
+    */
+  def toVArguments: MethodDesc = {
+    val args = Type.getArgumentTypes(descString)
+    val argsString: String = "(" + vclasstype * args.length + ")"
+    MethodDesc(argsString + getReturnType.map(_.toString).getOrElse("V"))
+  }
+
   /** Change arguments and return type (if not void) to corresponding model class
     *
     * @return
@@ -261,6 +270,14 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     }
     else
       this
+  }
+
+  def toVReturnType: MethodDesc = {
+//    assume(getReturnType.isDefined, "trying to transform void return type to V")
+    val args = Type.getArgumentTypes(descString)
+    val argsString: String = args.map(_.toString).mkString("(", "", ")")
+    val retString: String = vclasstype
+    MethodDesc(argsString + retString)
   }
 
 

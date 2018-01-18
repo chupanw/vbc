@@ -58,7 +58,7 @@ test("conditional field assignment") {
   }
 
   test("LinkedList") {
-    testMain(classOf[LinkedListExample], configFile = Some("email.conf"))
+    testMain(classOf[LinkedListExample], configFile = Some("util.conf"))
   }
 
   test("Different ways of superclass initialization") {

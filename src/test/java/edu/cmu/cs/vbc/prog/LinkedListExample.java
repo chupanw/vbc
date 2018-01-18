@@ -14,6 +14,8 @@ import java.util.LinkedList;
 public class LinkedListExample {
     @VConditional
     public static boolean A;
+    @VConditional
+    public static boolean B;
 
     private LinkedList<Integer> list;
 
@@ -29,6 +31,19 @@ public class LinkedListExample {
         }
     }
 
+    private void testAddAll() {
+        LinkedList<Integer> l = new LinkedList<>();
+        if (A)
+            l.add(3);
+        if (B)
+            l.add(9);
+        else
+            l.add(99);
+        list.addAll(l);
+        for (Integer i : list)
+            System.out.println(i);
+    }
+
     public static void main(String[] args) {
         LinkedListExample test = new LinkedListExample();
         test.printSize();
@@ -38,6 +53,7 @@ public class LinkedListExample {
         test.printSize();
         test.printElements();
         test.binarySearch();
+        test.testAddAll();
     }
 
     void printElements() {
