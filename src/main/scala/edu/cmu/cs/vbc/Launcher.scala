@@ -17,7 +17,7 @@ object Launcher extends App {
 
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
 
-  VBCLauncher.launch(args(0), args(1) == "true", args(2), args.drop(2))
+  VBCLauncher.launch(args(0), args(1) == "true", args(2), args.drop(3))
 }
 
 
