@@ -637,3 +637,11 @@ case class InstrFASTORE() extends ArrayStoreInstructions {
       mv.visitInsn(AASTORE)
   }
 }
+
+case class InstrMULTIANEWARRAY(desc: String, dims: Int) extends ArrayCreationInstructions {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitMultiANewArrayInsn(desc, dims)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = ???
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = ???
+}

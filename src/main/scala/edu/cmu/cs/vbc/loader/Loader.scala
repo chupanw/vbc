@@ -458,7 +458,9 @@ class Loader {
         InstrINSTANCEOF(Owner(i.desc))
       case MONITORENTER => InstrMONITORENTER()
       case MONITOREXIT => InstrMONITOREXIT()
-      case MULTIANEWARRAY => UNKNOWN(MULTIANEWARRAY)
+      case MULTIANEWARRAY =>
+        val i = inst.asInstanceOf[MultiANewArrayInsnNode]
+        InstrMULTIANEWARRAY(i.desc, i.dims)
       case IFNULL => {
         val i = inst.asInstanceOf[JumpInsnNode]
         InstrIFNULL(labelLookup(i.label))
