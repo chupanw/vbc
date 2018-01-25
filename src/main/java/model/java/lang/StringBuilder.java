@@ -90,7 +90,7 @@ public class StringBuilder implements Appendable {
     public V<?> append__J__Lmodel_java_lang_StringBuilder(V<? extends java.lang.Long> vJ, FeatureExpr ctx) {
         vActual = vActual.sflatMap(ctx, (fe, sb) -> {
             if (vJ instanceof One)
-                return V.one(ctx, sb.append((char)vJ.getOne().longValue()));
+                return V.one(ctx, sb.append(vJ.getOne().longValue()));
             else
                 return vJ.smap(fe, j -> new java.lang.StringBuilder(sb.toString()).append(j.longValue()));
         });
