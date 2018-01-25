@@ -352,22 +352,22 @@ public class VOps {
     // Special println that prints configuration as well
     //////////////////////////////////////////////////
     public static void println(PrintStream out, String s, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: " + s);
+        out.println(s + " [" + ctx + "]");
     }
     public static void println(PrintStream out, int i, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: " + i);
+        out.println(i + " [" + ctx + "]");
     }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: " + o);
+        out.println(o + " [" + ctx + "]");
     }
     public static void println(PrintStream out, char c, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: " + c);
+        out.println(c + " [" + ctx + "]");
     }
     public static void println(PrintStream out, boolean b, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: " + b);
+        out.println(b + " [" + ctx + "]");
     }
     public static void println(PrintStream out, FeatureExpr ctx) {
-        out.println("[" + ctx + "]: ");
+        out.println(" [" + ctx + "]");
     }
 
     //////////////////////////////////////////////////
