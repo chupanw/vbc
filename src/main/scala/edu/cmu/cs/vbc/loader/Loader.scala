@@ -36,7 +36,7 @@ class Loader {
       m => adaptMethod(cl.name,
         TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
           InitRewriter.extractInitSeq(
-            transformSwitches(m), cl
+              transformSwitches(LocalVariableTransformer.transform(m)), cl
           )
         )
       )
