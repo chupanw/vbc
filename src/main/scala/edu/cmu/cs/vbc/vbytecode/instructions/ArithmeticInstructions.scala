@@ -1023,3 +1023,36 @@ case class InstrDSUB() extends BinOpNonIntInstruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, DOUBLE_TYPE())
 }
+
+/** Convert double to int
+  *
+  * ..., value(double) -> ..., result(int)
+  */
+case class InstrD2I() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit =
+    mv.visitInsn(D2I)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "d2i", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(D2I)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(true))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(INT_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
