@@ -113,7 +113,7 @@ public class StringBuilder implements Appendable {
                                                                     V<java.lang.Integer> vOffset,
                                                                     V<java.lang.Integer> vLen,
                                                                     FeatureExpr ctx) {
-        vActual = vOffset.sflatMap(ctx, (fe1, offset) -> vLen.sflatMap(fe1, (fe2, len) -> vCArray.sflatMap(fe2, (fe3, cArray) -> {
+        vActual = vOffset.sflatMap(ctx, (fe1, offset) -> vLen.sflatMap(fe1, (fe2, len) -> (V) vCArray.sflatMap(fe2, (fe3, cArray) -> {
             V array = ArrayOps.expandCArray(cArray, fe3);
             return array.sflatMap(fe3, (fe4, a) -> vActual.smap((FeatureExpr)fe4, sb -> {
                 return new java.lang.StringBuilder(sb.toString()).append((char[]) a, offset, len);
