@@ -49,10 +49,10 @@ public class MainClass {
 			// System.out.println(a);
 			// }
 			// System.out.println("------------");
-			if (args.length != 0) {
-				Configuration.initFeatures(args);
-
-			}
+//			if (args.length != 0) {
+//				Configuration.initFeatures(args);
+//
+//			}
 
 			if (!Configuration.valid()) {
 				throw new RuntimeException("Something with feature selection went wrong!");
