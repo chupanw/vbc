@@ -1008,3 +1008,18 @@ case class InstrFADD() extends BinOpNonIntInstruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, FLOAT_TYPE())
 }
+
+case class InstrDSUB() extends BinOpNonIntInstruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(DSUB)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dsub", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    } else {
+      mv.visitInsn(DSUB)
+    }
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, DOUBLE_TYPE())
+}

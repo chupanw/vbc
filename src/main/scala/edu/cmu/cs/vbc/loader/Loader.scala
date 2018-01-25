@@ -277,7 +277,7 @@ class Loader {
       case ISUB => InstrISUB()
       case LSUB => InstrLSUB()
       case FSUB => UNKNOWN(FSUB)
-      case DSUB => UNKNOWN(DSUB)
+      case DSUB => InstrDSUB()
       case IMUL => InstrIMUL()
       case LMUL => InstrLMUL()
       case FMUL => InstrFMUL()
