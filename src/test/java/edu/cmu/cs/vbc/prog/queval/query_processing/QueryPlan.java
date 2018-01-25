@@ -129,7 +129,7 @@ public class QueryPlan {
 			index.build();
 			stop = System.currentTimeMillis();
 			building = stop-start;
-			System.out.println(index.getName()+ " build "+(stop-start));
+			System.out.println(index.getName()+ " build "+ Double.toString(stop - start));
 			
 			if(QUERY_TYPES[EXACT_MATCH_QUERY]){
 				//perform exact match queries with points in data store
@@ -145,7 +145,7 @@ public class QueryPlan {
 				stop = System.currentTimeMillis();
 				exactmatch = (stop - start);
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " exact match "+(stop-start));
+				System.out.println(index.getName()+ " exact match "+Double.toString(stop-start));
 			}
 			
 			if(QUERY_TYPES[KNN_QUERY]){
@@ -161,7 +161,7 @@ public class QueryPlan {
 				}
 				stop = System.currentTimeMillis();
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " KNN_QUERY "+(stop-start));
+				System.out.println(index.getName()+ " KNN_QUERY "+Double.toString(stop-start));
 			}
 			/*
 			if(QUERY_TYPES[EPSILON_NN_QUERY]){
@@ -196,7 +196,7 @@ public class QueryPlan {
 				stop = System.currentTimeMillis();
 				range = stop-start;
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " RANGE_QUERY "+(stop-start));
+				System.out.println(index.getName()+ " RANGE_QUERY "+Double.toString(stop-start));
 			}
 		}
 	}
