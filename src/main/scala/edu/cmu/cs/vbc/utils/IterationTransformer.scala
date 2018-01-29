@@ -48,6 +48,8 @@ class IterationTransformer {
       insn => newCFGInsns.indexWhere(_ eq insn)
     }
 
+    val elementOneVar = new LocalVar("element$one$var", vclasstype)
+
     def pairWithRelativeOrder(bt: BlockTransformation, block: Block) = (bt, bt -> cfgInsnIdx(block.instr.head))
     val (blockTransformations, blockTransformOrdering) = newCFG.blocks.zipWithIndex.map({
       case (loopPredecessor, index) if loopPredecessorIndices contains index =>
@@ -58,12 +60,12 @@ class IterationTransformer {
       case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index =>
         // Modify bodyStartBlock to unpack FEPair and check satisfiability
         // No need to jump, the jump insn was inserted by splitBlock
-        val bt = transformBodyStartBlock(bodyStartBlock, cfgInsnIdx)
+        val bt = transformBodyStartBlock(bodyStartBlock, cfgInsnIdx, elementOneVar)
         pairWithRelativeOrder(bt, bodyStartBlock)
 
       case (bodyAfterSplit, index) if bodyAfterSplitIndices contains index =>
-        // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
-        val bt = transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx)
+//         Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
+        val bt = transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx, elementOneVar)
         pairWithRelativeOrder(bt, bodyAfterSplit)
 
       case (otherBlock, _) =>
@@ -121,7 +123,7 @@ class IterationTransformer {
       val (workingCFG, cleanupBlocks, prevBlockUpdates) = collected
       // loop contains old block references; update
       val loopEntryIdx = prevBlockUpdates(cfg.blocks.indexOf(loop.entry))
-      val cleanupBlock = Block(List(InstrPOP(), InstrPOP(), InstrGOTO(loopEntryIdx)), List())
+      val cleanupBlock = Block(List(InstrGOTO(loopEntryIdx)), List())
 
 
       val findBlockToSplit =
@@ -209,7 +211,8 @@ class IterationTransformer {
     )
   }
 
-  def transformBodyStartBlock(bodyStartBlock: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
+  def transformBodyStartBlock(bodyStartBlock: Block, cfgInsnIdx: Instruction => InstructionIndex,
+                              elementOneVar: Variable): BlockTransformation = {
     // Unpack FEPair iterator after the iterator.next invocation, and test satisfiability of FEPair context
     // the jump using the result of the satisfiability test is already present after the next invocation
     // -- it was inserted by insertCleanupBlocks
@@ -217,7 +220,7 @@ class IterationTransformer {
     BlockTransformation(
       List(Block(bodyStartBlock.instr flatMap {
         case nextInvocation if isIteratorNextInvocation(nextInvocation) =>
-          val unpackInsns = unpackFEPair()
+          val unpackInsns = unpackFEPair(elementOneVar)
           val nextInvIndex = cfgInsnIdx(nextInvocation)
           newInsns ++= List.range(nextInvIndex + 1, nextInvIndex + 1 + unpackInsns.size)
           nextInvocation :: unpackInsns
@@ -225,9 +228,9 @@ class IterationTransformer {
         case otherInsn => List(otherInsn)
       }, bodyStartBlock.exceptionHandlers)),
       newInsns,
-      List())
+      List(elementOneVar))
   }
-  def unpackFEPair(): List[Instruction] = {
+  def unpackFEPair(elementVar: Variable): List[Instruction] = {
     List(
       // stack: ..., One(FEPair)
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
@@ -289,34 +292,49 @@ class IterationTransformer {
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"($fexprclasstype)$fexprclasstype"), true),
       // ..., v, FEctx, FEctx&loopCtx
+      InstrDUP(),
+      // ..., v, FEctx, FEctx&loopCtx, FEctx&loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
-      // ..., v, FEctx, isSat?
+      // ..., v, FEctx, FEctx&loopCtx, isSat?
       InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
-      // ..., v, FEctx, Integer<isSat?>
-      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($objectClassType)$vclasstype"), true)
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true),
       // ..., v, FEctx, V<isSat?>
+      InstrDUP_X2(),
+      // ..., V<isSat?>, v, FEctx, V<isSat?>
+      InstrPOP(),
+      // ..., V<isSat?>, v, FEctx
+      InstrSWAP(),
+      // ..., V<isSat?>, FEctx, v
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true),
+      // ..., V<isSat?>, One<v>
+      InstrASTORE(elementVar)
     )
   }
-  def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
-    // stack = ..., v, ctx
-    // wrap v in One using wrapFEPairValue()
-    val wrapInsns = wrapFEPairValue()
+  def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex,
+                                        elementOneVar: Variable): BlockTransformation = {
+    val loadElInsns = loadElement(elementOneVar)
     val firstInsnOfBlockIdx = cfgInsnIdx(bodyStartBlockAfterSplit.instr.head)
-    val newInsns = List.range(firstInsnOfBlockIdx, firstInsnOfBlockIdx + wrapInsns.size)
+    val newInsns = List.range(firstInsnOfBlockIdx, firstInsnOfBlockIdx + loadElInsns.size)
     BlockTransformation(
-      List(Block(wrapInsns ++ bodyStartBlockAfterSplit.instr, bodyStartBlockAfterSplit.exceptionHandlers)),
+      List(Block(loadElInsns ++ bodyStartBlockAfterSplit.instr, bodyStartBlockAfterSplit.exceptionHandlers)),
       newInsns,
       List())
   }
-  def wrapFEPairValue(): List[Instruction] = {
+  def loadElement(elementOneVar: Variable): List[Instruction] = {
     List(
-      // ..., v, ctx
-      InstrSWAP(),
-      // ..., ctx, v
-      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
-        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
+      InstrALOAD(elementOneVar)
     )
   }
+//  def wrapFEPairValue(): List[Instruction] = {
+//    List(
+//      // ..., v, ctx
+//      InstrSWAP(),
+//      // ..., ctx, v
+//      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
+//        MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true)
+//    )
+//  }
   def transformBodyBeforeSplit(bodyBlock: Block, env: VMethodEnv, loop: Loop, cleanupBlockIdx: Int): BlockTransformation = {
     BlockTransformation(List(), List(), List())
   }

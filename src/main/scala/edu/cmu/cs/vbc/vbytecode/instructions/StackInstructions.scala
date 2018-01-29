@@ -140,6 +140,32 @@ case class InstrDUP_X1() extends Instruction {
   }
 }
 
+/**
+  * Duplicate the top operand stack value and insert two values down
+  *
+  * Operand stack: ..., value3, value2, value1 -> ..., value1, value3, value2, value1
+  */
+case class InstrDUP_X2() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(DUP_X2)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v1, prev1, frame1) = s.pop()
+    val (v2, prev2, frame2) = frame1.pop()
+    val (v3, prev3, frame3) = frame2.pop()
+    val frame4 = frame3.push(v1, prev1)
+    val frame5 = frame4.push(v3, prev1)
+    val frame6 = frame5.push(v2, prev1)
+    val frame7 = frame6.push(v1, prev1)
+    (frame7, Set())
+  }
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitInsn(DUP_X2)
+  }
+}
+
 case class InstrSWAP() extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(SWAP)
 
