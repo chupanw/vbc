@@ -23,6 +23,20 @@ public class Configuration {
 		return SplitSize && splitAlgos && VA_SSA && !GuttmanInsert && !RVariant && !InsertHeuristics && !Dwarf && !RStartInsert && ((BPD4 && !BPD6 && !BPD7) || (BPD6 && !BPD4 && !BPD7) || (BPD7 && !BPD4 && !BPD6));
 	}
 
+	public static boolean knownBug4() {
+		return VA_SSA && !RVariant && !Dwarf && (
+				(!SplitSize && splitAlgos && InsertHeuristics && (
+						(!SS11 && !RStartInsert && !SS17 && GuttmanInsert && BPDs()) || (!SS11 && BPDs() && !SS17 && RStartInsert && !GuttmanInsert)
+                )
+				) ||
+                (!SplitSize && !SS11 && !InsertHeuristics && !RStartInsert && BPDs() && !SS17 && splitAlgos && !GuttmanInsert)
+				);
+	}
+
+	public static boolean BPDs() {
+		return (BPD4 && !BPD6 && !BPD7) || (BPD6 && !BPD4 && !BPD7) || (BPD7 && !BPD4 && !BPD6);
+	}
+
 	public static void initFeatures(String[] args) {
 		int index = 0;
 		BPD4 = Boolean.valueOf(args[index++]);
