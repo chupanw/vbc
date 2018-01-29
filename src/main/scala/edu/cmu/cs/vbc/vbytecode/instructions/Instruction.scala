@@ -181,6 +181,9 @@ case object InstrINIT_CONDITIONAL_FIELDS {
       case Type.LONG =>
         if (f.value == null) mv.visitInsn(LCONST_0) else pushLongConstant(mv, f.value.asInstanceOf[Long])
         mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, "valueOf", s"(J)${Owner.getLong.getTypeDesc}", false)
+      case Type.DOUBLE =>
+        if (f.value == null) mv.visitInsn(DCONST_0) else pushDoubleConstant(mv, f.value.asInstanceOf[Double])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, "valueOf", s"(D)${Owner.getDouble.getTypeDesc}", false)
       case Type.FLOAT =>
         if (f.value == null) mv.visitInsn(FCONST_0) else pushFloatConstant(mv, f.value.asInstanceOf[Float])
         float2Float(mv)

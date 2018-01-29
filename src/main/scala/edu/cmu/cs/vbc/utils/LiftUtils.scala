@@ -47,7 +47,15 @@ object LiftUtils {
     value match {
       case 0 => mv.visitInsn(LCONST_0)
       case 1 => mv.visitInsn(LCONST_1)
-      case v => mv.visitLdcInsn(value)
+      case v => mv.visitLdcInsn(v)
+    }
+  }
+
+  def pushDoubleConstant(mv: MethodVisitor, value: Double): Unit = {
+    value match {
+      case 0 => mv.visitInsn(DCONST_0)
+      case 1 => mv.visitInsn(DCONST_1)
+      case v => mv.visitLdcInsn(v)
     }
   }
 
