@@ -52,7 +52,7 @@ public class MainClass {
 //
 //			}
 
-			if (!Configuration.valid()) {
+			if (!Configuration.valid() || Configuration.knownBug1()) {
 				// VarexC do not support variational exceptions
 //				throw new RuntimeException("Something with feature selection went wrong!");
 				System.out.println("Wrong config...");
