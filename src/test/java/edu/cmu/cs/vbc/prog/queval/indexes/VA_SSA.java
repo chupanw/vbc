@@ -25,7 +25,7 @@ public final class VA_SSA extends Index {
 		NUM_DIM = numDim();
 		INTs_PER_APPROXIMATION = intsPerApproximation();
 		VA_FILE = new int[size()][INTs_PER_APPROXIMATION];//TODO doppelt gemoppelt
-		RANGE_OF_CELL = (STORE.MAX_VALUE- STORE.MIN_VALUE + 1) / power(2, bitsPerDimension);
+		RANGE_OF_CELL = (STORE.MAX_VALUE- STORE.MIN_VALUE + 1) / power(2, bitsPerDimension) + 1;
 		SIZE = size();
 		
 		int[] toInsert;
