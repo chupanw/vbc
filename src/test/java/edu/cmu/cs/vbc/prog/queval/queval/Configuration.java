@@ -19,6 +19,10 @@ public class Configuration {
 		return InsertHeuristics && SplitSize && RVariant && QuadraticCostAlgorithm && splitAlgos && !SS11 && !Dwarf && SS17 && ((GuttmanInsert && !RStartInsert) || (RStartInsert && !GuttmanInsert));
 	}
 
+	public static boolean knownBug3() {
+		return SplitSize && splitAlgos && VA_SSA && !GuttmanInsert && !RVariant && !InsertHeuristics && !Dwarf && !RStartInsert && ((BPD4 && !BPD6 && !BPD7) || (BPD6 && !BPD4 && !BPD7) || (BPD7 && !BPD4 && !BPD6));
+	}
+
 	public static void initFeatures(String[] args) {
 		int index = 0;
 		BPD4 = Boolean.valueOf(args[index++]);
@@ -75,11 +79,11 @@ public class Configuration {
 //	@VConditional
 	public static boolean SeqScan = false;
 	@VConditional
-	public static boolean RVariant = true;
+	public static boolean RVariant = false;
 //	@VConditional
 	public static boolean GiSTII = false;
-//	@VConditional
-	public static boolean VA_SSA = false;
+	@VConditional
+	public static boolean VA_SSA = true;
 
 	// select implied abstract features for variability-aware
 	@VConditional
@@ -87,14 +91,14 @@ public class Configuration {
 	@VConditional
 	public static boolean splitAlgos = true;
 	@VConditional
-	public static boolean SplitSize = true;
+	public static boolean SplitSize = false;
 
 	// split algorithmen 4 Rtree
 //	@VConditional
 	public static boolean RStarSplit = false;
 //	@VConditional
 	public static boolean LinearSplit = false;
-	@VConditional
+//	@VConditional
 	public static boolean QuadraticCostAlgorithm = true;
 //	@VConditional
 	public static boolean StupidSplitAlgo = false;
@@ -109,7 +113,7 @@ public class Configuration {
 	@VConditional
 	public static boolean SS11 = false;
 	@VConditional
-	public static boolean SS17 = true;
+	public static boolean SS17 = false;
 	
 //	@VConditional
 	public static boolean EucleadeanSqrd = false;
@@ -117,11 +121,11 @@ public class Configuration {
 	public static boolean Manhatten = false;
 	
 	// bit per dimension 4 VAFile
-//	@VConditional
-	public static boolean BPD4 = false;
-//	@VConditional
+	@VConditional
+	public static boolean BPD4 = true;
+	@VConditional
 	public static boolean BPD6 = false;
-//	@VConditional
+	@VConditional
 	public static boolean BPD7 = false;
 	
 	
