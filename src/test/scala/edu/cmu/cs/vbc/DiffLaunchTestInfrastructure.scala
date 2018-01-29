@@ -235,6 +235,7 @@ trait DiffLaunchTestInfrastructure {
 
 
     val avgTime = bftimes.map(_.value).sum / bftimes.size
+    println()
     println(s"VExecution time [$classname]: " + vtime)
     println(s"Execution time [$classname]: " + avgTime + bftimes.mkString(" (", ",", ")"))
     println(s"Slowdown [$classname]: " + vtime.value / avgTime)
