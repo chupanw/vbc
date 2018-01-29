@@ -17,5 +17,6 @@ env:
   - TEST="test-only edu.cmu.cs.vbc.prog.EmailTest"
   - TEST="test-only edu.cmu.cs.vbc.prog.GPLTest"
   - TEST="test-only edu.cmu.cs.vbc.prog.PrevaylerTest"
+  - TEST="test-only edu.cmu.cs.vbc.prog.QuEvalTest"
 script:
   - sbt ++$TRAVIS_SCALA_VERSION "$TEST"
