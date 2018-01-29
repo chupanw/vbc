@@ -189,7 +189,7 @@ public class QueryPlan {
 					//result.knn(query, resultTIDs); TODO
 					if(Features.VERBOSE)
 						if(query%10000==0){
-							Collections.sort(resultTIDs);
+							Collections.sort(resultTIDs, (o1, o2) -> o1 - o2);
 							System.out.print(query+":"+resultTIDs+" ");
 						}
 				}
