@@ -316,6 +316,7 @@ case class InstrAASTORE() extends ArrayStoreInstructions {
       storeOperation(mv, env, block)
     }
     else {
+      ??? // should not happen
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(
         INVOKESTATIC,
@@ -638,10 +639,88 @@ case class InstrFASTORE() extends ArrayStoreInstructions {
   }
 }
 
-case class InstrMULTIANEWARRAY(desc: String, dims: Int) extends ArrayCreationInstructions {
-  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitMultiANewArrayInsn(desc, dims)
+/**
+  * Create a multidimensional array
+  *
+  * ..., count1, [count2, ...] -> ..., arrayref
+  */
+case class InstrMULTIANEWARRAY(owner: Owner, dims: Int) extends Instruction {
+  val returnType: String = "[" * dims + vclasstype
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitMultiANewArrayInsn(owner.toModel, dims)
 
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = ???
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      val invokeArgs = IntType * (dims - 1)
+      InvokeDynamicUtils.invoke(VCall.sflatMap, mv, env, loadCurrentCtx(_, env, block), "multianewarray", s"$IntType($invokeArgs)$returnType", nExplodeArgs = dims - 1) {
+        (visitor: MethodVisitor) => {
+          // count1, count2, ..., FE, countN
+          visitor.visitIntInsn(BIPUSH, dims)
+          visitor.visitIntInsn(NEWARRAY, Opcodes.T_INT)
+          // first n-1 dimensions
+          0 until dims - 1 foreach {i =>
+            visitor.visitInsn(DUP)
+            visitor.visitIntInsn(BIPUSH, i)
+            visitor.visitVarInsn(ALOAD, i)
+            visitor.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, "intValue", MethodDesc("()I"), false)
+            visitor.visitInsn(IASTORE)
+          }
+          // countN
+          visitor.visitInsn(DUP)
+          visitor.visitIntInsn(BIPUSH, dims - 1)
+          visitor.visitVarInsn(ALOAD, dims)
+          visitor.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, "intValue", MethodDesc("()I"), false)
+          visitor.visitInsn(IASTORE)
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = ???
+          visitor.visitLdcInsn(owner.toModel.toString)
+          visitor.visitVarInsn(ALOAD, dims - 1)
+          visitor.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, MethodName("initMultiArray"), MethodDesc(s"([ILjava/lang/String;$fexprclasstype)[$vclasstype"), false)
+          callVCreateOne(visitor, m => m.visitVarInsn(ALOAD, dims -1))
+          visitor.visitInsn(ARETURN)
+        }
+      }
+    }
+    else {
+      mv.visitIntInsn(BIPUSH, dims)
+      mv.visitIntInsn(NEWARRAY, Opcodes.T_INT)
+      val dimsVar = env.freshLocalVar("dimensions", "[I", LocalVar.initNull)
+      mv.visitVarInsn(ASTORE, env.getVarIdx(dimsVar))
+      dims - 1 to 0 by -1 foreach {i =>
+        mv.visitVarInsn(ALOAD, env.getVarIdx(dimsVar))
+        mv.visitInsn(SWAP)
+        mv.visitIntInsn(BIPUSH, i)
+        mv.visitInsn(SWAP)
+        mv.visitInsn(IASTORE)
+      }
+      mv.visitVarInsn(ALOAD, env.getVarIdx(dimsVar))
+      mv.visitLdcInsn(owner.toModel.toString)
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, MethodName("initMultiArray"), MethodDesc(s"([ILjava/lang/String;$fexprclasstype)[$vclasstype"), false)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      }
+    }
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (vs, prevs, f) = s.popN(dims)
+    if (env.getTag(this, env.TAG_NEED_V)) {
+      // this means the array itself needs to be wrapped into a V
+      (f.push(V_TYPE(false), Set(this)), Set())
+    }
+    else {
+      if (vs.contains(V_TYPE(false))) {
+        // at least one dimension is V, ensure that all dimensions are V
+        val bv = vs.find(!_.isInstanceOf[V_TYPE])
+        if (bv.isDefined) return (f, prevs(vs.indexOf(bv.get)))
+        // array length is a V, needs invokedynamic to create a V array ref
+        env.setLift(this)
+        (f.push(V_TYPE(false), Set(this)), Set())
+      }
+      else {
+        (f.push(REF_TYPE(), Set(this)), Set())
+      }
+    }
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }

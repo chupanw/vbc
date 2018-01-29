@@ -1,6 +1,7 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import edu.cmu.cs.vbc.vbytecode.TypeDesc;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -271,6 +272,74 @@ public class ArrayOps {
             }
         });
     }
+
+    //////////////////////////////////////////////////
+    // boolean
+    //////////////////////////////////////////////////
+
+    public static V<Integer>[] initZArray(Integer length, FeatureExpr ctx) {
+        return initIArray(length, ctx);
+    }
+
+    public static V<Integer>[] initZArray(int length, FeatureExpr ctx) {
+        return initIArray(Integer.valueOf(length), ctx);
+    }
+
+//    public static V<?> expandZArray(V<Integer>[] array, FeatureExpr ctx) {
+//        return expandCArrayElements(array, ctx, 0, new ArrayList<>());
+//    }
+
+//    private static V<?> expandZArrayElements(V<Integer>[] array, FeatureExpr ctx, Integer index, ArrayList<Character> soFar) {
+//        return array[index].sflatMap(ctx, new BiFunction<FeatureExpr, Integer, V<?>>() {
+//            @Override
+//            public V<?> apply(FeatureExpr featureExpr, Integer t) {
+//                ArrayList<Character> newArray = new ArrayList<Character>(soFar);
+//                newArray.add((char)t.intValue());
+//                if (index == array.length - 1) {
+//                    char[] result = new char[array.length];
+//                    for (int i = 0; i < array.length; i++) {
+//                        result[i] = newArray.get(i);
+//                    }
+//                    return V.one(featureExpr, result);
+//                } else {
+//                    return expandCArrayElements(array, ctx, index + 1, newArray);
+//                }
+//            }
+//        });
+//    }
+
+//    /**
+//     * Transform V<Character[]> to V<Character>[]
+//     */
+//    public static V<?>[] compressZArray(V<char[]> arrays) {
+//        V<?> sizes = arrays.map(new Function<char[], Integer>() {
+//            @Override
+//            public Integer apply(char[] t) {
+//                return t.length;
+//            }
+//        });
+//        Integer size = (Integer) sizes.getOne(); // if results in a choice, exceptions will be thrown.
+//        ArrayList<V<?>> array = new ArrayList<>();
+//        for (int i = 0; i < size; i++) {
+//            array.add(compressCArrayElement(arrays, i));
+//        }
+//        V<?>[] result = new V<?>[size];
+//        array.toArray(result);
+//        return result;
+//    }
+//
+//    /**
+//     * Helper function for {@link #compressCArray(V)}
+//     */
+//    private static V<?> compressZArrayElement(V<char[]> arrays, Integer index) {
+//        return arrays.map(new Function<char[], Integer>() {
+//            @Override
+//            public Integer apply(char[] ts) {
+//                return (int)ts[index];
+//            }
+//        });
+//    }
+
     //////////////////////////////////////////////////
     // char
     //////////////////////////////////////////////////
@@ -450,11 +519,12 @@ public class ArrayOps {
     }
 
     public static void aastore(V[] arrayref, V<Integer> index, V newValue, FeatureExpr ctx) {
-        index.sforeach(ctx, (fe, i) -> {
-            V oldValue = arrayref[i];
-            V choice = V.choice(ctx, newValue, oldValue);
-            arrayref[i] = choice;
-        });
+        throw new RuntimeException("Type of arrayref is not accurate.");
+//        index.sforeach(ctx, (fe, i) -> {
+//            V oldValue = arrayref[i];
+//            V choice = V.choice(ctx, newValue, oldValue);
+//            arrayref[i] = choice;
+//        });
     }
 
     //////////////////////////////////////////////////
@@ -483,5 +553,50 @@ public class ArrayOps {
             vs[i] = V.one(ctx, (int) chars[i]);
         }
         return vs;
+    }
+
+    //////////////////////////////////////////////////
+    // Multidimensional Arrays
+    //////////////////////////////////////////////////
+
+    /**
+     * This attempt does not work because of some type casting problems
+     */
+    public static V[] initMultiArray(int[] dims, String desc, FeatureExpr ctx) {
+        if (dims.length > 1) {
+            V[] a = new V[dims[0]];
+            int[] dims2 = new int[dims.length - 1];
+            System.arraycopy(dims, 1, dims2, 0, dims.length - 1);
+            for (int i = 0; i < dims[0]; i++)
+                a[i] = V.one(ctx, initMultiArray(dims2, desc, ctx));
+            return a;
+        } else {
+            V[] a = new V[dims[0]];
+            for (int i = 0; i < dims[0]; i++) {
+                a[i] = defaultValue(desc, ctx);
+            }
+            return a;
+        }
+    }
+
+    public static V<?> defaultValue(String desc, FeatureExpr ctx) {
+        String baseType = new TypeDesc(desc).getMultiArrayBaseType().toString();
+        V<?> res = null;
+        switch(baseType) {
+            case "I":
+            case "S":
+            case "B":
+            case "C":
+                res = V.one(ctx, 0); break;
+            case "J":
+                res = V.one(ctx, 0L); break;
+            case "F":
+                res = V.one(ctx, 0f); break;
+            case "D":
+                res = V.one(ctx, 0d); break;
+            default:
+                res = V.one(ctx, null); break;
+        }
+        return res;
     }
 }

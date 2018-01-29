@@ -356,6 +356,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     TypeDesc(desc.tail)
   }
 
+  def getMultiArrayBaseType: TypeDesc = if (isArray) TypeDesc(desc.tail).getMultiArrayBaseType else this
+
   /** Get the owner (if exists) of this type.
     *
     * @return
@@ -384,6 +386,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     else
       getOwner.get.toModel.getTypeDesc
   }
+
+  def toArray: TypeDesc = TypeDesc("[" + desc)
 
   def toVArray: TypeDesc = if (isArray) TypeDesc("[" + vclasstype) else this
 }
