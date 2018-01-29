@@ -108,4 +108,8 @@ test("conditional field assignment") {
   test("TernaryOperatorExample") {
     testMain(classOf[TernaryOperatorExample], configFile = Some("default.conf"))
   }
+
+  test("MultiArrayExample") {
+    testMain(classOf[MultiArrayExample], configFile = Some("default.conf"))
+  }
 }
