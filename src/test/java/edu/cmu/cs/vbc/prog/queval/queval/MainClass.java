@@ -1,6 +1,5 @@
 package edu.cmu.cs.vbc.prog.queval.queval;
 
-import edu.cmu.cs.varex.annotation.VConditional;
 import edu.cmu.cs.vbc.prog.queval.indexes.*;
 import edu.cmu.cs.vbc.prog.queval.indexes.rtrees.MBR;
 import edu.cmu.cs.vbc.prog.queval.indexes.rtrees.splitAlgos.RStarSplit;
@@ -115,7 +114,7 @@ public class MainClass {
 	// @Conditional
 	// static boolean SIZE = true;
 	//
-	 @VConditional
+//	 @VConditional
 	 static boolean MDIM = true;
 
 	public MainClass() {
