@@ -15,6 +15,10 @@ public class Configuration {
 		return InsertHeuristics && SplitSize && RVariant && QuadraticCostAlgorithm && splitAlgos && SS11 && !Dwarf && !SS17 && ((GuttmanInsert && !RStartInsert) || (RStartInsert && !GuttmanInsert));
 	}
 
+	public static boolean knownBug2() {
+		return InsertHeuristics && SplitSize && RVariant && QuadraticCostAlgorithm && splitAlgos && !SS11 && !Dwarf && SS17 && ((GuttmanInsert && !RStartInsert) || (RStartInsert && !GuttmanInsert));
+	}
+
 	public static void initFeatures(String[] args) {
 		int index = 0;
 		BPD4 = Boolean.valueOf(args[index++]);
@@ -103,9 +107,9 @@ public class Configuration {
 
 	// Split Size for Rtree
 	@VConditional
-	public static boolean SS11 = true;
+	public static boolean SS11 = false;
 	@VConditional
-	public static boolean SS17 = false;
+	public static boolean SS17 = true;
 	
 //	@VConditional
 	public static boolean EucleadeanSqrd = false;
