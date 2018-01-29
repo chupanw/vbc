@@ -667,7 +667,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
   */
 case class InstrINVOKEDYNAMIC(name: MethodName, desc: MethodDesc, bsm: Handle, bsmArgs: Array[Object]) extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    mv.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs:_*)
+    mv.visitInvokeDynamicInsn(name, desc.toModels, bsm, bsmArgs:_*)
   }
 
   /**
