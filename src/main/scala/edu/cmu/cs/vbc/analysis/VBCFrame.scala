@@ -97,6 +97,16 @@ case class VBCFrame(localVar: Map[Variable, FrameEntry], stack: List[FrameEntry]
     (entry._1, entry._2, this.copy(stack = stack.tail))
   }
 
+  /**
+    * pop n values from stack
+    */
+  def popN(n: Int): (List[VBCType], List[Set[Instruction]], VBCFrame) = {
+    if (stack.length < 0)
+      throw new IndexOutOfBoundsException("Cannot pop operand off an empty stack.")
+    val entries = stack.take(n)
+    (entries.unzip._1, entries.unzip._2, this.copy(stack = stack.drop(n)))
+  }
+
   override def toString: String = {
     val sb = new StringBuilder
     //    if (isInCtx) sb.append("[x]") else sb.append("[ ]")
