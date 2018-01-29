@@ -8,8 +8,6 @@ import edu.cmu.cs.vbc.prog.queval.query_processing.QueryPlan;
 import edu.cmu.cs.vbc.prog.queval.stores.InMemoryStore;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 
 public class MainClass {
 
@@ -55,7 +53,10 @@ public class MainClass {
 //			}
 
 			if (!Configuration.valid()) {
-				throw new RuntimeException("Something with feature selection went wrong!");
+				// VarexC do not support variational exceptions
+//				throw new RuntimeException("Something with feature selection went wrong!");
+				System.out.println("Wrong config...");
+                return;
 			}
 
 			initStaticFields();
@@ -86,11 +87,11 @@ public class MainClass {
 	private static void initStaticFields() {
 		// init static fields
 		ArrayList l = new ArrayList<Object>();
-		l.toArray();
-		l.add("A");
-		l.add("B");
-		Arrays.sort(l.toArray());
-		Collections.sort(l);
+//		l.toArray();
+//		l.add("A");
+//		l.add("B");
+//		Arrays.sort(l.toArray());
+//		Collections.sort(l);
 		new Dwarf_Linearized_Small(null);
 		new RStarSplit();
 		final int[][] DATA = Util.getData(10, 10, 10, 87654321);
