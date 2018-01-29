@@ -83,13 +83,13 @@ public class VOps {
         return whenEQ(sub);
     }
 
-    public static FeatureExpr whenIGE(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenIGE(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenGE(sub);
     }
 
-    public static FeatureExpr whenILT(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenILT(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenLT(sub);
     }
 
@@ -103,8 +103,8 @@ public class VOps {
         return whenNE(sub);
     }
 
-    public static FeatureExpr whenIGT(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenIGT(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenGT(sub);
     }
 
@@ -172,8 +172,8 @@ public class VOps {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1 >>> v2));
     }
 
-    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2) {
-        return value1.flatMap(v1 -> value2.map(v2 -> v1 % v2));
+    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.intValue() % v2.intValue()));
     }
 
     public static V<? extends Integer> ior(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {

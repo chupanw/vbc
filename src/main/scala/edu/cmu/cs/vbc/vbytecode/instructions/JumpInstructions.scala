@@ -185,8 +185,10 @@ case class InstrIF_ICMPGE(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGE", "(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGE", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPGE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -229,8 +231,10 @@ case class InstrIF_ICMPLT(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILT", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILT", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPLT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -409,8 +413,10 @@ case class InstrIF_ICMPGT(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGT", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGT", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPGT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
