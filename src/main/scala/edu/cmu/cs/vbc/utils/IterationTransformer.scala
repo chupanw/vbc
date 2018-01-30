@@ -298,7 +298,12 @@ class IterationTransformer {
       // ..., v, FEctx, FEctx&loopCtx, isSat?
       InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
       // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>
-      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true),
+      InstrICONST(0),
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, 0
+      InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, Integer<0>
+
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("choice"), MethodDesc(s"($fexprclasstype$objectClassType$objectClassType)$vclasstype"), true),
       // ..., v, FEctx, V<isSat?>
       InstrDUP_X2(),
       // ..., V<isSat?>, v, FEctx, V<isSat?>
