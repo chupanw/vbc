@@ -14,6 +14,7 @@ import PartialFunction.cond
 import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclassname, fexprclasstype, vclassname, vclasstype}
 
 class IterationTransformerTest extends FunSuite with Matchers {
+  val objectClassType = "Ljava/lang/Object;"
 
   def equal(a: Block, b: Block): Boolean = {
     // No value equality for instrs by design, so this is an ugly workaround
@@ -341,50 +342,50 @@ class IterationTransformerTest extends FunSuite with Matchers {
     assert(blockUpdates(10) == 12)
     assert(blockUpdates(11) == 13)
   }
-//
-//  // ===== createSimplifyLambda =====
-//  test("createSimplifyLambda creates lambda") {
-//    val itt = new IterationTransformer()
-//    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
-//
-//    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
-//    val lambdaDesc = s"(${itt.ctxListClassType})V"
-//
-//    itt.createSimplifyLambda(cw, lambdaName, lambdaDesc)
-//
-//    // todo: verify that class has the added method ...
-//    val cr = new ClassReader(cw.toByteArray)
-//    val classNode = new ClassNode(ASM5)
-//    cr.accept(classNode, 0)
-//    def isTheLambda(mn: MethodNode) = mn.name == lambdaName && mn.desc == lambdaDesc
-//
-//    assert(classNode.methods.toList.exists(isTheLambda))
-//
-//    val insns = new InsnList()
-//    insns.add(new VarInsnNode(ALOAD, 0))
-//    val invOwner = itt.ctxListClassName
-//    val invName = "simplify____V"
-//    val invDesc = "()V"
-//    insns.add(new MethodInsnNode(INVOKEVIRTUAL, invOwner, invName, invDesc, false))
-//    insns.add(new InsnNode(RETURN))
-//
-//    for { mn <- classNode.methods.find(isTheLambda) }
-//      yield {
-//        assert(cond(mn.instructions.get(0)) {
-//          case v: VarInsnNode => v.getOpcode == ALOAD && v.`var` == 0
-//        })
-//        assert(cond(mn.instructions.get(1)) {
-//          case m: MethodInsnNode =>
-//            m.getOpcode == INVOKEVIRTUAL && m.owner == invOwner && m.name == invName && m.desc == invDesc
-//        })
-//        assert(cond(mn.instructions.get(2)) {
-//          case r: InsnNode => r.getOpcode == RETURN
-//        })
-//      }
-//    // todo: figure out checking JVM compliance
-////    cr.accept(new CheckClassAdapter(cw), 0) // throws null exception
-//  }
-//
+
+  // ===== createSimplifyLambda =====
+  test("createSimplifyLambda creates lambda") {
+    val itt = new IterationTransformer()
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+
+    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
+    val lambdaDesc = s"(${itt.ctxListClassType})V"
+
+    itt.createSimplifyLambda(cw, lambdaName, lambdaDesc)
+
+    // todo: verify that class has the added method ...
+    val cr = new ClassReader(cw.toByteArray)
+    val classNode = new ClassNode(ASM5)
+    cr.accept(classNode, 0)
+    def isTheLambda(mn: MethodNode) = mn.name == lambdaName && mn.desc == lambdaDesc
+
+    assert(classNode.methods.toList.exists(isTheLambda))
+
+    val insns = new InsnList()
+    insns.add(new VarInsnNode(ALOAD, 0))
+    val invOwner = itt.ctxListClassName
+    val invName = "simplify____V"
+    val invDesc = "()V"
+    insns.add(new MethodInsnNode(INVOKEVIRTUAL, invOwner, invName, invDesc, false))
+    insns.add(new InsnNode(RETURN))
+
+    for { mn <- classNode.methods.find(isTheLambda) }
+      yield {
+        assert(cond(mn.instructions.get(0)) {
+          case v: VarInsnNode => v.getOpcode == ALOAD && v.`var` == 0
+        })
+        assert(cond(mn.instructions.get(1)) {
+          case m: MethodInsnNode =>
+            m.getOpcode == INVOKEVIRTUAL && m.owner == invOwner && m.name == invName && m.desc == invDesc
+        })
+        assert(cond(mn.instructions.get(2)) {
+          case r: InsnNode => r.getOpcode == RETURN
+        })
+      }
+    // todo: figure out checking JVM compliance
+//    cr.accept(new CheckClassAdapter(cw), 0) // throws null exception
+  }
+
 //
 //  // ===== transformLoopPredecessor =====
 //  test("transformLoopPredecessor works") {
@@ -429,157 +430,180 @@ class IterationTransformerTest extends FunSuite with Matchers {
 //    val iteratorIndex = 14
 //    assert(blockTrans.newInsnIndeces == List(iteratorIndex, iteratorIndex + 1, iteratorIndex + 2))
 //  }
-//
-//
+
+
 
   // ===== transformBodyStartBlock =====
-//  test("transformBodyStartBlock works") {
-//    val itt = new IterationTransformer()
-//
-//    val loop1Entry = valid_cfg_2loop.blocks(3)
-//    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
-//    val loop2Entry = valid_cfg_2loop.blocks(7)
-//    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
-//    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertElementSatisfiabilityConditional(valid_cfg_2loop,
-//      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
-//
-//    val bodyStartBlock = newCFG.blocks(blockUpdates(4))
-//    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
-//    val blockTrans = itt.transformBodyStartBlock(bodyStartBlock, newCFG_insnIdx)
-//
-//    assert(blockTrans.newVars.isEmpty)
-//    assert(equal(blockTrans.newBlocks, List(Block(
-//      InstrLDC("orig 5"),
-//      InstrPOP(),
-//      InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-//
-//      // stack: ..., One(FEPair)
-//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
-//      // ..., FEPair
-//      InstrCHECKCAST(Owner(itt.fePairClassName)),
-//      InstrDUP(),
-//      // ..., FEPair, FEPair
-//      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("v"), TypeDesc(itt.objectClassType)),
-//      // ..., FEPair, v
-//      InstrSWAP(),
-//      // ..., v, FEPair
-//      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
-//      // ..., v, ctx
-//      InstrDUP(),
-//      // ..., v, ctx, ctx
-//      InstrLOAD_LOOP_CTX(),
-////      InstrALOAD(loopCtxVar),
-//      // ..., v, ctx, ctx, loopCtx
-//      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
-//        MethodDesc(s"(${fexprclasstype})${fexprclasstype}"), true),
-//      // ..., v, ctx, FE
-//      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
-//      // ..., v, ctx, isSat?
-//
-//      InstrIFEQ(blockUpdates(5) - 1)
-//    ))))
-//    val nextInvIndex = newCFG.blocks.flatMap(_.instr).indexWhere(itt.isIteratorNextInvocation)
-//    assert(blockTrans.newInsnIndeces == List.range(nextInvIndex + 1, nextInvIndex + 11))
-//  }
+  test("transformBodyStartBlock works") {
+    val itt = new IterationTransformer()
+
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+    val (newCFG, blockUpdates) = itt.insertElementSatisfiabilityConditional(valid_cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+
+    val bodyStartBlock = newCFG.blocks(blockUpdates(4))
+    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+    val elementOneVar = new LocalVar("element$one$var", vclasstype)
+    val blockTrans = itt.transformBodyStartBlock(bodyStartBlock, newCFG_insnIdx, elementOneVar)
+
+    assert(blockTrans.newVars.size == 1)
+    assert(equal(blockTrans.newBlocks, List(Block(
+      InstrLDC("orig 5"),
+      InstrPOP(),
+      InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+
+      // stack: ..., One(FEPair)
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      // ..., FEPair
+      InstrCHECKCAST(Owner(itt.fePairClassName)),
+      InstrDUP(),
+      // ..., FEPair, FEPair
+      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("v"), TypeDesc(itt.objectClassType)),
+      // ..., FEPair, v
+      InstrSWAP(),
+      // ..., v, FEPair
+      InstrGETFIELD(Owner(itt.fePairClassName), FieldName("ctx"), TypeDesc(fexprclasstype)),
+      // ..., v, ctx
+      InstrDUP(),
+      // ..., v, ctx, ctx
+      InstrLOAD_LOOP_CTX(),
+//      InstrALOAD(loopCtxVar),
+      // ..., v, ctx, ctx, loopCtx
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
+        MethodDesc(s"(${fexprclasstype})${fexprclasstype}"), true),
+
+      // ..., v, FEctx, FEctx&loopCtx
+      InstrDUP(),
+      // ..., v, FEctx, FEctx&loopCtx, FEctx&loopCtx
+      InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("isSatisfiable"), MethodDesc("()Z"), true),
+      // ..., v, FEctx, FEctx&loopCtx, isSat?
+      InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>
+      InstrICONST(0),
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, 0
+      InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
+      // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, Integer<0>
+
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("choice"), MethodDesc(s"($fexprclasstype$objectClassType$objectClassType)$vclasstype"), true),
+      // ..., v, FEctx, V<isSat?>
+      InstrDUP_X2(),
+      // ..., V<isSat?>, v, FEctx, V<isSat?>
+      InstrPOP(),
+      // ..., V<isSat?>, v, FEctx
+      InstrSWAP(),
+      // ..., V<isSat?>, FEctx, v
+      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true),
+      // ..., V<isSat?>, One<v>
+      InstrASTORE(elementOneVar),
+      // ..., V<isSat?> -- to be checked on the jump inserted by insertElementSatisfiabilityConditional()
+
+      // ..... here:
+      InstrIFNE(3)
+    ))))
+    val nextInvIndex = newCFG.blocks.flatMap(_.instr).indexWhere(itt.isIteratorNextInvocation)
+    assert(blockTrans.newInsnIndeces == List.range(nextInvIndex + 1, nextInvIndex + 20 + 1))
+  }
 
   // ===== transformBodyStartBlockAfterSplit =====
-//  test("transformBodyStartBlockAfterSplit") {
-//    val itt = new IterationTransformer()
-//
-//    val loop1Entry = valid_cfg_2loop.blocks(3)
-//    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
-//    val loop2Entry = valid_cfg_2loop.blocks(7)
-//    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
-//    val (newCFG, cleanupBlocks, blockUpdates) = itt.insertElementSatisfiabilityConditional(valid_cfg_2loop,
-//      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
-//
-//    val bodyStartBlockAfterSplit = newCFG.blocks(blockUpdates(5) - 1)
-//    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
-//    val blockTrans = itt.transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit, newCFG_insnIdx)
-//
-//    assert(blockTrans.newVars.isEmpty)
-//    assert(equal(blockTrans.newBlocks, List(Block(
-//      InstrSWAP(),
-//      InstrINVOKESTATIC(Owner(vclassname), MethodName("one"),
-//        MethodDesc(s"($fexprclasstype${itt.objectClassType})$vclasstype"), true),
-//
-//      InstrDUP(),
-//      InstrPOP(),
-//      InstrGOTO(blockUpdates(5)))
-//    )))
-//    val firstInsn = newCFG.blocks(blockUpdates(5) - 1).instr.head
-//    val blockStartInsnIndex = newCFG_insnIdx(firstInsn)
-//    assert(blockTrans.newInsnIndeces == List.range(blockStartInsnIndex, blockStartInsnIndex + 2))
-//  }
+  test("transformBodyStartBlockAfterSplit") {
+    val itt = new IterationTransformer()
+
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+    val (newCFG, blockUpdates) = itt.insertElementSatisfiabilityConditional(valid_cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+
+    val bodyStartBlockAfterSplit = newCFG.blocks(blockUpdates(5) - 1)
+    def newCFG_insnIdx(insn: Instruction) = newCFG.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+    val elementOneVar = new LocalVar("element$one$var", vclasstype)
+    val blockTrans = itt.transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit, newCFG_insnIdx, elementOneVar)
+
+    assert(blockTrans.newVars.isEmpty)
+    assert(equal(blockTrans.newBlocks, List(Block(
+      InstrALOAD(elementOneVar),
+
+      InstrDUP(),
+      InstrPOP(),
+      InstrGOTO(blockUpdates(5)))
+    )))
+    val firstInsn = newCFG.blocks(blockUpdates(5) - 1).instr.head
+    val blockStartInsnIndex = newCFG_insnIdx(firstInsn)
+    assert(blockTrans.newInsnIndeces == List.range(blockStartInsnIndex, blockStartInsnIndex + 1))
+  }
 
 
 
 
-//  // ===== transformListIteration =====
-//  test("transformListIteration works") {
-//    val itt = new IterationTransformer()
-//
-//    val className = "testclass"
-//    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, real_cfg_2loop2)
-//    val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
-//    val env = new VMethodEnv(vbcClazz, vbcMtdNode)
-//    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
-//
-//    val (newCFG, newEnv) = itt.transformListIteration(real_cfg_2loop2, env, cw)
-//
-//    def tagPreserveAppliedToCorrectInstructions(env: VMethodEnv) = {
-//      def haveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, hasTagSoFar) =>
-//        hasTagSoFar && ((newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) != 0))
-//      def dontHaveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, noTagSoFar) => {
-//        val insnUntagged = (newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) == 0
-//        if (!insnUntagged) println(s"Instr $i: ${env.instructions(i)} has preserve tag!")
-//        noTagSoFar && insnUntagged
-//      })
-//
-//      val loopPredecessors = newCFG.blocks.filter(_.instr.exists(cond(_) {
-//        case itInvoke: InstrINVOKEINTERFACE => itInvoke.name.name == "iterator"
-//        case itInvoke: InstrINVOKEVIRTUAL => itInvoke.name.name == "iterator"
-//      }))
-//      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
-//        val invDynamic = loopPredecessor.instr.find(cond(_) {
-//          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
-//        })
-//        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
-//        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
-//      })
-//      val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
-//
-//      val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {
-//        case nextInvoke: InstrINVOKEINTERFACE => nextInvoke.name.name == "next"
-//        case nextInvoke: InstrINVOKEVIRTUAL => nextInvoke.name.name == "next"
-//      }))
-//      val bodyStartIndices = bodyStarts.flatMap(bodyStart => {
-//        val nextInv = bodyStart.instr.find(cond(_) {
-//          case i => itt.isIteratorNextInvocation(i)
-//        })
-//        val nextInvIndex = newEnv.getInsnIdx(nextInv.get)
-//        List.range(nextInvIndex + 1, nextInvIndex + 1 + 10)
-//      })
-//      val bodyStartHasTag = haveTagPreserve(bodyStartIndices)
-//
-//      val bodyAfterSplits = bodyStarts.map(b => newCFG.blocks(newCFG.blocks.indexOf(b) + 2))
-//      val bodyAfterSplitIndices = bodyAfterSplits.flatMap(bodyAfterSplit => {
-//        bodyAfterSplit.instr.slice(0, 2).map(newEnv.getInsnIdx)
-//      })
-//      val bodyAfterSplitHasTag = haveTagPreserve(bodyAfterSplitIndices)
-//
-//      val expectedPreserveTagsArePresent = loopPredecessorHasTag && bodyStartHasTag && bodyAfterSplitHasTag
-//      val unexpectedPreserveTagsAreNotPresent = dontHaveTagPreserve(List.range(0, env.instructions.size)
-//        .diff(loopPredecessorIndices)
-//        .diff(bodyStartIndices)
-//        .diff(bodyAfterSplitIndices))
-//
-//      expectedPreserveTagsArePresent && unexpectedPreserveTagsAreNotPresent
-//    }
-//
-//    // todo: check newCFG and newEnv right
-//    // possibly look into refactoring so I can reuse the checks I already wrote in other tests
-//    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
-//    assert(tagPreserveAppliedToCorrectInstructions(newEnv))
-//  }
+  // ===== transformListIteration =====
+  test("transformListIteration works") {
+    val itt = new IterationTransformer()
+
+    val className = "testclass"
+    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, real_cfg_2loop2)
+    val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
+    val env = new VMethodEnv(vbcClazz, vbcMtdNode)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+
+    val (newCFG, newEnv) = itt.transformListIteration(real_cfg_2loop2, env, cw)
+
+    def tagPreserveAppliedToCorrectInstructions(env: VMethodEnv) = {
+      def haveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, hasTagSoFar) =>
+        hasTagSoFar && ((newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) != 0))
+      def dontHaveTagPreserve(indices: Iterable[Int]) = indices.foldRight(true)((i, noTagSoFar) => {
+        val insnUntagged = (newEnv.instructionTags(i) & newEnv.TAG_PRESERVE) == 0
+        if (!insnUntagged) println(s"Instr $i: ${env.instructions(i)} has preserve tag!")
+        noTagSoFar && insnUntagged
+      })
+
+      val loopPredecessors = newCFG.blocks.filter(_.instr.exists(cond(_) {
+        case itInvoke: InstrINVOKEINTERFACE => itInvoke.name.name == "iterator"
+        case itInvoke: InstrINVOKEVIRTUAL => itInvoke.name.name == "iterator"
+      }))
+      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
+        val invDynamic = loopPredecessor.instr.find(cond(_) {
+          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
+        })
+        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
+        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
+      })
+      val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
+
+      val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {
+        case nextInvoke: InstrINVOKEINTERFACE => nextInvoke.name.name == "next"
+        case nextInvoke: InstrINVOKEVIRTUAL => nextInvoke.name.name == "next"
+      }))
+      val bodyStartIndices = bodyStarts.flatMap(bodyStart => {
+        val nextInv = bodyStart.instr.find(cond(_) {
+          case i => itt.isIteratorNextInvocation(i)
+        })
+        val nextInvIndex = newEnv.getInsnIdx(nextInv.get)
+        List.range(nextInvIndex + 1, nextInvIndex + 1 + 10)
+      })
+      val bodyStartHasTag = haveTagPreserve(bodyStartIndices)
+
+      val bodyAfterSplits = bodyStarts.map(b => newCFG.blocks(newCFG.blocks.indexOf(b) + 2))
+      val bodyAfterSplitIndices = bodyAfterSplits.flatMap(bodyAfterSplit => {
+        bodyAfterSplit.instr.slice(0, 2).map(newEnv.getInsnIdx)
+      })
+      val bodyAfterSplitHasTag = haveTagPreserve(bodyAfterSplitIndices)
+
+      val expectedPreserveTagsArePresent = loopPredecessorHasTag && bodyStartHasTag && bodyAfterSplitHasTag
+      val unexpectedPreserveTagsAreNotPresent = dontHaveTagPreserve(List.range(0, env.instructions.size)
+        .diff(loopPredecessorIndices)
+        .diff(bodyStartIndices)
+        .diff(bodyAfterSplitIndices))
+
+      expectedPreserveTagsArePresent && unexpectedPreserveTagsAreNotPresent
+    }
+
+    // todo: check newCFG and newEnv right
+    // possibly look into refactoring so I can reuse the checks I already wrote in other tests
+    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
+    assert(tagPreserveAppliedToCorrectInstructions(newEnv))
+  }
 }
