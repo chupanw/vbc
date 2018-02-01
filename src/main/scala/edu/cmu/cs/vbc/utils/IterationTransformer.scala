@@ -26,7 +26,7 @@ class IterationTransformer {
 
     if (loops.isEmpty) return (cfg, env)
 
-    val (newCFG, cleanupBlocks, blockUpdates) = insertCleanupBlocks(cfg, loops)
+    val (newCFG, blockUpdates) = insertElementSatisfiabilityConditional(cfg, loops)
 
     val loopBodyBlocks = loops.flatMap(_.body)
     def toUpdatedIndex(block: Block): BlockIndex = blockUpdates(cfg.blocks.indexOf(block))
@@ -113,18 +113,16 @@ class IterationTransformer {
     case _ => false
   }
 
-  // Insert a block for cleaning up the stack after the narrow conditional for each loop
+  // Insert a conditional jump skipping the loop body if the element has an unsatisfiable context
   // Returns a new CFG containing the cleanup blocks, a mapping for each loop's cleanup block, and a
   // map for translating old references
-  def insertCleanupBlocks(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[Loop, BlockIndex], Map[BlockIndex, BlockIndex]) = {
-    val insertBlocks = loops.foldLeft((cfg, Map.empty[Loop, BlockIndex], cfg.blocks.indices.map(i => i -> i).toMap)) _
+  def insertElementSatisfiabilityConditional(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[BlockIndex, BlockIndex]) = {
+    val insertBlocks = loops.foldLeft((cfg, cfg.blocks.indices.map(i => i -> i).toMap)) _
 
     insertBlocks((collected, loop) => {
-      val (workingCFG, cleanupBlocks, prevBlockUpdates) = collected
+      val (workingCFG, prevBlockUpdates) = collected
       // loop contains old block references; update
       val loopEntryIdx = prevBlockUpdates(cfg.blocks.indexOf(loop.entry))
-      val cleanupBlock = Block(List(InstrGOTO(loopEntryIdx)), List())
-
 
       val findBlockToSplit =
         (block: Block) => loadUtil.findSome(block.instr.zipWithIndex, (pair: (Instruction, Int)) =>
@@ -137,12 +135,11 @@ class IterationTransformer {
         blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
         // InstrIFEQ: The inserted block is the cleanup block, so if the satisfiability check comes out True
         // (i.e. not equal to zero) we should jump over it
-        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, cleanupBlock,
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, loopEntryIdx,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
-        (newCFG, _, newIndices) = workingCFG.splitBlock(splitInfo)
+        (newCFG, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
         (newCFG,
-          cleanupBlocks.map(lb => lb._1 -> newIndices(lb._2)) + (loop -> (blockToSplit + 1)),
           prevBlockUpdates.map(idxChg => idxChg._1 -> newIndices(idxChg._2)))
       }
       result.get // refactor to remove get possible?
@@ -314,6 +311,7 @@ class IterationTransformer {
       InstrINVOKESTATIC(Owner(vclassname), MethodName("one"), MethodDesc(s"($fexprclasstype$objectClassType)$vclasstype"), true),
       // ..., V<isSat?>, One<v>
       InstrASTORE(elementVar)
+      // ..., V<isSat?> -- to be checked on the jump inserted by insertElementSatisfiabilityConditional()
     )
   }
   def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex,
