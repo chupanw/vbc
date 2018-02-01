@@ -97,11 +97,13 @@ class IterationTransformer {
       (bt.newBlocks ++ collected._1,
         bt.newInsnIndeces ++ collected._2,
         bt.newVars ++ collected._3))
+    // Remove duplicate entries of new variables shared for multiple loops
+    val uniqueNewVars = newVars.distinct
 
 
     val finalCFG: CFG = CFG(newBlocks)
     val newMN = VBCMethodNode(env.method.access, env.method.name, env.method.desc, env.method.signature,
-      env.method.exceptions, finalCFG, env.method.localVar ++ newVars)
+      env.method.exceptions, finalCFG, env.method.localVar ++ uniqueNewVars)
     val newEnv = new VMethodEnv(env.clazz, newMN)
 
     newInsns.foreach(newEnv.instructionTags(_) |= env.TAG_PRESERVE)
