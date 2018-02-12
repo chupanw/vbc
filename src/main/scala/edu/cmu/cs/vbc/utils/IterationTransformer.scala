@@ -38,7 +38,7 @@ class IterationTransformer {
     }
     val loopBodyStartBlockIndices = loopBodyStartBlocks map toUpdatedIndex
     val bodyAfterSplitIndices = newCFG.blocks.zipWithIndex collect {
-      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index => index + 2
+      case (bodyStartBlock, index) if loopBodyStartBlockIndices contains index => index + 1
     }
 
     // Get the index of INSN in newCFG
