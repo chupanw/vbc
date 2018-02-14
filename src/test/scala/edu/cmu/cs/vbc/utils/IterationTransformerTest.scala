@@ -564,13 +564,14 @@ class IterationTransformerTest extends FunSuite with Matchers {
         case itInvoke: InstrINVOKEINTERFACE => itInvoke.name.name == "iterator"
         case itInvoke: InstrINVOKEVIRTUAL => itInvoke.name.name == "iterator"
       }))
-      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
-        val invDynamic = loopPredecessor.instr.find(cond(_) {
-          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
-        })
-        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
-        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
-      })
+//      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
+//        val invDynamic = loopPredecessor.instr.find(cond(_) {
+//          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
+//        })
+//        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
+//        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
+//      })
+      val loopPredecessorIndices = List.empty[Int]
       val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
 
       val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {
@@ -582,13 +583,13 @@ class IterationTransformerTest extends FunSuite with Matchers {
           case i => itt.isIteratorNextInvocation(i)
         })
         val nextInvIndex = newEnv.getInsnIdx(nextInv.get)
-        List.range(nextInvIndex + 1, nextInvIndex + 1 + 10)
+        List.range(nextInvIndex + 1, nextInvIndex + 1 + 20)
       })
       val bodyStartHasTag = haveTagPreserve(bodyStartIndices)
 
-      val bodyAfterSplits = bodyStarts.map(b => newCFG.blocks(newCFG.blocks.indexOf(b) + 2))
+      val bodyAfterSplits = bodyStarts.map(b => newCFG.blocks(newCFG.blocks.indexOf(b) + 1))
       val bodyAfterSplitIndices = bodyAfterSplits.flatMap(bodyAfterSplit => {
-        bodyAfterSplit.instr.slice(0, 2).map(newEnv.getInsnIdx)
+        bodyAfterSplit.instr.slice(0, 1).map(newEnv.getInsnIdx)
       })
       val bodyAfterSplitHasTag = haveTagPreserve(bodyAfterSplitIndices)
 
@@ -603,7 +604,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     // todo: check newCFG and newEnv right
     // possibly look into refactoring so I can reuse the checks I already wrote in other tests
-    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
+    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 2)
     assert(tagPreserveAppliedToCorrectInstructions(newEnv))
   }
 }
