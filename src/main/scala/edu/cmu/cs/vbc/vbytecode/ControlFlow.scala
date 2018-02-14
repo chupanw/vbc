@@ -316,7 +316,7 @@ case class CFG(blocks: List[Block]) {
 
 
 
-  // Returns the new CFG, the block inserted, and a map from the old cfg block indices to new ones
+  // Returns the new CFG and a map from the old cfg block indices to new ones
   // Note that the blocks returned will not be the same Block object passed in because
   // all jump references in the passed in blocks will be updated to reflect the new CFG's indexing
   def splitBlock(info: SplitInfo): (CFG, Map[BlockIndex, BlockIndex]) = {
@@ -327,7 +327,7 @@ case class CFG(blocks: List[Block]) {
 
     // Need to build a map from the old block references of cfg to the new ones returned
     // so that references to the old blocks can be updated easily.
-    val (updatedBlocks, newIndices) = updateBlockJumps(info)
+    val (updatedBlocks, newIndices) = updateJumpsToBlocksAfter(info.blockToSplit)
 
     val newBlocks = updatedBlocks.zipWithIndex.flatMap {
       case (theBlock, index) if index == info.blockToSplit =>
@@ -344,25 +344,44 @@ case class CFG(blocks: List[Block]) {
     (CFG(newBlocks), newIndices)
   }
 
-  private def updateBlockJumps(info: SplitInfo) = {
+  // Like splitBlock, but instead of splitting a block just insert a new one
+  // Still updates the jump references and so a new CFG and mapping of old to new
+  // references are returned.
+  def insertBlock(after: BlockIndex, block: Block): (CFG, Map[BlockIndex, BlockIndex]) = {
+    val (updatedBlocks, newIndices) = updateJumpsToBlocksAfter(after)
+    def blockIndexChange(index: BlockIndex) = if (index > after) index + 1 else index
+    val updateJumps = updateJumpIndices(blockIndexChange, _: Instruction)
+    val updatedBlock = Block(block.instr.map(updateJumps), Seq.empty)
+    val newBlocks = updatedBlocks.slice(0, after + 1) ++
+      List(updatedBlock) ++
+      updatedBlocks.slice(after + 1, updatedBlocks.size)
+
+    val indexUpdate = List.range(0, updatedBlocks.size).map(index => index -> blockIndexChange(index)).toMap
+
+    (CFG(newBlocks), indexUpdate)
+  }
+
+  private def updateJumpsToBlocksAfter(thisBlock: BlockIndex) = {
     // maps old indices to what the new indices will be
     val newIndex = this.blocks.indices.zipWithIndex.map({
-      case (old, aboveSplit) if aboveSplit > info.blockToSplit => old -> (aboveSplit + 1)
+      case (old, aboveSplit) if aboveSplit > thisBlock => old -> (aboveSplit + 1)
       case (old, belowOrOnSplit) => old -> belowOrOnSplit
     }).toMap
 
     // map over the blocks and change all the jump insns to refer to the new indices
-    val updateJumpIndices: Instruction => Instruction = {
-      case jump: JumpInstruction =>
+    val blocksWithNewJumps =
+      this.blocks.map(b => Block(b.instr.map(updateJumpIndices(newIndex, _: Instruction)), b.exceptionHandlers))
+    (blocksWithNewJumps, newIndex)
+  }
+
+  private def updateJumpIndices(updater: BlockIndex => BlockIndex, insn: Instruction): Instruction = insn match {
+   case jump: JumpInstruction =>
         val jumpSucc = jump.getSuccessor()
         val oldJumpDest = jumpSucc._1.getOrElse(jumpSucc._2.get)
-        val newJumpDest = newIndex(oldJumpDest)
+        val newJumpDest = updater(oldJumpDest)
         jump.copy(newJumpDest)
 
       case other => other
-    }
-    val blocksWithNewJumps = this.blocks.map(b => Block(b.instr.map(updateJumpIndices), b.exceptionHandlers))
-    (blocksWithNewJumps, newIndex)
   }
 }
 case class SplitInfo(blockToSplit: Int,
