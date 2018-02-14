@@ -135,9 +135,7 @@ class IterationTransformer {
       val result = for {
         (nextInvocationIdx, block) <- loadUtil.findSome(loop.body, findBlockToSplit)
         blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
-        // InstrIFEQ: The inserted block is the cleanup block, so if the satisfiability check comes out True
-        // (i.e. not equal to zero) we should jump over it
-        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFNE, loopEntryIdx,
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFEQ, loopEntryIdx,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
         (newCFG, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
@@ -301,7 +299,6 @@ class IterationTransformer {
       // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, 0
       InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), true),
       // ..., v, FEctx, FEctx&loopCtx, Integer<isSat?>, Integer<0>
-
       InstrINVOKESTATIC(Owner(vclassname), MethodName("choice"), MethodDesc(s"($fexprclasstype$objectClassType$objectClassType)$vclasstype"), true),
       // ..., v, FEctx, V<isSat?>
       InstrDUP_X2(),
