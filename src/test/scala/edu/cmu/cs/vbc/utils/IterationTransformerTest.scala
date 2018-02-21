@@ -608,7 +608,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     // todo: check newCFG and newEnv right
     // possibly look into refactoring so I can reuse the checks I already wrote in other tests
-    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 2)
+    assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
     assert(tagPreserveAppliedToCorrectInstructions(newEnv))
   }
 }
