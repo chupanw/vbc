@@ -122,10 +122,18 @@ class IterationTransformer {
     val insertBlocks = loops.foldLeft((cfg, cfg.blocks.indices.map(i => i -> i).toMap)) _
 
     insertBlocks((collected, loop) => {
-      val (workingCFG, prevBlockUpdates) = collected
-      // loop contains old block references; update
-      val loopEntryIdx = prevBlockUpdates(cfg.blocks.indexOf(loop.entry))
+      val (collectedCFG, collectedBlockUpdates) = collected
 
+      val loopEntryIdx = collectedBlockUpdates(cfg.blocks.indexOf(loop.entry))
+
+      // Insert a block after the loop body that just jumps to the loop entry
+      val lastLoopBodyBlockIdx = collectedBlockUpdates(loop.body.map(cfg.blocks.indexOf).max)
+      val (workingCFG, insertedBlockUpdates) =
+        collectedCFG.insertBlock(lastLoopBodyBlockIdx, Block(InstrGOTO(loopEntryIdx)))
+
+      val workingBlockUpdates = workingCFG.mergeIndexMaps(collectedBlockUpdates, insertedBlockUpdates)
+
+      // Want to split the block with the Iterator.next invocation, right after the invocation
       val findBlockToSplit =
         (block: Block) => loadUtil.findSome(block.instr.zipWithIndex, (pair: (Instruction, Int)) =>
           pair._1 match {
@@ -134,13 +142,16 @@ class IterationTransformer {
           })
       val result = for {
         (nextInvocationIdx, block) <- loadUtil.findSome(loop.body, findBlockToSplit)
-        blockToSplit = prevBlockUpdates(cfg.blocks.indexOf(block))
-        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx, InstrIFEQ, loopEntryIdx,
+        blockToSplit = workingBlockUpdates(cfg.blocks.indexOf(block))
+        splitInfo = SplitInfo(blockToSplit, nextInvocationIdx,
+          InstrIFEQ,
+          // Jumping to the block just inserted after the last body block
+          lastLoopBodyBlockIdx + 1,
           Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
         (newCFG, newIndices) = workingCFG.splitBlock(splitInfo)
       } yield {
         (newCFG,
-          prevBlockUpdates.map(idxChg => idxChg._1 -> newIndices(idxChg._2)))
+          newCFG.mergeIndexMaps(workingBlockUpdates, newIndices))
       }
       result.get // refactor to remove get possible?
     })
