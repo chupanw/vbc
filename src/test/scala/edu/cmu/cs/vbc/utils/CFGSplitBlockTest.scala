@@ -103,4 +103,95 @@ class CFGSplitBlockTest extends FunSuite with Matchers {
       Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(newIndices3(5)))
     ))))
   }
+
+  test("insertBlock: returned CFG has correct structure") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(0)), List()))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(3)),
+      Block(InstrLDC("Inserted!"), InstrGOTO(0)),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(4)),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4))
+    ))))
+  }
+
+  test("insertBlock: newIndices maps indexes correctly") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(0)), List()))
+    assert(newIndices(0) == 0)
+    assert(newIndices(1) == 1)
+    assert(newIndices(2) == 3)
+    assert(newIndices(3) == 4)
+  }
+
+  test("insertBlock: jumps inside inserted block get updated correctly") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(3)), List()))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(3)),
+      Block(InstrLDC("Inserted!"), InstrGOTO(4)),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(4)),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4))
+    ))))
+  }
+
+  test("insertBlock: inserting multiple blocks works correctly") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(1)), List()))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(1)),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(3)),
+      Block(InstrLDC("Inserted!"), InstrGOTO(1)),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(4)),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(4))
+    ))))
+    val (newCFG2, newIndices2) = newCFG.insertBlock(0, Block(List(InstrLDC("Inserted!"), InstrGOTO(0)), List()))
+    assert(equal(newCFG2, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(2)),
+      Block(InstrLDC("Inserted!"), InstrGOTO(0)),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(4)),
+      Block(InstrLDC("Inserted!"), InstrGOTO(2)),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(5)),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(5))
+    ))))
+  }
+
+  test("insertBlock: newIndices correctly updates after inserting multiple blocks") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(1)), List()))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(newIndices(1))),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(newIndices(2))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(newIndices(1))),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(newIndices(3))),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(newIndices(3)))
+    ))))
+    val (newCFG2, newIndices2) = newCFG.insertBlock(0, Block(List(InstrLDC("Inserted!"), InstrGOTO(0)), List()))
+    assert(equal(newCFG2, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(newIndices2(1))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(newIndices2(0))),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(newIndices2(3))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(newIndices2(1))),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(newIndices2(4))),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(newIndices2(4)))
+    ))))
+  }
+
+  test("combining multiples newIndices") {
+    val (newCFG, newIndices) = cfg.insertBlock(1, Block(List(InstrLDC("Inserted!"), InstrGOTO(1)), List()))
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(newIndices(1))),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(newIndices(2))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(newIndices(1))),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(newIndices(3))),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(newIndices(3)))
+    ))))
+    val (newCFG2, newIndices2) = newCFG.insertBlock(0, Block(List(InstrLDC("Inserted!"), InstrGOTO(0)), List()))
+    val mergedIndexMap = newCFG2.mergeIndexMaps(newIndices, newIndices2)
+    assert(equal(newCFG2, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrDUP(), InstrGOTO(mergedIndexMap(1))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(mergedIndexMap(0))),
+      Block(InstrLDC("orig 2"), InstrDUP(), InstrICONST(1), InstrGOTO(mergedIndexMap(2))),
+      Block(InstrLDC("Inserted!"), InstrGOTO(mergedIndexMap(1))),
+      Block(InstrLDC("orig 3"), InstrSWAP(), InstrPOP(), InstrDUP(), InstrGOTO(mergedIndexMap(3))),
+      Block(InstrLDC("orig 4"), InstrDUP(), InstrPOP(), InstrGOTO(mergedIndexMap(3)))
+    ))))
+  }
 }
