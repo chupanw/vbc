@@ -383,6 +383,10 @@ case class CFG(blocks: List[Block]) {
 
       case other => other
   }
+
+  def mergeIndexMaps(oldMap: Map[BlockIndex, BlockIndex],
+                     newMap: Map[BlockIndex, BlockIndex]): Map[BlockIndex, BlockIndex] =
+    oldMap.map(idxChg => idxChg._1 -> newMap(idxChg._2))
 }
 case class SplitInfo(blockToSplit: Int,
                      splitAfterInstrIdx: Int,
