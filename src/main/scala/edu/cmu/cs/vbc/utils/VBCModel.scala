@@ -63,7 +63,7 @@ class VBCModel(fqName: String) extends LazyLogging {
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
     cn.accept(cw)
     // debugging
-    VBCModel.toFile(fqName, cw)
+//    VBCModel.toFile(fqName, cw)
     cw.toByteArray
   }
 

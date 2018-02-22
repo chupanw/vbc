@@ -88,7 +88,23 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
+  def loadExistingLiftedClass(name: String): Option[Class[_]] = {
+    val liftedFile = new File(s"lifted/${name.replace('.', '/')}.class")
+    if (liftedFile.exists()) {
+      val cr = new ClassReader(new FileInputStream(liftedFile))
+      val cw = new ClassWriter(0)
+      cr.accept(cw, 0)
+      Some(defineClass(name, cw.toByteArray, 0, cw.toByteArray.length))
+    }
+    else {
+      System.err.println(s"Could not find existing $name, lifting it...")
+      None
+    }
+  }
+
   def liftClass(name: String, clazz: VBCClassNode): Class[_] = {
+    val existing = loadExistingLiftedClass(name)
+    if (existing.isDefined) return existing.get
     import scala.collection.JavaConversions._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
     val dotifier = new Dotifier()
