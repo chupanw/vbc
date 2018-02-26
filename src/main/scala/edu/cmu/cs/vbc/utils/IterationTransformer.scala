@@ -130,8 +130,18 @@ class IterationTransformer {
       val lastLoopBodyBlockIdx = collectedBlockUpdates(loop.body.map(cfg.blocks.indexOf).max)
       val (workingCFG, insertedBlockUpdates) =
         collectedCFG.insertBlock(lastLoopBodyBlockIdx, Block(InstrGOTO(loopEntryIdx)))
+      val insertedJumpBlockIdx = lastLoopBodyBlockIdx + 1
 
-      val workingBlockUpdates = workingCFG.mergeIndexMaps(collectedBlockUpdates, insertedBlockUpdates)
+      val newWorkingCFG = CFG(workingCFG.blocks.zipWithIndex map {
+        case (block, idx) if idx == lastLoopBodyBlockIdx =>
+          block.copy(block.instr map {
+            case insn: InstrGOTO => InstrGOTO(insertedJumpBlockIdx)
+            case insn => insn
+          })
+        case (block, _) => block
+      })
+
+      val workingBlockUpdates = newWorkingCFG.mergeIndexMaps(collectedBlockUpdates, insertedBlockUpdates)
 
       // Want to split the block with the Iterator.next invocation, right after the invocation
       val findBlockToSplit =
@@ -145,10 +155,9 @@ class IterationTransformer {
         blockToSplit = workingBlockUpdates(cfg.blocks.indexOf(block))
         splitInfo = SplitInfo(blockToSplit, nextInvocationIdx,
           InstrIFEQ,
-          // Jumping to the block just inserted after the last body block
-          lastLoopBodyBlockIdx + 1,
-          Seq.empty, workingCFG.blocks(blockToSplit).exceptionHandlers)
-        (newCFG, newIndices) = workingCFG.splitBlock(splitInfo)
+          insertedJumpBlockIdx,
+          Seq.empty, newWorkingCFG.blocks(blockToSplit).exceptionHandlers)
+        (newCFG, newIndices) = newWorkingCFG.splitBlock(splitInfo)
       } yield {
         (newCFG,
           newCFG.mergeIndexMaps(workingBlockUpdates, newIndices))
