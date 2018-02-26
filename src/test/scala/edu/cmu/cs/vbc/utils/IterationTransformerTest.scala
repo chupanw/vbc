@@ -23,7 +23,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
     if (aStr == bStr) {
       true
     } else {
-      print(aStr + "\n" + bStr)
+      print("Left:\t" + aStr + "\nRight:\t" + bStr)
       false
     }
   }
@@ -80,8 +80,8 @@ class IterationTransformerTest extends FunSuite with Matchers {
     Block(InstrLDC("orig 4"), InstrPOP(), InstrICONST(1), InstrGOTO(4)), // 3: loop entry
     Block(InstrLDC("orig 5"), InstrPOP(), // 4
       InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
-      InstrDUP(), InstrPOP(), InstrGOTO(5)),
-    Block(InstrLDC("orig 6"), InstrPOP(), InstrIFEQ(3)), // 5: loop ^
+      InstrDUP(), InstrPOP(), InstrIFEQ(6)),
+    Block(InstrLDC("orig 6"), InstrPOP(), InstrGOTO(3)), // 5: loop ^
     Block(InstrLDC("orig 7"), InstrPOP(), InstrICONST(3), // 6
       InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
       InstrPOP(), InstrGOTO(7)),
@@ -316,7 +316,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
         InstrIFEQ(14)),
       Block(List(InstrDUP(), InstrPOP(), InstrGOTO(12)), Nil), // 11: second split-half
       Block(InstrLDC("orig 10"), InstrDUP(), InstrPOP(), InstrIFEQ(15)), // 12
-      Block(InstrLDC("orig 11"), InstrDUP(), InstrPOP(), InstrGOTO(9)), // 13: loop ^
+      Block(InstrLDC("orig 11"), InstrDUP(), InstrPOP(), InstrGOTO(14)), // 13: loop ^
       Block(InstrGOTO(9)), // 14
       Block(InstrLDC("orig 12"), InstrDUP(), InstrPOP(), InstrGOTO(15)) // 15
     ))), "Block splitting doesn't work as expected")
@@ -344,6 +344,44 @@ class IterationTransformerTest extends FunSuite with Matchers {
     assert(blockUpdates(9) == 12)
     assert(blockUpdates(10) == 13)
     assert(blockUpdates(11) == 15)
+  }
+
+  test("insertElementSatisfiabilityConditional updates loop structure correctly") {
+    val itt = new IterationTransformer()
+    val loop1Entry = valid_cfg_2loop.blocks(3)
+    val loop1Body = Set(valid_cfg_2loop.blocks(4), valid_cfg_2loop.blocks(5))
+    val loop2Entry = valid_cfg_2loop.blocks(7)
+    val loop2Body = Set(valid_cfg_2loop.blocks(8), valid_cfg_2loop.blocks(9), valid_cfg_2loop.blocks(10))
+    val (newCFG, blockUpdates) = itt.insertElementSatisfiabilityConditional(valid_cfg_2loop,
+      List(Loop(loop1Entry, loop1Body), Loop(loop2Entry, loop2Body)))
+
+    assert(newCFG.blocks.size == valid_cfg_2loop.blocks.size + 4)
+    assert(equal(newCFG, CFG(List(
+      Block(InstrLDC("orig 1"), InstrPOP(), InstrICONST(1), InstrDUP(), InstrGOTO(1)), // 0
+      Block(InstrLDC("orig 2"), InstrPOP(), InstrPOP(), InstrICONST(2), InstrGOTO(2)), // 1
+      Block(InstrLDC("orig 3"), InstrPOP(), InstrSWAP(), InstrPOP(), // 2
+        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+        InstrPOP(), InstrGOTO(3)),
+      Block(InstrLDC("orig 4"), InstrPOP(), InstrICONST(1), InstrGOTO(4)), // 3: loop entry
+      Block(InstrLDC("orig 5"), InstrPOP(), // 4
+        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+        InstrIFEQ(7)),
+      Block(InstrDUP(), InstrPOP(), InstrIFEQ(8)), // 5
+      Block(InstrLDC("orig 6"), InstrPOP(), InstrGOTO(7)), // 6: loop ^
+      Block(InstrGOTO(3)), // 7
+      Block(InstrLDC("orig 7"), InstrPOP(), InstrICONST(3), // 8
+        InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+        InstrPOP(), InstrGOTO(9)),
+      Block(InstrLDC("orig 8"), InstrPOP(), InstrICONST(7), InstrGOTO(10)), // 9: loop entry
+      Block(InstrLDC("orig 9"), InstrPOP(), // 10
+        InstrINVOKEINTERFACE(Owner("Iterator"), MethodName("next"), MethodDesc("()Ljava_util_object;"), true),
+        InstrIFEQ(14)),
+      Block(InstrDUP(), InstrPOP(), InstrGOTO(12)), // 11
+      Block(InstrLDC("orig 10"), InstrPOP(), InstrIFEQ(15)), // 12
+      Block(InstrLDC("orig 11"), InstrPOP(), InstrICONST(8), InstrPOP(), InstrGOTO(14)), // 13: loop ^
+      Block(InstrGOTO(9)), // 14
+      Block(InstrLDC("orig 12"), InstrPOP(), InstrICONST(9), InstrPOP(), InstrRETURN()) // 15
+    ))))
   }
 
   // ===== createSimplifyLambda =====
@@ -533,7 +571,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
       InstrDUP(),
       InstrPOP(),
-      InstrGOTO(blockUpdates(5)))
+      InstrIFEQ(blockUpdates(6)))
     )))
     val firstInsn = newCFG.blocks(blockUpdates(5) - 1).instr.head
     val blockStartInsnIndex = newCFG_insnIdx(firstInsn)
