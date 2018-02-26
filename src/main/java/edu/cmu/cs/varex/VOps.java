@@ -45,7 +45,6 @@ public class VOps {
      * @return
      */
     public static FeatureExpr whenNE(V<?> a) {
-        System.out.println("whenNE: " + a.toString());
         return a.when(v -> {
             if (v instanceof Boolean)
                 return (Boolean) v;
