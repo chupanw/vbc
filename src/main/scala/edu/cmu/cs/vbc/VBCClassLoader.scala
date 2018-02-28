@@ -103,8 +103,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def liftClass(name: String, clazz: VBCClassNode): Class[_] = {
-    val existing = loadExistingLiftedClass(name)
-    if (existing.isDefined) return existing.get
+//    val existing = loadExistingLiftedClass(name)
+//    if (existing.isDefined) return existing.get
     import scala.collection.JavaConversions._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
     val dotifier = new Dotifier()

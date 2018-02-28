@@ -46,3 +46,7 @@ libraryDependencies += "com.typesafe" % "config" % "1.3.1"
 unmanagedJars in Compile ~= {uj =>
   Seq(Attributed.blank(file(System.getProperty("java.home").dropRight(3) + "lib/tools.jar"))) ++ uj
 }
+
+// for benchmarking
+fork := true
+(fullClasspath in Runtime) := (fullClasspath in Runtime).value ++ (fullClasspath in Test).value
