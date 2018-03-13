@@ -19,7 +19,7 @@ import scala.collection.JavaConversions._
   * fully qualified name of this class
   * @author chupanw
   */
-class VBCModel(fqName: String) extends LazyLogging {
+class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLogging {
 
   require(fqName.startsWith(VBCModel.prefix), "Cannot create model class for: " + fqName)
 
@@ -35,24 +35,45 @@ class VBCModel(fqName: String) extends LazyLogging {
                             //  class is using the List model class, so we have to add it here as well.
   )
 
+  /**
+    * Remember to change config file as well when tweaking this flag
+    */
+  private def isUtilClass: Boolean = modelClsName.startsWith(VBCModel.prefix + "/java/util/")
+
   def getModelClassBytes(isLift: Boolean) : Array[Byte] = {
     val eis = this.getClass.getClassLoader.getResourceAsStream(modelClsName + ".class")
-    if (eis != null && (isLift || alwaysUseModelClass.contains(modelClsName))) {
-      logger.info(s"Using existing model class: " + fqName)
-      val cr = new ClassReader(eis)
-      val cn = new ClassNode(ASM5)
-      cr.accept(cn, 0)
-      val cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
-      cn.accept(cw)
-      cw.toByteArray
+    if (eis != null) {
+      if (isLift) {
+        // use or lift util classes, depending on the flag
+        if (!enableModelUtils && isUtilClass)
+          generateModelClass()
+        else
+          loadExisting(eis)
+      }
+      else if (alwaysUseModelClass.contains(modelClsName))
+        loadExisting(eis)
+      else {
+        logger.warn("Model class is detected, but not used: " + fqName)
+        generateModelClass()
+      }
     }
     else {
-      logger.info(s"Creating model class: " + fqName)
       generateModelClass()
     }
   }
 
+  def loadExisting(resource: java.io.InputStream): Array[Byte] = {
+    logger.info(s"Using existing model class: " + fqName)
+    val cr = new ClassReader(resource)
+    val cn = new ClassNode(ASM5)
+    cr.accept(cn, 0)
+    val cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES)
+    cn.accept(cw)
+    cw.toByteArray
+  }
+
   def generateModelClass(): Array[Byte] = {
+    logger.info(s"Creating model class: " + fqName)
     val resource: String = originalClsName + ".class"
     val is: InputStream = ClassLoader.getSystemResourceAsStream(resource)
     assert(is != null, s"class $originalClsName not found")
