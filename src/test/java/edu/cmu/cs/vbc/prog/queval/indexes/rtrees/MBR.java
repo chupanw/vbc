@@ -7,6 +7,7 @@ import edu.cmu.cs.vbc.prog.queval.queval.Util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 public final class MBR {
 	/** Imagine an MBR with [0,1] and [2,3] than minBorder[0]=0, minBorder[1]=1, maxBorder[0]=2 etc. */
@@ -305,7 +306,12 @@ public final class MBR {
 				long dist = this.children[subTree].getDist(narestNeighbor.QUERY);
 				subTreeList.add(new MBRdist(subTree, dist));
 			}
-			Collections.sort(subTreeList);
+			Collections.sort(subTreeList, new Comparator<MBRdist>() {
+				@Override
+				public int compare(MBRdist o1, MBRdist o2) {
+					return o1.compareTo(o2);
+				}
+			});
 			
 			//handle forward to subtrees following the order of dist (asc.)
 			for (int subTree=0;subTree<subTreeList.size();subTree++){

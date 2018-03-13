@@ -7,6 +7,7 @@ import edu.cmu.cs.vbc.prog.queval.stores.Store;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 public class QueryPlan {
 
@@ -189,7 +190,12 @@ public class QueryPlan {
 					//result.knn(query, resultTIDs); TODO
 					if(Features.VERBOSE)
 						if(query%10000==0){
-							Collections.sort(resultTIDs, (o1, o2) -> o1 - o2);
+							Collections.sort(resultTIDs, new Comparator<Integer>() {
+								@Override
+								public int compare(Integer o1, Integer o2) {
+									return o1 - o2;
+								}
+							});
 							System.out.print(query+":"+resultTIDs+" ");
 						}
 				}

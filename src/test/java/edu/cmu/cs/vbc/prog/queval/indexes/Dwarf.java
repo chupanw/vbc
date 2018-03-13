@@ -7,6 +7,7 @@ import edu.cmu.cs.vbc.prog.queval.stores.Store;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 public final class Dwarf extends Index {
 
@@ -153,7 +154,12 @@ public final class Dwarf extends Index {
 		
 		public void add(DwarfElement toAdd) {
 			list.add(toAdd);
-			Collections.sort(list);
+			Collections.sort(list, new Comparator<DwarfElement>() {
+				@Override
+				public int compare(DwarfElement o1, DwarfElement o2) {
+					return o1.compareTo(o2);
+				}
+			});
 		}
 
 		DwarfElement get(final int TO_COMPARE){

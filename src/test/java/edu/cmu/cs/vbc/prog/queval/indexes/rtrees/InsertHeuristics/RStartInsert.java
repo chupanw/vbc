@@ -4,6 +4,7 @@ import edu.cmu.cs.vbc.prog.queval.indexes.rtrees.MBR;
 import edu.cmu.cs.vbc.prog.queval.indexes.rtrees.Point;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 
 public class RStartInsert implements Heuristic {
@@ -25,7 +26,12 @@ public class RStartInsert implements Heuristic {
 				punishements.add(new MyContainer(overlap, volume, current.children[mbr]));
 			}
 			//sort so that MBR with least overlap is first, resolve ties by min deltaVolume
-			Collections.sort(punishements);
+			Collections.sort(punishements, new Comparator<MyContainer>() {
+				@Override
+				public int compare(MyContainer o1, MyContainer o2) {
+					return o1.compareTo(o2);
+				}
+			});
 			ret = getInsertNode(punishements.getFirst().leafToInsert, toInsert);
 		}else{
 			//for inner nodes do the same as for the R-Tree

@@ -721,7 +721,12 @@ public class GiSTII extends Index {
 					punishements.add(new MyContainer(overlap, volume, getChildIndex(CURRENT, childIndex)));
 				}
 				// sort so that MBR with least overlap is first, resolve ties by min deltaVolume
-				Collections.sort(punishements);
+				Collections.sort(punishements, new Comparator<MyContainer>() {
+					@Override
+					public int compare(MyContainer o1, MyContainer o2) {
+						return o1.compareTo(o2);
+					}
+				});
 				return getInsertNode(punishements.getFirst().leafToInsertPointer, TO_INSERT);
 			} else {
 				// for inner nodes do the same as for the R-Tree
