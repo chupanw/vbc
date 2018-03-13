@@ -101,14 +101,14 @@ public class Arrays {
     public static V<?> binarySearch__Array_I_I__I(V<V<Integer>[]> vIntegerArray, V<Integer> key, FeatureExpr ctx) {
         return key.sflatMap(ctx, (fe, k) -> vIntegerArray.sflatMap(fe, (FeatureExpr fe2, V<Integer>[] vArray) -> {
             V<Integer[]> expanded = ArrayOps.expandArray(vArray, Integer[].class, fe2);
-            return expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
+            return (V) expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
         }));
     }
 
     public static V<?> binarySearch__Array_D_D__I(V<V<Double>[]> vDoubleArray, V<Double> key, FeatureExpr ctx) {
         return key.sflatMap(ctx, (fe, k) -> vDoubleArray.sflatMap(fe, (FeatureExpr fe2, V<Double>[] vArray) -> {
             V<Double[]> expanded = ArrayOps.expandArray(vArray, Double[].class, fe2);
-            return expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
+            return (V) expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
         }));
     }
 
