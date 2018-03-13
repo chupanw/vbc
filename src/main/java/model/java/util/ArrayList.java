@@ -1,8 +1,9 @@
-package model.java.vutil;
+package model.java.util;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.V;
 import edu.cmu.cs.vbc.utils.Profiler;
+import model.Contexts;
 
 import java.util.function.Function;
 
@@ -163,7 +164,10 @@ public class ArrayList implements List {
         Profiler.startTimer(id);
         vComparator.sforeach(ctx, (fe, c) -> {
             split(fe);
-            vActual.sforeach(fe, l -> l.sort(c::compare));
+            vActual.sforeach(fe, (fe2, l) -> {
+                Contexts.model_java_util_Comparator_compare = fe2;
+                l.sort(c::compare);
+            });
         });
         Profiler.stopTimer(id);
         return null;

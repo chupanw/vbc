@@ -1,4 +1,4 @@
-package model.java.vutil;
+package model.java.util;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.V;
@@ -144,6 +144,15 @@ public class LinkedList implements List {
 
     public V<?> poll____Ljava_lang_Object(FeatureExpr ctx) {
         return vActual.smap(ctx, l -> l.poll());
+    }
+
+    public V<?> getFirst____Ljava_lang_Object(FeatureExpr ctx) {
+        return vActual.smap(ctx, l -> l.getFirst());
+    }
+
+    public V<?> removeLast____Ljava_lang_Object(FeatureExpr ctx) {
+        split(ctx);
+        return vActual.smap(ctx, l -> l.removeLast());
     }
 
     @Override

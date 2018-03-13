@@ -1,4 +1,4 @@
-package model.java.vutil;
+package model.java.util;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.ArrayOps;
@@ -53,7 +53,7 @@ public class Arrays {
         return null;    // dummy return value
     }
 
-    public static <T> void sort(T[] array, model.java.vutil.Comparator comparator) {
+    public static <T> void sort(T[] array, model.java.util.Comparator comparator) {
         java.util.Arrays.sort(array, comparator::compare);
     }
     public static <T> V<?> sort__Array_Ljava_lang_Object_Lmodel_java_util_Comparator__V(V<V<T>[]> vArray, V<Comparator> vComparator, FeatureExpr ctx) {
@@ -110,6 +110,26 @@ public class Arrays {
             V<Double[]> expanded = ArrayOps.expandArray(vArray, Double[].class, fe2);
             return expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
         }));
+    }
+
+    public static V<?> equals__Array_I_Array_I__Z(V<V<Integer>[]> vIntArray1, V<V<Integer>[]> vIntArray2, FeatureExpr ctx) {
+        return vIntArray1.sflatMap(ctx, (fe, a1) -> {
+            return vIntArray2.smap(fe, (fe2, a2) -> compareVArrays(a1, a2, fe2));
+        });
+    }
+
+    private static Boolean compareVArrays(V<Integer>[] a1, V<Integer>[] a2, FeatureExpr ctx) {
+        if (a1 == a2)
+            return true;
+        if (a1 == null || a2 == null)
+            return false;
+        if (a1.length != a2.length)
+            return false;
+        for (int i = 0; i < a1.length; i++) {
+            if (!a1[i].select(ctx).equals(a2[i].select(ctx)))
+                return false;
+        }
+        return true;
     }
 
     public static List asList(Object[] array) {

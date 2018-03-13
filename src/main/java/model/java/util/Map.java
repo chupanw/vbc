@@ -23,7 +23,7 @@
  *
  */
 
-package model.java.vutil;
+package model.java.util;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -339,7 +339,7 @@ public interface Map<K,V> {
      *
      * @return a collection view of the values contained in this map
      */
-    model.java.vutil.Collection values();
+    model.java.util.Collection values();
 
     /**
      * Returns a {@link Set} view of the mappings contained in this map.
@@ -467,7 +467,7 @@ public interface Map<K,V> {
          * @see Comparable
          * @since 1.8
          */
-        public static <K extends Comparable<? super K>, V> model.java.vutil.Comparator comparingByKey() {
+        public static <K extends Comparable<? super K>, V> model.java.util.Comparator comparingByKey() {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
 
@@ -483,7 +483,7 @@ public interface Map<K,V> {
          * @see Comparable
          * @since 1.8
          */
-        public static <K, V extends Comparable<? super V>> model.java.vutil.Comparator comparingByValue() {
+        public static <K, V extends Comparable<? super V>> model.java.util.Comparator comparingByValue() {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
 
@@ -500,7 +500,7 @@ public interface Map<K,V> {
          * @return a comparator that compares {@link Map.Entry} by the key.
          * @since 1.8
          */
-        public static <K, V> model.java.vutil.Comparator comparingByKey(model.java.vutil.Comparator cmp) {
+        public static <K, V> model.java.util.Comparator comparingByKey(model.java.util.Comparator cmp) {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
 
@@ -517,7 +517,7 @@ public interface Map<K,V> {
          * @return a comparator that compares {@link Map.Entry} by the value.
          * @since 1.8
          */
-        public static <K, V> model.java.vutil.Comparator comparingByValue(model.java.vutil.Comparator cmp) {
+        public static <K, V> model.java.util.Comparator comparingByValue(model.java.util.Comparator cmp) {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
     }
