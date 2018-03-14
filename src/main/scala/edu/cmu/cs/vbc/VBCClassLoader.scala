@@ -26,7 +26,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                      isLift: Boolean = true,
                      rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                      toFileDebugging: Boolean = true,
-                     configFile: Option[String] = None) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     configFile: Option[String] = None,
+                     useModel: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
 
   val loader = new Loader()
   if (configFile.isDefined) {
@@ -37,7 +38,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   override def loadClass(name: String): Class[_] = {
     VBCClassLoader.loadedClasses.getOrElseUpdate(name, {
       if (name.startsWith(VBCModel.prefix)) {
-        val model = new VBCModel(name)
+        val model = new VBCModel(name, useModel)
         val bytes = model.getModelClassBytes(isLift)
         if (shouldLift(name)) {
           val clazz = loader.loadClass(bytes)

@@ -9,12 +9,13 @@ import edu.cmu.cs.vbc.VBCClassLoader
   * @author chupanw
   */
 trait VBench {
-  def getMainMethod(clazzName: String, modelConfig: String): Method = {
+  def getMainMethod(clazzName: String, modelConfig: String, useModel: Boolean): Method = {
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
     val loader: VBCClassLoader = new VBCClassLoader(
       this.getClass.getClassLoader,
       isLift = true,
-      configFile = Some(modelConfig)
+      configFile = Some(modelConfig),
+      useModel = useModel
     )
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(clazzName)

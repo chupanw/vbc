@@ -3,21 +3,18 @@ package edu.cmu.cs.vbc.benchmark
 import java.io.FileWriter
 
 /**
-  * @author chupanw
+  * One VM invocation runs the same program in iterations, using
+  * a sliding window to keep track of execution time of each iteration.
+  * Once the sliding window is "stable", it terminates and report the mean
+  * of all values in the sliding window.
   */
-object VGPLBench extends App {
-  import scala.sys.process._
-
-  1 to 10 foreach {_ => Seq("sbt", "runMain edu.cmu.cs.vbc.benchmark.VGPLVMInvocation").!}
-}
-
-object VGPLVMInvocation extends App with VBench {
+object GPLVMInvocation extends App with VBench {
   var start: Double = 0.0
   var end: Double = 0.0
 
   val measurements = new SlidingWindown(10)
 
-  val m = getMainMethod("edu.cmu.cs.vbc.prog.gpl.Main", "gpl.conf")
+  val m = getMainMethod("edu.cmu.cs.vbc.prog.gpl.Main", "gpl.conf", useModel = false)
 
   while (!(measurements.isFull && measurements.cov() < 0.02)) {
     start = System.nanoTime().toDouble
