@@ -92,7 +92,7 @@ public class One<T> implements V<T>, Serializable {
     public V<T> reduce(@Nonnull FeatureExpr reducedConfigSpace) {
         assert reducedConfigSpace != null;
         FeatureExpr newCondition = configSpace.and(reducedConfigSpace);
-        if (newCondition.isSatisfiable())
+        if (VCache.isSatisfiable(newCondition))
             return new One(newCondition, value);
         else return VEmpty.instance();
     }
@@ -138,7 +138,7 @@ public class One<T> implements V<T>, Serializable {
      */
     @Override
     public V<T> simplified() {
-        if (configSpace.isSatisfiable()) {
+        if (VCache.isSatisfiable(configSpace)) {
             return this;
         } else {
             return new VEmpty();

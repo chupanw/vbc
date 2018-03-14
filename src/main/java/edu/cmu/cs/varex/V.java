@@ -234,7 +234,7 @@ public interface V<T> {
         if (b == null)
             b = V.one(null);
         assert condition != null;
-        if (condition.isContradiction())
+        if (!VCache.isSatisfiable(condition))
             return b;
         else if (condition.isTautology())
             return a;

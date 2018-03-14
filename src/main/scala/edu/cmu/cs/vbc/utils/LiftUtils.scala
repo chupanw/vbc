@@ -67,8 +67,15 @@ object LiftUtils {
   def pushConstantTRUE(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "True", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
 
-  def callFExprIsSatisfiable(mv: MethodVisitor) =
-    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isSatisfiable", "()Z", true)
+//  def callFExprIsSatisfiable(mv: MethodVisitor) =
+//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isSatisfiable", "()Z", true)
+
+  /**
+    * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    */
+  def callFExprIsSatisfiable(mv: MethodVisitor) = {
+    mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "isSatisfiable", s"($fexprclasstype)Z", false)
+  }
 
   def callFExprIsContradiction(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isContradiction", "()Z", true)

@@ -15,10 +15,10 @@ class VImpl<T> implements V<T>, Serializable {
 
     static <U> V<? extends U> choice(FeatureExpr condition, U a, U b) {
         Map<U, FeatureExpr> result = new HashMap<>(2);
-        if (condition.isSatisfiable())
+        if (VCache.isSatisfiable(condition))
             put(result, a, condition);
         else return V.one(condition.not(), b);
-        if (condition.not().isSatisfiable())
+        if (VCache.isSatisfiable(condition.not()))
             put(result, b, condition.not());
         else return V.one(condition, a);
 
@@ -27,10 +27,10 @@ class VImpl<T> implements V<T>, Serializable {
 
     static <U> V<? extends U> choice(FeatureExpr condition, V<? extends U> a, V<? extends U> b) {
         Map<U, FeatureExpr> result = new HashMap<>(2);
-        if (condition.isSatisfiable())
+        if (VCache.isSatisfiable(condition))
             addVToMap(result, condition, a);
         else return b;
-        if (condition.not().isSatisfiable())
+        if (VCache.isSatisfiable(condition.not()))
             addVToMap(result, condition.not(), b);
         else return a;
 
@@ -131,7 +131,7 @@ class VImpl<T> implements V<T>, Serializable {
         else
             for (HashMap.Entry<U, FeatureExpr> ee : ((VImpl<U>) u).values.entrySet()) {
                 FeatureExpr cond = ctx.and(ee.getValue());
-                if (cond.isSatisfiable())
+                if (VCache.isSatisfiable(cond))
                     put(result, ee.getKey(), cond);
             }
     }
@@ -172,7 +172,7 @@ class VImpl<T> implements V<T>, Serializable {
         FeatureExpr result = FeatureExprFactory.False();
         for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
             if (filterNull && e.getKey() == null) continue;
-            if (e.getValue().isSatisfiable() && condition.test(e.getKey()))
+            if (VCache.isSatisfiable(e.getValue()) && condition.test(e.getKey()))
                 result = result.or(e.getValue());
         }
         return result;
@@ -196,7 +196,7 @@ class VImpl<T> implements V<T>, Serializable {
         while (it.hasNext()) {
             Map.Entry<T, FeatureExpr> entry = it.next();
             FeatureExpr newCondition = entry.getValue().and(reducedConfigSpace);
-            if (newCondition.isSatisfiable()) {
+            if (VCache.isSatisfiable(newCondition)) {
                 if (result.containsKey(entry.getKey())) {
                     // duplicate values, merge conditions
                     FeatureExpr existingCond = result.get(entry.getKey());
@@ -272,7 +272,7 @@ class VImpl<T> implements V<T>, Serializable {
     public V<T> simplified() {
         HashMap<T, FeatureExpr> simplified = new HashMap<>();
         for (HashMap.Entry<T, FeatureExpr> entry : values.entrySet()) {
-            if (entry.getValue().isSatisfiable()) {
+            if (VCache.isSatisfiable(entry.getValue())) {
                 simplified.put(entry.getKey(), entry.getValue());
             }
         }
