@@ -17,9 +17,9 @@ class VImpl<T> implements V<T>, Serializable {
         Map<U, FeatureExpr> result = new HashMap<>(2);
         if (VCache.isSatisfiable(condition))
             put(result, a, condition);
-        else return V.one(condition.not(), b);
-        if (VCache.isSatisfiable(condition.not()))
-            put(result, b, condition.not());
+        else return V.one(VCache.not(condition), b);
+        if (VCache.isSatisfiable(VCache.not(condition)))
+            put(result, b, VCache.not(condition));
         else return V.one(condition, a);
 
         return createV(result);
@@ -30,8 +30,8 @@ class VImpl<T> implements V<T>, Serializable {
         if (VCache.isSatisfiable(condition))
             addVToMap(result, condition, a);
         else return b;
-        if (VCache.isSatisfiable(condition.not()))
-            addVToMap(result, condition.not(), b);
+        if (VCache.isSatisfiable(VCache.not(condition)))
+            addVToMap(result, VCache.not(condition), b);
         else return a;
 
         return createV(result);

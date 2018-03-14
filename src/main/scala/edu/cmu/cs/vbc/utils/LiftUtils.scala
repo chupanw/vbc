@@ -100,8 +100,15 @@ object LiftUtils {
   def callFExprAnd(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "and", s"($fexprclasstype$fexprclasstype)$fexprclasstype", false)
 
+//  def callFExprNot(mv: MethodVisitor) =
+//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "not", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
+
+  /**
+    * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    * @param mv
+    */
   def callFExprNot(mv: MethodVisitor) =
-    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "not", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
+    mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "not", s"($fexprclasstype)$fexprclasstype", false)
 
   def storeFExpr(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))

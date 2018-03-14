@@ -75,21 +75,21 @@ public interface V<T> {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).map(fun), this.select(ctx.not()).map(altFun));
+        return V.choice(ctx, this.select(ctx).map(fun), this.select(VCache.not(ctx)).map(altFun));
     }
 
     default <U> V<? extends U> pmap(@Nonnull FeatureExpr ctx, @Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> fun, @Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> altFun) {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).map(fun), this.select(ctx.not()).map(altFun));
+        return V.choice(ctx, this.select(ctx).map(fun), this.select(VCache.not(ctx)).map(altFun));
     }
 
     default <U> V<? extends U> pmap(@Nonnull FeatureExpr ctx, @Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> fun, @Nonnull Function<? super T, ? extends U> altFun) {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).map(fun), this.select(ctx.not()).map(altFun));
+        return V.choice(ctx, this.select(ctx).map(fun), this.select(VCache.not(ctx)).map(altFun));
     }
 
     /**
@@ -132,21 +132,21 @@ public interface V<T> {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(ctx.not()).flatMap(altFun));
+        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(VCache.not(ctx)).flatMap(altFun));
     }
 
     default <U> V<? extends U> pflatMap(@Nonnull FeatureExpr ctx, @Nonnull BiFunction<FeatureExpr, ? super T, V<? extends U>> fun, @Nonnull Function<? super T, ? extends U> altFun) {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(ctx.not()).map(altFun));
+        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(VCache.not(ctx)).map(altFun));
     }
 
     default <U> V<? extends U> pflatMap(@Nonnull FeatureExpr ctx, @Nonnull BiFunction<FeatureExpr, ? super T, V<? extends U>> fun, @Nonnull BiFunction<FeatureExpr, ? super T, V<? extends U>> altFun) {
         assert ctx != null;
         assert fun != null;
         assert altFun != null;
-        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(ctx.not()).flatMap(altFun));
+        return V.choice(ctx, this.select(ctx).flatMap(fun), this.select(VCache.not(ctx)).flatMap(altFun));
     }
 
     void foreach(@Nonnull Consumer<T> fun);

@@ -15,10 +15,12 @@ public class VCache {
 
     private static HashMap<BDD, Boolean> isSatCache = new HashMap<>();
     private static HashMap<BDD, HashMap<BDD, FeatureExpr>> andCache = new HashMap<>();
+    private static HashMap<BDD, FeatureExpr> notCache = new HashMap<>();
 
     static void clearAll() {
         isSatCache.clear();
         andCache.clear();
+        notCache.clear();
     }
 
     public static boolean isSatisfiable(FeatureExpr fe) {
@@ -38,4 +40,8 @@ public class VCache {
         return andCache.get(aa).computeIfAbsent(bb, x -> a.and(b));
     }
 
+    public static FeatureExpr not(FeatureExpr fe) {
+        BDD bdd = ((BDDFeatureExpr) fe).bdd();
+        return notCache.computeIfAbsent(bdd, x -> fe.not());
+    }
 }
