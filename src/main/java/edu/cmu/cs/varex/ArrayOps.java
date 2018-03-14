@@ -38,6 +38,7 @@ public class ArrayOps {
     }
 
     public static V<?> expandJArray(V<Long>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandJArray");
         return expandJArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -102,6 +103,7 @@ public class ArrayOps {
     }
 
     public static V<?> expandSArray(V<Integer>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandSArray");
         return expandSArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -163,6 +165,7 @@ public class ArrayOps {
     }
 
     public static V<?> expandBArray(V<Integer>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandBArray");
         return expandBArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -225,6 +228,7 @@ public class ArrayOps {
     }
 
     public static V<?> expandIArray(V<Integer>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandIArray");
         return expandIArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -353,6 +357,7 @@ public class ArrayOps {
     }
 
     public static V<?> expandCArray(V<Integer>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandCArray");
         return expandCArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -431,6 +436,7 @@ public class ArrayOps {
      * in one function call, e.g., System.arrayCopy
      */
     public static <T> V<T[]> expandArray(V<T>[] array, Class c, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandArray");
         if (cached.containsKey(ctx)) {
             HashMap<V[], V> subMap = cached.get(ctx);
             if (subMap.containsKey(array))
