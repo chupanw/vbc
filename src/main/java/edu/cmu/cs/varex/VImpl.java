@@ -50,7 +50,7 @@ class VImpl<T> implements V<T>, Serializable {
         if (values.size() < 2) return false;// : "singleton VImpl?";
         FeatureExpr conditions = FeatureExprFactory.False();
         for (FeatureExpr cond : values.values()) {
-            if (!conditions.and(cond).isContradiction()) return false;// : "condition overlaps with previous condition";
+            if (!(VCache.isContradiction(conditions.and(cond)))) return false;// : "condition overlaps with previous condition";
             conditions = conditions.or(cond);
         }
         //"conditions together not a tautology" is no longer required, it just expresses a smaller config space

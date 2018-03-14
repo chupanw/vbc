@@ -26,6 +26,10 @@ public class VCache {
         return isSatCache.computeIfAbsent(bdd, x -> fe.isSatisfiable());
     }
 
+    public static boolean isContradiction(FeatureExpr fe) {
+        return !isSatisfiable(fe);
+    }
+
     public static FeatureExpr and(FeatureExpr a, FeatureExpr b) {
         BDD aa = ((BDDFeatureExpr) a).bdd();
         BDD bb = ((BDDFeatureExpr) b).bdd();

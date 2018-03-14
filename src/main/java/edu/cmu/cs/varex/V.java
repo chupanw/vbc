@@ -210,7 +210,7 @@ public interface V<T> {
 
     static <U> V<? extends U> choice(@Nonnull FeatureExpr condition, @Nullable U a, @Nullable U b) {
         assert condition != null;
-        if (condition.isContradiction())
+        if (VCache.isContradiction(condition))
             return one(b);
         else if (condition.isTautology())
             return one(a);
@@ -220,7 +220,7 @@ public interface V<T> {
 
     static <U> V<? extends U> choice(@Nonnull FeatureExpr condition, Supplier<U> a, Supplier<U> b) {
         assert condition != null;
-        if (condition.isContradiction())
+        if (VCache.isContradiction(condition))
             return one(b.get());
         else if (condition.isTautology())
             return one(a.get());

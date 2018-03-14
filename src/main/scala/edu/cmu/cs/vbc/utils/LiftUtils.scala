@@ -77,8 +77,15 @@ object LiftUtils {
     mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "isSatisfiable", s"($fexprclasstype)Z", false)
   }
 
+//  def callFExprIsContradiction(mv: MethodVisitor) =
+//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isContradiction", "()Z", true)
+
+  /**
+    * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    * @param mv
+    */
   def callFExprIsContradiction(mv: MethodVisitor) =
-    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isContradiction", "()Z", true)
+    mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "isContradiction", s"($fexprclasstype)Z", false)
 
   def callFExprOr(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "or", "(Lde/fosd/typechef/featureexpr/FeatureExpr;)Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
