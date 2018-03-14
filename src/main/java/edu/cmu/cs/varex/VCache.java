@@ -35,7 +35,7 @@ public class VCache {
         BDD bb = ((BDDFeatureExpr) b).bdd();
         if (!andCache.containsKey(aa))
             andCache.put(aa, new HashMap<>());
-        return andCache.get(a).computeIfAbsent(bb, x -> a.and(b));
+        return andCache.get(aa).computeIfAbsent(bb, x -> a.and(b));
     }
 
 }

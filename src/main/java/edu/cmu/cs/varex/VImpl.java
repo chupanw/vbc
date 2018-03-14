@@ -50,7 +50,7 @@ class VImpl<T> implements V<T>, Serializable {
         if (values.size() < 2) return false;// : "singleton VImpl?";
         FeatureExpr conditions = FeatureExprFactory.False();
         for (FeatureExpr cond : values.values()) {
-            if (!(VCache.isContradiction(conditions.and(cond)))) return false;// : "condition overlaps with previous condition";
+            if (!(VCache.isContradiction(VCache.and(conditions, cond)))) return false;// : "condition overlaps with previous condition";
             conditions = conditions.or(cond);
         }
         //"conditions together not a tautology" is no longer required, it just expresses a smaller config space
@@ -127,10 +127,10 @@ class VImpl<T> implements V<T>, Serializable {
         assert u != null;
         assert (u instanceof One) || (u instanceof VImpl) : "unexpected V value: " + u;
         if (u instanceof One)
-            put(result, ((One<U>) u).value, ctx.and(((One<U>) u).configSpace));
+            put(result, ((One<U>) u).value, VCache.and(ctx, ((One<U>) u).configSpace));
         else
             for (HashMap.Entry<U, FeatureExpr> ee : ((VImpl<U>) u).values.entrySet()) {
-                FeatureExpr cond = ctx.and(ee.getValue());
+                FeatureExpr cond = VCache.and(ctx, ee.getValue());
                 if (VCache.isSatisfiable(cond))
                     put(result, ee.getKey(), cond);
             }
@@ -195,7 +195,7 @@ class VImpl<T> implements V<T>, Serializable {
         Iterator<Map.Entry<T, FeatureExpr>> it = values.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<T, FeatureExpr> entry = it.next();
-            FeatureExpr newCondition = entry.getValue().and(reducedConfigSpace);
+            FeatureExpr newCondition = VCache.and(entry.getValue(), reducedConfigSpace);
             if (VCache.isSatisfiable(newCondition)) {
                 if (result.containsKey(entry.getKey())) {
                     // duplicate values, merge conditions
