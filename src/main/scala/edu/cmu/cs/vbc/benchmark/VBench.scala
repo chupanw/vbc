@@ -1,5 +1,6 @@
 package edu.cmu.cs.vbc.benchmark
 
+import java.io.FileWriter
 import java.lang.reflect.{Method, Modifier}
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
@@ -27,5 +28,31 @@ trait VBench {
     } catch {
       case _: Throwable => throw new RuntimeException("Error")
     }
+  }
+
+  def benchmark(prog: String,
+                config: String,
+                useModel: Boolean,
+                output: String,
+                windowSize: Int = 10,
+                cov: Double = 0.02): Unit = {
+    var start: Double = 0.0
+    var end: Double = 0.0
+
+    val measurements = new SlidingWindown(windowSize)
+
+    val m = getMainMethod(prog, config, useModel = useModel)
+
+    while (!(measurements.isFull && measurements.cov() < cov)) {
+      start = System.nanoTime().toDouble
+      m.invoke(null, Array[String]())
+      end = System.nanoTime().toDouble
+      measurements.add(end - start)
+    }
+
+    val meanTimeInMS = measurements.mean() / 1000000
+    val writer = new FileWriter(output, true)
+    writer.append(meanTimeInMS + " ms\n")
+    writer.close()
   }
 }
