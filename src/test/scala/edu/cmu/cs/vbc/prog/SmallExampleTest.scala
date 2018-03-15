@@ -2,6 +2,7 @@ package edu.cmu.cs.vbc.prog
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
 import edu.cmu.cs.vbc.DiffLaunchTestInfrastructure
+import edu.cmu.cs.vbc.prog.benchmark.SortArray
 import org.scalatest.FunSuite
 
 
@@ -111,5 +112,19 @@ test("conditional field assignment") {
 
   test("MultiArrayExample") {
     testMain(classOf[MultiArrayExample], configFile = Some("default.conf"))
+  }
+
+  /**
+    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
+    */
+  ignore("SortArray-No-Model") {
+    testMain(classOf[SortArray], configFile = Some("util.conf"), useModel = false)
+  }
+
+  /**
+    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
+    */
+  ignore("SortArray-Model") {
+    testMain(classOf[SortArray], configFile = Some("util-model.conf"), useModel = true)
   }
 }
