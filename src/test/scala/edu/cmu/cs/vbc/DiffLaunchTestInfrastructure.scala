@@ -84,12 +84,17 @@ trait DiffLaunchTestInfrastructure {
 
 //  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
 
-  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true, fm: (Map[String, Boolean]) => Boolean = _ => true, configFile: Option[String] = None): Unit = {
+  def testMain(clazz: Class[_],
+               compareTraceAgainstBruteForce: Boolean = true,
+               runBenchmark: Boolean = true,
+               fm: (Map[String, Boolean]) => Boolean = _ => true,
+               configFile: Option[String] = None,
+               useModel: Boolean = false): Unit = {
     //test uninstrumented variational execution to see whether it crashes
     val classname = clazz.getName
     val origClassLoader = this.getClass.getClassLoader
     //VBCLauncher.launch(classname)
-    val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, avoidOutput, configFile = configFile)
+    val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, avoidOutput, configFile = configFile, useModel = useModel)
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(testCrashLoader)
     val testCrash = testCrashLoader.loadClass(classname)
@@ -98,7 +103,7 @@ trait DiffLaunchTestInfrastructure {
     //test instrumented version, executed variationally
     TestTraceOutput.trace = Nil
     TraceConfig.options = Set()
-    val vloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, rewriter = instrumentMethod, configFile = configFile)
+    val vloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, rewriter = instrumentMethod, configFile = configFile, useModel = useModel)
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(vloader)
     val vcls: Class[_] = vloader.loadClass(classname)
@@ -110,7 +115,7 @@ trait DiffLaunchTestInfrastructure {
     println("Used Options: " + TraceConfig.options.mkString(", "))
 
     if (compareTraceAgainstBruteForce) {
-      val loader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, instrumentMethod, toFileDebugging = false, configFile = configFile)
+      val loader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, instrumentMethod, toFileDebugging = false, configFile = configFile, useModel = useModel)
       VBCClassLoader.clearCache()
       Thread.currentThread().setContextClassLoader(loader)
       val cls: Class[_] = loader.loadClass(classname)
@@ -130,8 +135,8 @@ trait DiffLaunchTestInfrastructure {
 
     if (runBenchmark) {
       //run benchmark (without instrumentation)
-      val vbenchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, prepareBenchmark, configFile = configFile)
-      val benchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, prepareBenchmark, configFile = configFile)
+      val vbenchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, prepareBenchmark, configFile = configFile, useModel = useModel)
+      val benchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, prepareBenchmark, configFile = configFile, useModel = useModel)
       benchmark(classname, vbenchmarkloader, benchmarkloader, usedOptions, fm)
     }
   }
