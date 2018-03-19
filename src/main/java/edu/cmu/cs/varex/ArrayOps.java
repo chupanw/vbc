@@ -437,11 +437,10 @@ public class ArrayOps {
      */
     public static <T> V<T[]> expandArray(V<T>[] array, Class c, FeatureExpr ctx) {
         System.err.println("[WARNING] Using expandArray");
-        if (cached.containsKey(ctx)) {
-            HashMap<V[], V> subMap = cached.get(ctx);
-            if (subMap.containsKey(array))
-                return subMap.get(array);
-        }
+        // todo: this will probably cause problems for Jetty
+        V existing = getExisting(array, ctx);
+        if (existing != null)
+            return existing;
         V result;
         if (array.length == 0) {
             result = V.one(ctx, Array.newInstance(c, 0));
@@ -457,6 +456,22 @@ public class ArrayOps {
             cached.get(ctx).put(array, result);
         }
         return result;
+    }
+
+    static <T> V<T[]> getExisting(V<T>[] array, FeatureExpr ctx) {
+        V<T[]> existing = null;
+        for (FeatureExpr e : cached.keySet()) {
+            if (ctx.implies(e).isTautology()) {
+                HashMap<V[], V> subMap = cached.get(e);
+                if (subMap.containsKey(array)) {
+                    if (existing == null)
+                        existing = subMap.get(array);
+                    else
+                        throw new RuntimeException("Multiple existing arrays while expanding");
+                }
+            }
+        }
+        return existing;
     }
 
     public static void clearCache() {
