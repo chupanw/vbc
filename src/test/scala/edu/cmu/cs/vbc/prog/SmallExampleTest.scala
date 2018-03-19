@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.prog
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
 import edu.cmu.cs.vbc.DiffLaunchTestInfrastructure
-import edu.cmu.cs.vbc.prog.benchmark.SortArray
+import edu.cmu.cs.vbc.prog.benchmark.{SortArray, SortLinkedList}
 import org.scalatest.FunSuite
 
 
@@ -126,5 +126,19 @@ test("conditional field assignment") {
     */
   ignore("SortArray-Model") {
     testMain(classOf[SortArray], configFile = Some("util-model.conf"), useModel = true)
+  }
+
+  /**
+    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
+    */
+  ignore("SortLinkedList") {
+    testMain(classOf[SortLinkedList], configFile = Some("util.conf"), useModel = false)
+  }
+
+  /**
+    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
+    */
+  ignore("SortLinkedList-Model") {
+    testMain(classOf[SortLinkedList], configFile = Some("util-model.conf"), useModel = true)
   }
 }
