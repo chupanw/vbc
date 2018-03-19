@@ -119,15 +119,19 @@ object LiftingPolicy {
   }
 
   def replaceCall(owner: Owner, name: MethodName, desc: MethodDesc, isVE: Boolean): LiftedCall = {
+    val v = "Ledu/cmu/cs/varex/V;"
+    val fe = "Lde/fosd/typechef/featureexpr/FeatureExpr;"
     // Although we are not lifting this method call, we might replace this call with our specialized
     // call because:
     //  (1) avoid native
     //  (2) activate our array expanding by changing the signature of System.arraycopy.
     //  (3) package access method
     (owner.name, name.name, desc.descString) match {
+//      case ("java/lang/System", "arraycopy", _) if isVE =>
+//        // We need array argument type in order to trigger array expansions and compressions.
+//        LiftedCall(Owner(VBCModel.prefix + "/java/lang/System"), name, MethodDesc(s"([${TypeDesc.getObject}I[${TypeDesc.getObject}II)V"), isLifting = false)
       case ("java/lang/System", "arraycopy", _) if isVE =>
-        // We need array argument type in order to trigger array expansions and compressions.
-        LiftedCall(Owner(VBCModel.prefix + "/java/lang/System"), name, MethodDesc(s"([${TypeDesc.getObject}I[${TypeDesc.getObject}II)V"), isLifting = false)
+        LiftedCall(Owner(VBCModel.prefix + "/java/lang/System"), MethodName("vArrayCopy"), MethodDesc(s"($v$v$v$v$v$fe)$v"), isLifting = true)
       case ("java/lang/Integer", "stringSize", _) =>
         LiftedCall(Owner(VBCModel.prefix + "/java/lang/Integer"), name, desc, isLifting = false)
       case ("java/lang/Long", "stringSize", _) =>
