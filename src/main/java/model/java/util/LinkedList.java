@@ -59,7 +59,10 @@ public class LinkedList implements List {
             split(fe);
             vActual.sforeach(fe, (fe2, list) -> {
                 Contexts.model_java_util_Comparator_compare = fe2;
-                list.sort(comparator::compare);
+                if (comparator != null)
+                    list.sort(comparator::compare);
+                else
+                    java.util.Collections.sort((MyLinkedList) list);
             });
         });
         return null;    // dummy value, will never use
