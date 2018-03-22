@@ -429,28 +429,35 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
       val m: MethodVisitor = cv.visitMethod( ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC, helperName, helperDesc, null, Array[String]() )
       m.visitCode()
 
-      m.visitInsn(ACONST_NULL)  // fake invoke object
-      callVCreateOne(m, loadCtx = (mv) => mv.visitVarInsn(ALOAD, nArgs))
+      if (liftedCall.owner == Owner.getString && liftedCall.desc.getArgs.exists(_.isArray)) {
+        val postfix = liftedCall.desc.toString.init.init.tail.replace('/', '_').replace("[", "Array_")
+        args.indices foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
+        m.visitVarInsn(ALOAD, args.length)  // fe
+        m.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("initVStrings_" + postfix), MethodDesc(s"(${vclasstype * args.length}$fexprclasstype)$vclasstype"), false)
+      } else {
+        m.visitInsn(ACONST_NULL)  // fake invoke object
+        callVCreateOne(m, loadCtx = (mv) => mv.visitVarInsn(ALOAD, nArgs))
 
-      args.indices foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
-      InvokeDynamicUtils.invoke(
-        VCall.sflatMap,
-        m,
-        env,
-        loadCtx = (m) => m.visitVarInsn(ALOAD, nArgs),
-        lambdaName,
-        desc = TypeDesc.getObject + args.map(_.toObject).mkString("(", "", ")") + vclasstype,
-        nExplodeArgs = nArgs,
-        expandArgArray = true
-      ) {
-        (mm: MethodVisitor) => {
-          mm.visitTypeInsn(NEW, liftedCall.owner)
-          mm.visitInsn(DUP)
-          1 until nArgs foreach { i => loadVar(i, liftedCall.desc, i - 1, mm) } // first nArgs - 1 arguments
-          loadVar(nArgs + 1, liftedCall.desc, nArgs - 1 , mm) // last argument
-          mm.visitMethodInsn(INVOKESPECIAL, liftedCall.owner, "<init>", liftedCall.desc, itf)
-          callVCreateOne(mm, mmm => mmm.visitVarInsn(ALOAD, nArgs))
-          mm.visitInsn(ARETURN)
+        args.indices foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
+        InvokeDynamicUtils.invoke(
+          VCall.sflatMap,
+          m,
+          env,
+          loadCtx = (m) => m.visitVarInsn(ALOAD, nArgs),
+          lambdaName,
+          desc = TypeDesc.getObject + args.map(_.toObject).mkString("(", "", ")") + vclasstype,
+          nExplodeArgs = nArgs,
+          expandArgArray = true
+        ) {
+          (mm: MethodVisitor) => {
+            mm.visitTypeInsn(NEW, liftedCall.owner)
+            mm.visitInsn(DUP)
+            1 until nArgs foreach { i => loadVar(i, liftedCall.desc, i - 1, mm) } // first nArgs - 1 arguments
+            loadVar(nArgs + 1, liftedCall.desc, nArgs - 1 , mm) // last argument
+            mm.visitMethodInsn(INVOKESPECIAL, liftedCall.owner, "<init>", liftedCall.desc, itf)
+            callVCreateOne(mm, mmm => mmm.visitVarInsn(ALOAD, nArgs))
+            mm.visitInsn(ARETURN)
+          }
         }
       }
       m.visitInsn(ARETURN)

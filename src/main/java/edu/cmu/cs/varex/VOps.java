@@ -1,6 +1,7 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
@@ -627,5 +628,15 @@ public class VOps {
             e.printStackTrace();
         }
         throw new RuntimeException("Error in calling toString()");
+    }
+
+    public static V<?> initVStrings_Array_C(V<V<java.lang.Integer>[]> vA, FeatureExpr ctx) {
+        return vA.sflatMap(ctx, (fe, a) -> {
+            StringBuilder sb = new StringBuilder(ctx);
+            for (int i = 0; i < a.length; i++) {
+                sb.append__C__Lmodel_java_lang_StringBuilder(a[i], fe);
+            }
+            return sb.toString____Ljava_lang_String(fe);
+        });
     }
 }
