@@ -211,13 +211,14 @@ class IterationTransformer {
     val consumerType = s"L$consumerName;"
     // todo: this needs to map over the V wrapping the CtxList
     List(
-//      InstrDUP(),
+      InstrDUP(),
 
-      // Could assume the V is a One. It should be, but I'm not certain.
-//      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
-//      InstrCHECKCAST(Owner(ctxListClassName)),
-//      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), true)
-//
+      // Assume the V is a One. It should be.
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      InstrCHECKCAST(Owner(ctxListClassName)),
+      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), false)
+
+      // Alternatively map over the V. This causes some sort of stack error; not sure why.
 //      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
 //        new Handle(Opcodes.H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
 //          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
