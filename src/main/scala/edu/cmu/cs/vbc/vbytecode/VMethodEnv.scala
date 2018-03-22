@@ -114,6 +114,13 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     blockTags(blockIdx)
   }
 
+  def isLVStoredAcrossVBlocks(v: Variable): Boolean = {
+    blocks.filter{
+      b => b.instr.filter(_.isInstanceOf[StoreInstruction]).exists(_.asInstanceOf[StoreInstruction].v == v)
+    }.map(getVBlock).size > 1
+  }
+
+
   def getBlockForInstruction(i: Instruction): Block = blocks.find(_.instr contains i).get
 
   def isNonStaticL0(variable: Variable): Boolean = {
@@ -271,6 +278,14 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
       case _ => true
     }
   }.map(i => instructionTags(i))
+  val filteredInstruction: Array[Instruction] = instructionTags.indices.toArray.filter {i =>
+    instructions(i) match {
+      case _: InstrLINENUMBER => false
+      case _: InstrNOP => false
+      case _: InstrINIT_CONDITIONAL_FIELDS => false
+      case _ => instructionTags(i) == 0
+    }
+  }.map(i => instructions(i))
   Statistics.collectLiftingRatio(clazz.name, method.name, filteredInstructionTags.count(_ != 0), filteredInstructionTags.length)
 
   /** graphviz graph for debugging purposes */
