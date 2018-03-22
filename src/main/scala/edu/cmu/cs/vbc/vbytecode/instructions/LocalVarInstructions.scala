@@ -1,18 +1,19 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{REF_TYPE, VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{INT_TYPE, REF_TYPE, VBCFrame, V_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes._
 
+abstract class StoreInstruction(val v: Variable) extends Instruction
 /**
   * ISTORE instruction
   *
   * @param variable
   */
-case class InstrISTORE(variable: Variable) extends Instruction {
+case class InstrISTORE(variable: Variable) extends StoreInstruction(v = variable) {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit =
     mv.visitVarInsn(ISTORE, env.getVarIdx(variable))
 
@@ -41,19 +42,24 @@ case class InstrISTORE(variable: Variable) extends Instruction {
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    // Now we assume all blocks are executed under some ctx other than method ctx,
-    // meaning that all local variables should be a V, and so all ISTORE instructions
-    // should be lifted
-    env.setLift(this)
     val (value, prev, frame) = s.pop()
-    // For now, all local variables are V. Later, this could be relaxed with more careful tagV analysis
-    val newFrame = frame.setLocal(variable, V_TYPE(false), Set(this))
-    val backtrack =
-      if (value != V_TYPE(false))
-        prev
-      else
-        Set[Instruction]()
-    (newFrame, backtrack)
+    if (env.isLVStoredAcrossVBlocks(variable) || value == V_TYPE(false))
+      env.setLift(this)
+    if (env.shouldLiftInstr(this)) {
+      val newFrame = frame.setLocal(variable, V_TYPE(false), Set(this))
+      val backtrack =
+        if (value != V_TYPE(false))
+          prev
+        else if (frame.localVar.contains(v) && frame.localVar(v)._1 != V_TYPE(false))
+          frame.localVar(v)._2
+        else
+          Set[Instruction]()
+      (newFrame, backtrack)
+    }
+    else {
+      val newFrame = frame.setLocal(variable, value, Set(this))
+      (newFrame, Set())
+    }
   }
 }
 
@@ -83,10 +89,15 @@ case class InstrILOAD(variable: Variable) extends Instruction {
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    env.setLift(this)
-    val newFrame = s.push(V_TYPE(false), Set(this))
+    if (s.localVar(variable)._1 == V_TYPE(false) || variable.isInstanceOf[Parameter])
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        s.push(V_TYPE(false), Set(this))
+      else
+        s.push(INT_TYPE(), Set(this))
     val backtrack =
-      if (s.localVar(variable)._1 != V_TYPE(false))
+      if (env.shouldLiftInstr(this) && s.localVar(variable)._1 != V_TYPE(false))
         s.localVar(variable)._2
       else
         Set[Instruction]()
@@ -202,7 +213,7 @@ case class InstrALOAD(variable: Variable) extends Instruction {
   *
   * @param variable
   */
-case class InstrASTORE(variable: Variable) extends Instruction {
+case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable) {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     val idx = env.getVarIdx(variable)
     mv.visitVarInsn(ASTORE, idx)
@@ -374,7 +385,7 @@ case class InstrDLOAD(variable: Variable) extends Instruction {
   *
   * ..., value -> ...
   */
-case class InstrLSTORE(variable: Variable) extends Instruction {
+case class InstrLSTORE(variable: Variable) extends StoreInstruction(v = variable) {
 
   /** Help env collect all local variables */
   override def getVariables: Set[LocalVar] = {
@@ -419,7 +430,7 @@ case class InstrLSTORE(variable: Variable) extends Instruction {
   }
 }
 
-case class InstrFSTORE(variable: Variable) extends Instruction {
+case class InstrFSTORE(variable: Variable) extends StoreInstruction(v = variable) {
 
   override def getVariables: Set[LocalVar] = {
     variable match {
@@ -463,7 +474,7 @@ case class InstrFSTORE(variable: Variable) extends Instruction {
   }
 }
 
-case class InstrDSTORE(variable: Variable) extends Instruction {
+case class InstrDSTORE(variable: Variable) extends StoreInstruction(v = variable) {
 
   /** Help env collect all local variables */
   override def getVariables: Set[LocalVar] = {
