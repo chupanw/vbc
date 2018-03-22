@@ -10,7 +10,7 @@ object Statistics {
   /**
     * Collect statistics output using a StringBuilder
     */
-  val printer = new StringBuilder
+  val m: collection.mutable.Map[String, StringBuilder] = collection.mutable.Map()
 
   def header(name: String) = s"********** $name **********"
 
@@ -21,13 +21,15 @@ object Statistics {
     * @param nLifting
     * @param nTotal
     */
-  def collectLiftingRatio(methodName: String, nLifting: Int, nTotal: Int) = {
-    printer.append(String.format("%-50s %10s", "\tMethod " + methodName + ":", nLifting + "/" + nTotal + "\n"))
+  def collectLiftingRatio(className: String, methodName: String, nLifting: Int, nTotal: Int) = {
+    val printer = m.getOrElseUpdate(className, new StringBuilder)
+    printer.append(String.format("%-50s %10s", "\t" + methodName + ":", nLifting + "/" + nTotal + "\n"))
   }
 
   def printStatistics(): Unit = {
     println("\n\n")
     println(header("Lifting Ratio"))
-    println(printer.toString)
+    for (p <- m)
+      println(p._1 + "\n" + p._2.toString())
   }
 }

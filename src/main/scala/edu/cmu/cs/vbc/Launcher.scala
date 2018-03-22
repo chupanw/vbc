@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc
 import java.lang.reflect.{Method, Modifier}
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
+import edu.cmu.cs.vbc.utils.Statistics
 
 /**
   * @author chupanw
@@ -27,7 +28,7 @@ object VBCLauncher {
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
     invokeMain(cls, args)
-    //    if (liftBytecode) Statistics.printStatistics()
+        if (liftBytecode) Statistics.printStatistics()
 //    Profiler.report()
   }
 

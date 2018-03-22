@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.vbytecode
 
 import edu.cmu.cs.vbc.analysis.{VBCAnalyzer, VBCFrame}
 import edu.cmu.cs.vbc.utils.{LiftUtils, Statistics}
-import edu.cmu.cs.vbc.vbytecode.instructions.{InstrGOTO, Instruction, JumpInstruction}
+import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.{Label, Type}
 
 /**
@@ -263,7 +263,15 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
   //////////////////////////////////////////////////
   // Statistics
   //////////////////////////////////////////////////
-  Statistics.collectLiftingRatio(method.name, instructionTags.count(_ != 0), instructionTags.length)
+  val filteredInstructionTags: Array[Int] = instructionTags.indices.toArray.filter {i =>
+    instructions(i) match {
+      case _: InstrLINENUMBER => false
+      case _: InstrNOP => false
+      case _: InstrINIT_CONDITIONAL_FIELDS => false
+      case _ => true
+    }
+  }.map(i => instructionTags(i))
+  Statistics.collectLiftingRatio(clazz.name, method.name, filteredInstructionTags.count(_ != 0), filteredInstructionTags.length)
 
   /** graphviz graph for debugging purposes */
   def toDot: String = {
