@@ -4,7 +4,6 @@ import edu.cmu.cs.vbc.loader.Loader
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.tree._
-import org.objectweb.asm.util.{CheckClassAdapter, Textifier, TraceClassVisitor}
 import org.objectweb.asm._
 import org.objectweb.asm.Opcodes._
 import org.scalatest.{FunSuite, Matchers}
@@ -394,7 +393,6 @@ class IterationTransformerTest extends FunSuite with Matchers {
 
     itt.createSimplifyLambda(cw, lambdaName, lambdaDesc)
 
-    // todo: verify that class has the added method ...
     val cr = new ClassReader(cw.toByteArray)
     val classNode = new ClassNode(ASM5)
     cr.accept(classNode, 0)
@@ -423,8 +421,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
           case r: InsnNode => r.getOpcode == RETURN
         })
       }
-    // todo: figure out checking JVM compliance
-//    cr.accept(new CheckClassAdapter(cw), 0) // throws null exception
+    // todo: figure out checking JVM compliance of lambda inserted
   }
 
 //
@@ -457,7 +454,10 @@ class IterationTransformerTest extends FunSuite with Matchers {
       InstrSWAP(),
       InstrPOP(), // 13
 
+      // --- Begin inserted ---
       InstrDUP(),
+
+      // For using simplify call mapped over V wrapping CtxList
 //      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
 //        new Handle(H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
 //          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
@@ -466,9 +466,11 @@ class IterationTransformerTest extends FunSuite with Matchers {
 //        Type.getType(lambdaDesc)),
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true),
 
+      // For using simplify call after getOne
       InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
       InstrCHECKCAST(Owner(ctxListClassName)),
       InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), false),
+      // --- End inserted ---
 
       InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
       InstrPOP(),
@@ -519,7 +521,6 @@ class IterationTransformerTest extends FunSuite with Matchers {
       InstrDUP(),
       // ..., v, ctx, ctx
       InstrLOAD_LOOP_CTX(),
-//      InstrALOAD(loopCtxVar),
       // ..., v, ctx, ctx, loopCtx
       InstrINVOKEINTERFACE(Owner(fexprclassname), MethodName("and"),
         MethodDesc(s"(${fexprclasstype})${fexprclasstype}"), true),
@@ -629,7 +630,8 @@ class IterationTransformerTest extends FunSuite with Matchers {
         val getOneIndex = newEnv.getInsnIdx(getOne.get)
         List.range(getOneIndex - 1, getOneIndex + 3)
       })
-//      val loopPredecessorIndices = List.empty[Int] // for when simplify() disabled
+      // For using simplify call disabled
+//      val loopPredecessorIndices = List.empty[Int]
       val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
 
       val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {
@@ -660,8 +662,9 @@ class IterationTransformerTest extends FunSuite with Matchers {
       expectedPreserveTagsArePresent && unexpectedPreserveTagsAreNotPresent
     }
 
-    // todo: check newCFG and newEnv right
-    // possibly look into refactoring so I can reuse the checks I already wrote in other tests
+    // todo: check newCFG and newEnv are correct
+    // though this is actually implied by the other tests, so maybe not necessary
+    // otherwise look into refactoring so I can reuse the checks in other tests
     assert(newCFG.blocks.size == real_cfg_2loop2.blocks.size + 4)
     assert(tagPreserveAppliedToCorrectInstructions(newEnv))
   }
