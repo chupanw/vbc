@@ -428,34 +428,36 @@ class IterationTransformerTest extends FunSuite with Matchers {
   }
 
 //
-//  // ===== transformLoopPredecessor =====
-//  test("transformLoopPredecessor works") {
-//    val className = "testclass"
-//    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, valid_cfg_2loop)
-//    val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
-//    val env = new VMethodEnv(vbcClazz, vbcMtdNode)
-//
-//    val itt = new IterationTransformer()
-//    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
-//
-//    val loopPredecessor = valid_cfg_2loop.blocks(2)
-//
-//    def valid_cfg_2loop_insnIdx(insn: Instruction) = valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn)
-//    val blockTrans = itt.transformLoopPredecessor(loopPredecessor, env, cw, valid_cfg_2loop_insnIdx)
-//
-//    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
-//    val lambdaDesc = s"(${itt.ctxListClassType})V"
-//    val consumerName = "java/util/function/Consumer"
-//    val consumerType = s"L$consumerName;"
-//
-//    assert(blockTrans.newVars.isEmpty)
-//    assert(equal(blockTrans.newBlocks, List(Block(
-//      InstrLDC("orig 3"),
-//      InstrPOP(),
-//      InstrSWAP(),
-//      InstrPOP(), // 13
-//
-//      InstrDUP(),
+  // ===== transformLoopPredecessor =====
+  test("transformLoopPredecessor works") {
+    val className = "testclass"
+    val vbcMtdNode = VBCMethodNode(0, "test", "()V", None, List.empty, valid_cfg_2loop)
+    val vbcClazz = VBCClassNode(0, 0, className, None, "java/util/Object", List.empty, List.empty, List(vbcMtdNode))
+    val env = new VMethodEnv(vbcClazz, vbcMtdNode)
+
+    val itt = new IterationTransformer()
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+
+    val loopPredecessor = valid_cfg_2loop.blocks(2)
+
+    def valid_cfg_2loop_insnIdx(insn: Instruction) = valid_cfg_2loop.blocks.flatMap(_.instr).indexWhere(_ eq insn)
+    val blockTrans = itt.transformLoopPredecessor(loopPredecessor, env, cw, valid_cfg_2loop_insnIdx)
+
+    val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
+    val lambdaDesc = s"(${itt.ctxListClassType})V"
+    val consumerName = "java/util/function/Consumer"
+    val consumerType = s"L$consumerName;"
+    val ctxListClassName = "model/java/util/CtxList"
+    val ctxListClassType = s"L$ctxListClassName;"
+
+    assert(blockTrans.newVars.isEmpty)
+    assert(equal(blockTrans.newBlocks, List(Block(
+      InstrLDC("orig 3"),
+      InstrPOP(),
+      InstrSWAP(),
+      InstrPOP(), // 13
+
+      InstrDUP(),
 //      InstrINVOKEDYNAMIC(Owner(consumerName), MethodName("accept"), MethodDesc(s"()$consumerType"),
 //        new Handle(H_INVOKESTATIC, "java/lang/invoke/LambdaMetafactory", "metafactory",
 //          "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"),
@@ -463,14 +465,19 @@ class IterationTransformerTest extends FunSuite with Matchers {
 //        new Handle(H_INVOKESTATIC, className, lambdaName, lambdaDesc),
 //        Type.getType(lambdaDesc)),
 //      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("foreach"), MethodDesc(s"($consumerType)V"), true),
-//
-//      InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
-//      InstrPOP(),
-//      InstrGOTO(3)
-//    ))))
-//    val iteratorIndex = 14
-//    assert(blockTrans.newInsnIndeces == List(iteratorIndex, iteratorIndex + 1, iteratorIndex + 2))
-//  }
+
+      InstrINVOKEINTERFACE(Owner(vclassname), MethodName("getOne"), MethodDesc("()Ljava/lang/Object;"), true),
+      InstrCHECKCAST(Owner(ctxListClassName)),
+      InstrINVOKEVIRTUAL(Owner(ctxListClassName), MethodName("simplify____V"), MethodDesc("()V"), false),
+
+      InstrINVOKEVIRTUAL(Owner("List"), MethodName("iterator"), MethodDesc("()Ljava_util_Iterator;"), true),
+      InstrPOP(),
+      InstrGOTO(3)
+    ))))
+    val iteratorIndex = 14
+    val newInsns = 3
+    assert(blockTrans.newInsnIndeces == List.range(iteratorIndex, iteratorIndex + newInsns + 1))
+  }
 
 
 
@@ -606,6 +613,7 @@ class IterationTransformerTest extends FunSuite with Matchers {
         case itInvoke: InstrINVOKEINTERFACE => itInvoke.name.name == "iterator"
         case itInvoke: InstrINVOKEVIRTUAL => itInvoke.name.name == "iterator"
       }))
+      // For using simplify call mapped over CtxList wrapper V
 //      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
 //        val invDynamic = loopPredecessor.instr.find(cond(_) {
 //          case i: InstrINVOKEDYNAMIC => i.name.name == "accept"
@@ -613,7 +621,15 @@ class IterationTransformerTest extends FunSuite with Matchers {
 //        val invDynamicIndex = newEnv.getInsnIdx(invDynamic.get)
 //        List.range(invDynamicIndex - 1, invDynamicIndex - 1 + 3)
 //      })
-      val loopPredecessorIndices = List.empty[Int]
+      // For using simplify call after getOne
+      val loopPredecessorIndices = loopPredecessors.flatMap(loopPredecessor => {
+        val getOne = loopPredecessor.instr.find(cond(_) {
+          case i: InstrINVOKEINTERFACE => i.name.name == "getOne"
+        })
+        val getOneIndex = newEnv.getInsnIdx(getOne.get)
+        List.range(getOneIndex - 1, getOneIndex + 3)
+      })
+//      val loopPredecessorIndices = List.empty[Int] // for when simplify() disabled
       val loopPredecessorHasTag = haveTagPreserve(loopPredecessorIndices)
 
       val bodyStarts = newCFG.blocks.filter(_.instr.exists(cond(_) {

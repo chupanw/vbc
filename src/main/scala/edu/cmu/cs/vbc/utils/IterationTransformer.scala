@@ -209,7 +209,9 @@ class IterationTransformer {
   def invokeSimplify(className: String, lambdaName: String, lambdaDesc: String): List[Instruction] = {
     val consumerName = "java/util/function/Consumer"
     val consumerType = s"L$consumerName;"
-    // todo: this needs to map over the V wrapping the CtxList, but doing so causes a stack error for some reason
+    // todo: this should map over the V wrapping the CtxList, but doing so causes a stack error for some reason
+    // the assumption that the V wrapping the CtxList is a One should always be true: the whole
+    // point of CtxList is that there is only one list despite having variations in elements
     List(
       InstrDUP(),
 
