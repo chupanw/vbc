@@ -209,7 +209,7 @@ class IterationTransformer {
   def invokeSimplify(className: String, lambdaName: String, lambdaDesc: String): List[Instruction] = {
     val consumerName = "java/util/function/Consumer"
     val consumerType = s"L$consumerName;"
-    // todo: this needs to map over the V wrapping the CtxList
+    // todo: this needs to map over the V wrapping the CtxList, but doing so causes a stack error for some reason
     List(
       InstrDUP(),
 
