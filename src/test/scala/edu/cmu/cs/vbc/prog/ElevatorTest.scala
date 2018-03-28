@@ -13,6 +13,10 @@ class ElevatorTest extends FunSuite with DiffLaunchTestInfrastructure {
     testMain(classOf[elevator.PL_Interface_impl], fm = fm, configFile = Some("elevator.conf"))
   }
 
+  test("Elevator-Model") {
+    testMain(classOf[elevator.PL_Interface_impl], fm = fm, configFile = Some("elevator-model.conf"), useModel = true)
+  }
+
   def fm(config: Map[String, Boolean]): Boolean = {
     for ((n, v) <- config) classOf[edu.cmu.cs.vbc.prog.elevator.FeatureSwitches].getField(n).set(null, v)
     edu.cmu.cs.vbc.prog.elevator.FeatureSwitches.valid_product()
