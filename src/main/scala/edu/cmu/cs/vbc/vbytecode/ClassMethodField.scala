@@ -180,7 +180,7 @@ class Parameter(val idx: Int,
   */
 class LocalVar(val name: String,
                val desc: String,
-               val vinitialize: (MethodVisitor, VMethodEnv, LocalVar) => Unit = LocalVar.initOneNull,
+               val vinitialize: (MethodVisitor, VMethodEnv, LocalVar) => Unit = LocalVar.initNull,
                is64Bit: Boolean = false) extends Variable(is64Bit) {
   override def toString = name
 }
@@ -192,9 +192,24 @@ object LocalVar {
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))
   }
   def initOneNull(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
-    mv.visitInsn(ACONST_NULL)
-    callVCreateOne(mv, loadFExpr(_, env, env.ctxParameter))
+    mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/One", "getOneNull", "()Ledu/cmu/cs/varex/V;", false)
     storeV(mv, env, v)
+  }
+  def initIntZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
+    mv.visitInsn(ICONST_0)
+    mv.visitVarInsn(ISTORE, env.getVarIdx(v))
+  }
+  def initFloatZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
+    mv.visitInsn(FCONST_0)
+    mv.visitVarInsn(FSTORE, env.getVarIdx(v))
+  }
+  def initDoubleZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
+    mv.visitInsn(DCONST_0)
+    mv.visitVarInsn(DSTORE, env.getVarIdx(v))
+  }
+  def initLongZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
+    mv.visitInsn(LCONST_0)
+    mv.visitVarInsn(LSTORE, env.getVarIdx(v))
   }
   def initFalse(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
     pushConstantFALSE(mv)

@@ -144,4 +144,9 @@ public class One<T> implements V<T>, Serializable {
             return new VEmpty();
         }
     }
+
+    static One oneNull = new One(FeatureExprFactory.True(), null);
+    public static V<?> getOneNull() {
+        return oneNull;
+    }
 }
