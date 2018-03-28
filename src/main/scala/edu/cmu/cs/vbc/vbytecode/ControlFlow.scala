@@ -315,15 +315,19 @@ case class CFG(blocks: List[Block]) {
   }
 
 
-
-  // Returns the new CFG and a map from the old cfg block indices to new ones
-  // Note that the blocks returned will not be the same Block object passed in because
-  // all jump references in the passed in blocks will be updated to reflect the new CFG's indexing
+  /**
+    * Perform the block split identified by `info`.
+    *
+    * Note that the blocks in the new CFG will not be the same Block objects in `this` because
+    * all jump references in the passed in blocks will be updated to reflect the new CFG's indexing.
+    *
+    * @param info A `SplitInfo` identifying the CFG, block to split, etc.
+    * @return An updated CFG with the desired block split, and a map from old cfg block indices to new ones.
+    */
   def splitBlock(info: SplitInfo): (CFG, Map[BlockIndex, BlockIndex]) = {
     // assume that block indices are just literally their indices in the cfg.blocks list
     // therefore adding two blocks after splitting will just shift all blocks after splitting
     // back two.
-    // also assume the newBlock jump insn uses an OLD INDEX that will be translated
 
     // Need to build a map from the old block references of cfg to the new ones returned
     // so that references to the old blocks can be updated easily.
@@ -344,6 +348,16 @@ case class CFG(blocks: List[Block]) {
     (CFG(newBlocks), newIndices)
   }
 
+  /**
+    * Like `splitBlock`, but instead of splitting a block just insert a new block after an existing block.
+    * Also updates jump references in the enture CFG so a new CFG and mapping of index changes are returned.
+    *
+    * Note: Assumes that jumps inside `block` reference block indices in the *current* CFG (i.e. they will be
+    * updated).
+    * @param after The block after which to insert `block`.
+    * @param block The new block to insert.
+    * @return An updated CFG and map of block index changes.
+    */
   // Like splitBlock, but instead of splitting a block just insert a new one
   // Still updates the jump references and so a new CFG and mapping of old to new
   // references are returned.
@@ -384,10 +398,27 @@ case class CFG(blocks: List[Block]) {
       case other => other
   }
 
+  /**
+    * Merge the two given maps from old indices to new indices (as those returned by `insertBlock`).
+    * I.e. this method connects the index maps from two sequential `insertBlock` invocations.
+    * @param oldMap The index map from the first `insertBlock` invocation.
+    * @param newMap The index map from the second invocation.
+    * @return A map from the domain of `oldMap` to the range of `newMap`.
+    */
   def mergeIndexMaps(oldMap: Map[BlockIndex, BlockIndex],
                      newMap: Map[BlockIndex, BlockIndex]): Map[BlockIndex, BlockIndex] =
     oldMap.map(idxChg => idxChg._1 -> newMap(idxChg._2))
 }
+
+/**
+  * A class containing information for `CFG.splitBlock`.
+  * @param blockToSplit The index of the block to split.
+  * @param splitAfterInstrIdx The index of the instruction after which to split the block.
+  * @param jump The jump instruction to insert.
+  * @param jumpDestinatinBlockIdx The destination of the jump to insert.
+  * @param beforeSplitExceptionHandlers The VBCHandlers to assign to the first half of the split block.
+  * @param afterSplitExceptionHandlers The VBCHandlers to assign to the second half of the split block.
+  */
 case class SplitInfo(blockToSplit: Int,
                      splitAfterInstrIdx: Int,
                      jump: Int => JumpInstruction,
