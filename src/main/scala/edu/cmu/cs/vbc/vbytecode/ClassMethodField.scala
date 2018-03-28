@@ -139,8 +139,12 @@ case class VBCMethodNode(access: Int,
   }
 
   def methodTransformations(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
-    val iterTrans = new IterationTransformer()
-    iterTrans.transformListIteration(cfg, env, cw)
+    if(ctxListEnabled) {
+      val iterTrans = new IterationTransformer()
+      iterTrans.transformListIteration(cfg, env, cw)
+    } else {
+      (cfg, env)
+    }
   }
 }
 

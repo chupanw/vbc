@@ -7,6 +7,8 @@ import org.objectweb.asm.{MethodVisitor, Type}
 
 
 object LiftUtils {
+  val ctxListEnabled = true // NOTE: if this will be disabled, need to implement iterator for LinkedList model class
+
   //    val liftedPackagePrefixes = Set("edu.cmu.cs.vbc.test", "edu.cmu.cs.vbc.prog")
   val vclassname = "edu/cmu/cs/varex/V"
   val fexprclassname = "de/fosd/typechef/featureexpr/FeatureExpr"
