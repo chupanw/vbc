@@ -13,6 +13,10 @@ class GPLTest extends FunSuite with DiffLaunchTestInfrastructure{
     testMain(classOf[gpl.Main], fm = fm, configFile = Some("gpl.conf"))
   }
 
+  test("GPL-Model") {
+    testMain(classOf[gpl.Main], fm = fm, configFile = Some("gpl-model.conf"), useModel = true)
+  }
+
   def fm(config: Map[String, Boolean]): Boolean = {
     for ((n, v) <- config) classOf[edu.cmu.cs.vbc.prog.gpl.Main].getField(n).set(null, v)
     edu.cmu.cs.vbc.prog.gpl.Main.valid()
