@@ -8,6 +8,12 @@ import org.objectweb.asm._
 
 import PartialFunction.cond
 
+/**
+  * Class encapsulating the operations to transform loops iterating over `CtxList`s.
+  * This transformation allows those loops to leverage the optimized structure of `CtxList`s.
+  *
+  * Its entry point is `transformListIteration`.
+  */
 class IterationTransformer {
   import edu.cmu.cs.vbc.utils.LiftUtils.{fexprclasstype, fexprclassname, vclassname, vclasstype}
   val fePairClassName = "model/java/util/FEPair"
@@ -19,6 +25,15 @@ class IterationTransformer {
   type BlockIndex = Int
   type InstructionIndex = Int
 
+  /**
+    * Transform the given CFG (with the given VMethodEnv) for the given ClassVisitor
+    * to optimize list iteration loops to take advantage of CtxLists. This only makes sense
+    * if `ctxListEnabled` is true.
+    * @param cfg The CFG of the method to transform.
+    * @param env The VMethodEnv of the method to transform.
+    * @param cw The ClassVisitor of the class in which `cfg`'s method exists.
+    * @return A CFG and VMethodEnv in which all list iteration loops are transformed.
+    */
   def transformListIteration(cfg: CFG, env: VMethodEnv, cw: ClassVisitor): (CFG, VMethodEnv) = {
     val loops = env.loopAnalysis.loops.filter(isListIteration(_, env))
 
@@ -62,7 +77,7 @@ class IterationTransformer {
         pairWithRelativeOrder(bt, bodyStartBlock)
 
       case (bodyAfterSplit, index) if bodyAfterSplitIndices contains index =>
-//         Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
+        // Modify the second split half of the bodyStartBlock - after the satisfiability check - to wrap value in One
         val bt = transformBodyStartBlockAfterSplit(bodyAfterSplit, cfgInsnIdx, elementOneVar)
         pairWithRelativeOrder(bt, bodyAfterSplit)
 
@@ -108,14 +123,15 @@ class IterationTransformer {
 
     (finalCFG, newEnv)
   }
-  def isIteratorNextInvocation(insn: Instruction): Boolean = insn match {
-    case invoke: InstrINVOKEINTERFACE => invoke.name.name == "next" && invoke.owner.contains("Iterator")
-    case _ => false
-  }
 
-  // Insert a conditional jump skipping the loop body if the element has an unsatisfiable context
-  // Returns a new CFG containing the cleanup blocks, a mapping for each loop's cleanup block, and a
-  // map for translating old references
+  /**
+    * Insert a conditional jump skipping the body of loop iterations when the iteration element has an
+    * unsatisfiable context. This involves splitting a block and inserting an entirely new block in the
+    * given CFG.
+    * @param cfg The CFG containing the `loops`.
+    * @param loops The loops for which to insert the conditional jump.
+    * @return A pair of updated CFG, and map from old CFG block indices to new indices.
+    */
   def insertElementSatisfiabilityConditional(cfg: CFG, loops: Iterable[Loop]): (CFG, Map[BlockIndex, BlockIndex]) = {
     val insertBlocks = loops.foldLeft((cfg, cfg.blocks.indices.map(i => i -> i).toMap)) _
 
@@ -164,6 +180,16 @@ class IterationTransformer {
     })
   }
 
+  /**
+    * Transform the block directly preceding the loop. This block should contain a `iterator` method
+    * invocation.
+    * The transformation consists of inserting a call to `CtxList.simplify` before calling `iterator`.
+    * @param loopPredecessor The block preceding the loop.
+    * @param env The VMethodEnv of this method.
+    * @param cw The ClassVisitor of this class.
+    * @param cfgInsnIdx A function mapping `Instruction`s to their indices in the CFG of this method.
+    * @return
+    */
   def transformLoopPredecessor(loopPredecessor: Block, env: VMethodEnv, cw: ClassVisitor,
                                cfgInsnIdx: Instruction => InstructionIndex): BlockTransformation = {
     val lambdaName = "lambda$INVOKEVIRTUAL$simplifyCtxList"
@@ -189,7 +215,15 @@ class IterationTransformer {
       List())
   }
 
+  // So that multiple simplify lambdas are not created per class.
   var createdSimplifyLambdaMtd = false
+  /**
+    * Create the lambda for invoking `CtxList.simplify` (necessary to map over the V wrapping the CtxList)
+    * by adding a method to the current class.
+    * @param cw The ClassVisitor for the current class.
+    * @param lambdaName The name of the lambda.
+    * @param lambdaDesc The signature/descriptor of the lambda.
+    */
   def createSimplifyLambda(cw: ClassVisitor, lambdaName: String, lambdaDesc: String): Unit = {
     if (!createdSimplifyLambdaMtd) {
       val mv = cw.visitMethod(Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_SYNTHETIC,
@@ -204,6 +238,16 @@ class IterationTransformer {
       createdSimplifyLambdaMtd = true
     }
   }
+
+  /**
+    * Return the sequence of instructions to invoke `CtxList.simplify` on a CtxList.
+    * Note: Assumes that the top of the stack contains a reference to the CtxList wrapped in a One.
+    *
+    * @param className The name of the current class.
+    * @param lambdaName The name of the simplify lambda.
+    * @param lambdaDesc The signature/descriptor of the simplify lambda.
+    * @return The instructions.
+    */
   def invokeSimplify(className: String, lambdaName: String, lambdaDesc: String): List[Instruction] = {
     val consumerName = "java/util/function/Consumer"
     val consumerType = s"L$consumerName;"
@@ -229,11 +273,22 @@ class IterationTransformer {
     )
   }
 
+  /**
+    * Transform the first block of a loop body.
+    * The transformation consists of unpacking the `FEPair` into its value and context and then checking the context's
+    * satisfiability. The check leaves the satisfiability result on the stack to be used by the jump inserted by
+    * `insertElementSatisfiabilityConditional`.
+    * The `elementOneVar` is used to store the element value because the stack must be empty at the end of a block.
+    * @param bodyStartBlock The first block of the loop body.
+    * @param cfgInsnIdx A function mapping `Instruction`s to their indices in the CFG of this method.
+    * @param elementOneVar The Variable in which to store the element value.
+    * @return
+    */
   def transformBodyStartBlock(bodyStartBlock: Block, cfgInsnIdx: Instruction => InstructionIndex,
                               elementOneVar: Variable): BlockTransformation = {
     // Unpack FEPair iterator after the iterator.next invocation, and test satisfiability of FEPair context
     // the jump using the result of the satisfiability test is already present after the next invocation
-    // -- it was inserted by insertCleanupBlocks
+    // -- it was inserted by `insertElementSatisfiabilityConditional`
     var newInsns = List.empty[Int]
     BlockTransformation(
       List(Block(bodyStartBlock.instr flatMap {
@@ -248,6 +303,13 @@ class IterationTransformer {
       newInsns,
       List(elementOneVar))
   }
+
+  /**
+    * Return the sequence of instructions to unpack the `FEPair` on the stack, check the satisfiability
+    * of its context, and store the value into `elementVar`.
+    * @param elementVar The Variable in which to store the element value.
+    * @return The instructions.
+    */
   def unpackFEPair(elementVar: Variable): List[Instruction] = {
     List(
       // stack: ..., One(FEPair)
@@ -294,6 +356,17 @@ class IterationTransformer {
       // ..., V<isSat?> -- to be checked on the jump inserted by insertElementSatisfiabilityConditional()
     )
   }
+
+  /**
+    * Transform the block immediately after the first body block of a loop. This block was created by splitting
+    * the original first body block with the element satisfiability conditional check.
+    * The transformation consists of getting the element value from `elementOneVar`, so that it is ready to be used
+    * by the loop body.
+    * @param bodyStartBlockAfterSplit The block immediately after the first body block of the loop.
+    * @param cfgInsnIdx A function mapping `Instruction`s to their indices in the CFG of this method.
+    * @param elementOneVar The Variable the element value is in.
+    * @return
+    */
   def transformBodyStartBlockAfterSplit(bodyStartBlockAfterSplit: Block, cfgInsnIdx: Instruction => InstructionIndex,
                                         elementOneVar: Variable): BlockTransformation = {
     val loadElInsns = loadElement(elementOneVar)
@@ -304,6 +377,12 @@ class IterationTransformer {
       newInsns,
       List())
   }
+
+  /**
+    * Return the instruction sequence to get the element value onto the stack, so that the loop body can use it.
+    * @param elementOneVar The Variable the element value is in.
+    * @return The instructions.
+    */
   def loadElement(elementOneVar: Variable): List[Instruction] = {
     List(
       InstrALOAD(elementOneVar)
@@ -311,11 +390,21 @@ class IterationTransformer {
   }
 
 
+  /**
+    * Determines if the given `loop` is iterating over a `CtxList` (and therefore needs to be transformed).
+    * @param loop The loop in question.
+    * @param env The VMethodEnv of the method containing `loop`.
+    * @return Is `loop` iterating over a `CtxList`?
+    */
   def isListIteration(loop: Loop, env: VMethodEnv): Boolean = {
     val predecessors = env.getPredecessors(loop.entry)
     predecessors.exists(_.instr.exists(isIteratorInvocation))
   }
 
+  /**
+    * @param insn Any Instruction.
+    * @return Is `insn` an invocation of `iterator`?
+    */
   def isIteratorInvocation(insn: Instruction): Boolean = cond(insn) {
     case inv: InstrINVOKEVIRTUAL => isIteratorInvocation(inv)
     case inv: InstrINVOKEINTERFACE => isIteratorInvocation(inv)
@@ -324,8 +413,23 @@ class IterationTransformer {
     insn.name.name.equals("iterator") && insn.owner.name.contains("List")
   def isIteratorInvocation(insn: InstrINVOKEINTERFACE): Boolean =
     insn.name.name.equals("iterator") && insn.owner.name.contains("List")
+
+  /**
+    * @param insn Any Instruction.
+    * @return Is `insn` an invocation of `Iterator.next`?
+    */
+  def isIteratorNextInvocation(insn: Instruction): Boolean = insn match {
+    case invoke: InstrINVOKEINTERFACE => invoke.name.name == "next" && invoke.owner.contains("Iterator")
+    case _ => false
+  }
 }
 
+/**
+  * Class representing a transformed block.
+  * @param newBlocks The blocks that should take the place of the old block.
+  * @param newInsnIndeces The indices in the CFG of newly inserted Instructions.
+  * @param newVars New Variables required by `newBlocks`.
+  */
 case class BlockTransformation(newBlocks: List[Block], newInsnIndeces: List[Int], newVars: List[Variable]) {
   def +(that: BlockTransformation): BlockTransformation =
     BlockTransformation(newBlocks ++ that.newBlocks,
@@ -352,6 +456,11 @@ object loadUtil {
   }
 }
 
+/**
+  * Dummy instruction that puts the Variable containing the current loop ctx var onto the stack.
+  * This dummy instruction is necessary because the loop ctx var is not known until after the new VMethodEnv
+  * is created for the transformed CFG.
+  */
 case class InstrLOAD_LOOP_CTX() extends Instruction {
   def toByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     val thisBlock = env.getBlockForInstruction(this)
