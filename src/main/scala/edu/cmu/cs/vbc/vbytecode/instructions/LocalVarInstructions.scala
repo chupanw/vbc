@@ -1,13 +1,50 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
-import edu.cmu.cs.vbc.analysis.{INT_TYPE, VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.analysis._
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes._
 
-abstract class StoreInstruction(val v: Variable) extends Instruction
+abstract class StoreInstruction(val v: Variable) extends Instruction {
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    val (value, prev, frame) = s.pop()
+    // these are the two cases where we are certain that we need to lift this store instruction
+    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(false))
+      env.setLift(this)
+    if (env.shouldLiftInstr(this)) {
+      env.liftLV(v)
+      // more specific tags to determine if we need wrapping or not
+      if (value != V_TYPE(false))
+        env.setTag(this, env.TAG_NEED_V)  // we need to wrap the value on the operand stack into V
+      if (frame.localVar.contains(v) && !frame.localVar(v)._1.isInstanceOf[V_TYPE])
+        env.setTag(this, env.TAG_NEED_V2)
+    }
+    val newFrame = frame.setLocal(
+      v,
+      if (env.shouldLiftInstr(this)) V_TYPE(false) else value,
+      Set(this))
+    (newFrame, Set())
+  }
+}
+
+abstract class LoadInstruction(val v: Variable) extends Instruction {
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    if (s.localVar(v)._1.isInstanceOf[V_TYPE]) {
+      env.setLift(this)
+    }
+    if (env.shouldLiftInstr(this) && !s.localVar(v)._1.isInstanceOf[V_TYPE])
+      env.setTag(this, env.TAG_NEED_V)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        s.push(V_TYPE(false), Set(this))
+      else
+        s.push(s.localVar(v)._1, Set(this))
+    (newFrame, Set())
+  }
+}
+
 /**
   * ISTORE instruction
   *
@@ -19,46 +56,33 @@ case class InstrISTORE(variable: Variable) extends StoreInstruction(v = variable
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      //TODO is it worth optimizing this in case ctx is TRUE (or the initial method's ctx)?
-
-      //new value is already on top of stack
-      loadFExpr(mv, env, env.getVBlockVar(block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+      loadCurrentCtx(mv, env, block)
       mv.visitInsn(SWAP)
-      loadV(mv, env, variable)
-      //now ctx, newvalue, oldvalue on stack
+      if (env.getTag(this, env.TAG_NEED_V2)) {
+        mv.visitVarInsn(ILOAD, env.getVarIdx(v))
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+      else {
+        loadV(mv, env, v)
+      }
       callVCreateChoice(mv)
-      //now new choice value on stack combining old and new value
       storeV(mv, env, variable)
     }
-    else
-      mv.visitVarInsn(ISTORE, env.getVarIdx(variable))
+    else {
+      val idx = env.getVarIdx(variable)
+      mv.visitVarInsn(ISTORE, idx)
+    }
   }
 
   override def getVariables() = {
     variable match {
       case p: Parameter => Set()
       case lv: LocalVar => Set(lv)
-    }
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    val (value, prev, frame) = s.pop()
-    if (env.isLVStoredAcrossVBlocks(variable) || value == V_TYPE(false))
-      env.setLift(this)
-    if (env.shouldLiftInstr(this)) {
-      val newFrame = frame.setLocal(variable, V_TYPE(false), Set(this))
-      val backtrack =
-        if (value != V_TYPE(false))
-          prev
-        else if (frame.localVar.contains(v) && frame.localVar(v)._1 != V_TYPE(false))
-          frame.localVar(v)._2
-        else
-          Set[Instruction]()
-      (newFrame, backtrack)
-    }
-    else {
-      val newFrame = frame.setLocal(variable, value, Set(this))
-      (newFrame, Set())
     }
   }
 }
@@ -69,13 +93,20 @@ case class InstrISTORE(variable: Variable) extends StoreInstruction(v = variable
   *
   * @param variable
   */
-case class InstrILOAD(variable: Variable) extends Instruction {
+case class InstrILOAD(variable: Variable) extends LoadInstruction(v = variable) {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit =
     mv.visitVarInsn(ILOAD, env.getVarIdx(variable))
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val idx = env.getVarIdx(variable)
     if (env.shouldLiftInstr(this)) {
-      loadV(mv, env, variable)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        mv.visitVarInsn(ILOAD, idx)
+        int2Integer(mv)
+        callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      }
+      else
+        mv.visitVarInsn(ALOAD, idx)
     }
     else
       mv.visitVarInsn(ILOAD, env.getVarIdx(variable))
@@ -86,22 +117,6 @@ case class InstrILOAD(variable: Variable) extends Instruction {
       case p: Parameter => Set()
       case lv: LocalVar => Set(lv)
     }
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    if (s.localVar(variable)._1 == V_TYPE(false) || variable.isInstanceOf[Parameter])
-      env.setLift(this)
-    val newFrame =
-      if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(false), Set(this))
-      else
-        s.push(INT_TYPE(), Set(this))
-    val backtrack =
-      if (env.shouldLiftInstr(this) && s.localVar(variable)._1 != V_TYPE(false))
-        s.localVar(variable)._2
-      else
-        Set[Instruction]()
-    (newFrame, backtrack)
   }
 }
 
@@ -143,12 +158,16 @@ case class InstrIINC(variable: Variable, increment: Int) extends Instruction {
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    // Now we assume all blocks are executed under some ctx other than method ctx,
-    // meaning that all local variables should be a V, and so IINC instructions
-    // should be lifted
-    env.setLift(this)
-    val newFrame = s.setLocal(variable, V_TYPE(false), Set(this))
-    (newFrame, Set())
+    if (s.localVar(variable)._1 == V_TYPE(false)) {
+      env.setLift(this)
+      (s.setLocal(variable, V_TYPE(false), Set(this)), Set())
+    }
+    else
+      (s, Set())
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    throw new RuntimeException("Unexpected backtracking to IINC")
   }
 }
 
@@ -156,7 +175,7 @@ case class InstrIINC(variable: Variable, increment: Int) extends Instruction {
 /**
   * ALOAD instruction
   */
-case class InstrALOAD(variable: Variable) extends Instruction {
+case class InstrALOAD(variable: Variable) extends LoadInstruction(v = variable) {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     val idx = env.getVarIdx(variable)
     mv.visitVarInsn(ALOAD, idx)
@@ -168,7 +187,7 @@ case class InstrALOAD(variable: Variable) extends Instruction {
      */
     val idx = env.getVarIdx(variable)
     mv.visitVarInsn(ALOAD, idx)
-    if (env.shouldLiftInstr(this))
+    if (env.getTag(this, env.TAG_NEED_V))
       callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
   }
 
@@ -185,39 +204,6 @@ case class InstrALOAD(variable: Variable) extends Instruction {
     * @see [[Rewrite.rewrite()]]
     */
   override def isALOAD0: Boolean = variable.getIdx().contains(0)
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    /*
-     * This assumes that all local variables other than this parameter to be V.
-     *
-     * In the future, if STORE operations are optimized, this could also be optimized to avoid loading V and
-     * save some instructions.
-     */
-//    if (!env.shouldLiftInstr(this) && env.isNonStaticL0(variable))
-//      (s.push(REF_TYPE(), Set(this)), Set())
-//    else {
-//      val newFrame = s.push(V_TYPE(false), Set(this))
-//      val backtrack =
-//        if (!newFrame.localVar(variable)._1.isInstanceOf[V_TYPE])
-//          newFrame.localVar(variable)._2
-//        else
-//          Set[Instruction]()
-//      (newFrame, backtrack)
-//    }
-    if (s.localVar(variable)._1 == V_TYPE(false) || (!env.isNonStaticL0(variable) && variable.isInstanceOf[Parameter]))
-      env.setLift(this)
-    val newFrame =
-      if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(false), Set(this))
-      else
-        s.push(s.localVar(variable)._1, Set(this))
-    val backtrack =
-      if (env.shouldLiftInstr(this) && s.localVar(variable)._1 != V_TYPE(false))
-        s.localVar(variable)._2
-      else
-        Set[Instruction]()
-    (newFrame, backtrack)
-  }
 }
 
 
@@ -234,13 +220,14 @@ case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      /* new value is already on top of stack */
-      loadFExpr(mv, env, env.getVBlockVar(block))
+      if (env.getTag(this, env.TAG_NEED_V))
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      loadCurrentCtx(mv, env, block)
       mv.visitInsn(SWAP)
       loadV(mv, env, variable)
-      /* now ctx, newvalue, oldvalue on stack */
+      if (env.getTag(this, env.TAG_NEED_V2))
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
       callVCreateChoice(mv)
-      /* now new choice value on stack combining old and new value */
       storeV(mv, env, variable)
     }
     else {
@@ -256,35 +243,9 @@ case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable
     }
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-//    env.setLift(this)
-//    val (value, prev, frame) = s.pop()
-//    val newFrame = frame.setLocal(variable, V_TYPE(false), Set(this))
-//    val backtrack =
-//      if (value != V_TYPE(false))
-//        prev
-//      else
-//        Set[Instruction]()
-//    (newFrame, backtrack)
-    val (value, prev, frame) = s.pop()
-    if (env.isLVStoredAcrossVBlocks(variable) || value == V_TYPE(false))
-      env.setLift(this)
-    if (env.shouldLiftInstr(this)) {
-      val newFrame = frame.setLocal(variable, V_TYPE(false), Set(this))
-      val backtrack =
-        if (value != V_TYPE(false))
-          prev
-        else if (frame.localVar.contains(v) && frame.localVar(v)._1 != V_TYPE(false))
-          frame.localVar(v)._2
-        else
-          Set[Instruction]()
-      (newFrame, backtrack)
-    }
-    else {
-      // could be either REF_TYPE or UNINITIALIZED_TYPE
-      val newFrame = frame.setLocal(variable, value, Set(this))
-      (newFrame, Set())
-    }
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    // This should not happen. Backtracking can only go to ALOAD
+    throw new RuntimeException("No expecting backtracking to ASTORE")
   }
 }
 
@@ -295,7 +256,7 @@ case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable
   * @param variable
   *                 local variable to be loaded
   */
-case class InstrLLOAD(variable: Variable) extends Instruction {
+case class InstrLLOAD(variable: Variable) extends LoadInstruction(v = variable) {
 
   /** Help env collect all local variables */
   override def getVariables: Set[LocalVar] = {
@@ -310,22 +271,18 @@ case class InstrLLOAD(variable: Variable) extends Instruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val idx = env.getVarIdx(variable)
     if (env.shouldLiftInstr(this)) {
-      loadV(mv, env, variable)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        mv.visitVarInsn(LLOAD, idx)
+        long2Long(mv)
+        callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+      }
+      else
+        mv.visitVarInsn(ALOAD, idx)
     }
     else
       mv.visitVarInsn(LLOAD, env.getVarIdx(variable))
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    env.setLift(this)
-    val newFrame = s.push(V_TYPE(true), Set(this))
-    val backtrack: Set[Instruction] =
-      if (s.localVar(variable)._1 != V_TYPE(true))
-        s.localVar(variable)._2
-      else
-        Set()
-    (newFrame, backtrack)
   }
 }
 
@@ -432,33 +389,26 @@ case class InstrLSTORE(variable: Variable) extends StoreInstruction(v = variable
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      //new value is already on top of stack
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
       loadCurrentCtx(mv, env, block)
       mv.visitInsn(SWAP)
-      loadV(mv, env, variable)
-      //now ctx, newvalue, oldvalue on stack
+      if (env.getTag(this, env.TAG_NEED_V2)) {
+        mv.visitVarInsn(LLOAD, env.getVarIdx(v))
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      } else {
+        loadV(mv, env, v)
+      }
       callVCreateChoice(mv)
-      //now new choice value on stack combining old and new value
       storeV(mv, env, variable)
     }
     else {
-      ??? // should not happen until we have a better DFA
-      mv.visitVarInsn(LSTORE, env.getVarIdx(variable))
+      val idx = env.getVarIdx(variable)
+      mv.visitVarInsn(LSTORE, idx)
     }
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    // One of our invariants is all local variables are of type V.
-    env.setLift(this)
-    val (value, prev, frame) = s.pop()
-    // For now, all local variables are V. Later, this could be relaxed with a careful tagV analysis
-    val newFrame = frame.setLocal(variable, V_TYPE(true), Set(this))
-    val backtrack =
-      if (value != V_TYPE(true))
-        prev
-      else
-        Set[Instruction]()
-    (newFrame, backtrack)
   }
 }
 

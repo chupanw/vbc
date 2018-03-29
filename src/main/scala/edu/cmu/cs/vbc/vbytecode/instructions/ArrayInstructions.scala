@@ -61,9 +61,11 @@ trait ArrayStoreInstructions extends Instruction {
     // we assume that all elements in an array are of type V
     if (!vType.isInstanceOf[V_TYPE]) return (frame3, vPrev)
     if (idxType != V_TYPE(false)) return (frame3, idxPrev)
-    if (refType == V_TYPE(false)) {
-      env.setLift(this)
-    }
+//    if (refType == V_TYPE(false)) {
+//      env.setLift(this)
+//    }
+    if (refType != V_TYPE(false)) return (frame3, refPrev)
+    env.setLift(this)
     (frame3, Set())
   }
 
