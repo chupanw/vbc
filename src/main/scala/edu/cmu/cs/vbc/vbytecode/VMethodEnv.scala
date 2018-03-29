@@ -1,5 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.cmu.cs.vbc.analysis.{VBCAnalyzer, VBCFrame}
 import edu.cmu.cs.vbc.utils.{LiftUtils, Statistics}
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -15,7 +16,10 @@ import org.objectweb.asm.{Label, Type}
   * 1. decide whether or not to lift each instruction (see tagV section)
   * 1. handle unbalanced stack (see unbalanced stack section)
   */
-class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(clazz, method) with VBlockAnalysis {
+class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
+  extends MethodEnv(clazz, method)
+  with VBlockAnalysis
+  with LazyLogging{
 
   val exceptionVar: LocalVar = freshLocalVar(name = "$exceptionVar", desc = LiftUtils.vclasstype, LocalVar.initOneNull)
   val ctxParameter: Parameter = new Parameter(-1, "ctx", TypeDesc(LiftUtils.fexprclasstype))
@@ -176,14 +180,26 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     }
   }
 
-  //////////////////////////////////////////////////
-  // unbalanced stack
-  //////////////////////////////////////////////////
-
   val analyzer = new VBCAnalyzer(this)
-  val framesBefore: Array[VBCFrame] = analyzer.computeBeforeFrames
+  val framesBefore: Array[VBCFrame] = tagVWithVBlocksUpdate()
   val framesAfter: Array[VBCFrame] = analyzer.computeAfterFrames(framesBefore)
   val expectingVars: Map[Block, List[Variable]] = blocks.map(computeExpectingVars(_)).toMap
+
+  def tagVWithVBlocksUpdate(): Array[VBCFrame] = {
+    // at this point we have a rough version of vblocks
+    var frames: Array[VBCFrame] = analyzer.computeBeforeFrames
+    // recompute vblocks
+    var vblocks: List[VBlock] = computeVBlocks()
+    // repeat until we reach a fixed point
+    while (vblocks != this.vblocks) {
+      logger.info("Updating VBlocks")
+      this.vblocks = vblocks
+      frames = analyzer.computeBeforeFrames
+      vblocks = computeVBlocks()
+    }
+    logger.info(s"\t\t ${vblocks.size} VBlocks")
+    frames
+  }
 
   def getLeftVars(block: Block): List[Set[Variable]] = {
     val afterFrame = framesAfter(getInsnIdx(block.instr.last))
