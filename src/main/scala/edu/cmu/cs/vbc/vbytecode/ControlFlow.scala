@@ -353,8 +353,12 @@ case class CFG(blocks: List[Block]) {
     //analysis when jumping over unsatisfiable blocks)
     initializeVars ++= env.getLocalVariables()
 
-    for (v <- initializeVars.distinct)
-      v.vinitialize(mv, env, v)
+    for (v <- initializeVars.distinct) {
+      if (env.isLiftingLV(v))
+        LocalVar.initOneNull(mv, env, v)
+      else
+        v.vinitialize(mv, env, v)
+    }
 
     //serialize blocks, but keep the last vblock in one piece at the end (requires potential reordering of blocks
     val lastVBlock = env.getLastVBlock().allBlocks

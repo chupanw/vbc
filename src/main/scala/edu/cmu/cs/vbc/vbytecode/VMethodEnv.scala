@@ -65,13 +65,16 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     */
   val TAG_WRAP_DUPLICATE = 8
 
+  /**
+    * For instructions that we need to consider wrapping more than one values
+    */
+  val TAG_NEED_V2 = 16
+
   def setTag(instr: Instruction, tag: Int): Unit = {
-    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE)
     instructionTags(getInsnIdx(instr)) |= tag
   }
 
   def getTag(instr: Instruction, tag: Int): Boolean = {
-    assert(tag == TAG_LIFT || tag == TAG_HAS_VARG || tag == TAG_NEED_V || tag == TAG_WRAP_DUPLICATE)
     (instructionTags(getInsnIdx(instr)) & tag) != 0
   }
 
@@ -114,6 +117,7 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     blockTags(blockIdx)
   }
 
+  //todo: refine this to consider store operations in different VBlocks, but the same method context
   def isLVStoredAcrossVBlocks(v: Variable): Boolean = {
     blocks.filter{
       b => b.instr.filter(_.isInstanceOf[StoreInstruction]).exists(_.asInstanceOf[StoreInstruction].v == v)
@@ -127,6 +131,20 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode) extends MethodEnv(c
     if (method.isStatic) false
     else getVarIdxNoCtx(variable) == 0
   }
+
+  /**
+    * Track which local variables need to be lifted.
+    *
+    * This information is used in the initialization of local variables. We give each LV a
+    * default initializer based on types in [[edu.cmu.cs.vbc.loader.Loader]], before our DFA. During the DFA,
+    * we might realize that some LVs must be V type, and the default initializer might store values of
+    * incorrect types from the perspective of JVM verifier.
+    *
+    * This can only be changed by store instructions.
+    */
+  private val liftingLVs: collection.mutable.Set[Variable] = collection.mutable.Set[Variable]()
+  def liftLV(v: Variable): Unit = liftingLVs add v
+  def isLiftingLV(v: Variable): Boolean = liftingLVs contains v
 
   /**
     * determines whether a CFJ edge between two blocks could be executed

@@ -6,7 +6,7 @@ import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
-import org.objectweb.asm.{ClassReader, Opcodes, Type}
+import org.objectweb.asm.{ClassReader, MethodVisitor, Opcodes, Type}
 
 import scala.collection.JavaConversions._
 
@@ -96,6 +96,17 @@ class Loader {
     m
   }
 
+  def pickLVInit(desc: TypeDesc): (MethodVisitor, VMethodEnv, LocalVar) => Unit = {
+    desc match {
+      case TypeDesc("I") | TypeDesc("S") | TypeDesc("B") | TypeDesc("C") | TypeDesc("Z") =>
+        LocalVar.initIntZero
+      case TypeDesc("F") => LocalVar.initFloatZero
+      case TypeDesc("J") => LocalVar.initLongZero
+      case TypeDesc("D") => LocalVar.initDoubleZero
+      case _ => LocalVar.initNull
+    }
+  }
+
   def adaptMethod(owner: String, m: MethodNode): VBCMethodNode = {
     //    println("\tMethod: " + m.name)
     val methodAnalyzer = new MethodCFGAnalyzer(owner, m)
@@ -127,13 +138,15 @@ class Loader {
           varCache += (vIdx -> new LocalVar(
             localVarList(i).name,
             localVarList(i).desc,
-            is64Bit = TypeDesc(localVarList(i).desc).is64Bit
+            is64Bit = TypeDesc(localVarList(i).desc).is64Bit,
+            vinitialize = pickLVInit(TypeDesc(localVarList(i).desc))
           ))
       }
     }
 
     // typically we initialize all variables and parameters from the table, but that table is technically optional,
     // so we need a fallback option and generate them on the fly with name "$unknown"
+    // todo: this looks dangerous because local variables might share the same index
     def lookupVariable(idx: Int, opCode: Int): Variable =
       if (varCache contains idx)
         varCache(idx)
@@ -148,8 +161,10 @@ class Loader {
           }
           else {
             opCode match {
-              case LLOAD | LSTORE => new LocalVar("$unknown", TypeDesc("J"), is64Bit = true)
-              case DLOAD | DSTORE => new LocalVar("$unknown", TypeDesc("D"), is64Bit = true)
+              case LLOAD | LSTORE => new LocalVar("$unknownLong", TypeDesc("J"), is64Bit = true, vinitialize = LocalVar.initLongZero)
+              case DLOAD | DSTORE => new LocalVar("$unknownDouble", TypeDesc("D"), is64Bit = true, vinitialize = LocalVar.initDoubleZero)
+              case FLOAD | FSTORE => new LocalVar("$unknownFloat", TypeDesc("F"), is64Bit = false, vinitialize = LocalVar.initFloatZero)
+              case ILOAD | ISTORE => new LocalVar("$unknown", TypeDesc("I"), is64Bit = false, vinitialize = LocalVar.initIntZero)
               case _ => new LocalVar("$unknown", "V")
             }
           }
