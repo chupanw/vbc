@@ -59,7 +59,7 @@ case class V_REF_TYPE(id: Int) extends VBCType {
   override def toString: String = "N"
 }
 
-case class UNINITIALIZED_TYPE(id: Int) extends VBCType {
+case class UNINITIALIZED_TYPE() extends VBCType {
   override def toString: String = "?"
 }
 
@@ -71,7 +71,7 @@ object VBCType {
     * @return
     */
   def apply(t: Type): VBCType = t match {
-    case null => UNINITIALIZED_TYPE(nextID)
+    case null => UNINITIALIZED_TYPE()
     case _ => {
       t.getSort match {
         case Type.BOOLEAN | Type.CHAR | Type.BYTE | Type.SHORT | Type.INT => INT_TYPE()

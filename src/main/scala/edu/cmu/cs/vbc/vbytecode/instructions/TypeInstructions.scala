@@ -41,7 +41,7 @@ case class InstrNEW(t: String) extends Instruction {
       (s.push(V_REF_TYPE(VBCType.nextID), Set(this)), Set())
     }
     else
-      (s.push(UNINITIALIZED_TYPE(VBCType.nextID), Set(this)), Set())
+      (s.push(UNINITIALIZED_TYPE(), Set(this)), Set())
   }
 }
 
