@@ -483,7 +483,7 @@ case class InstrLOAD_LOOP_CTX() extends Instruction {
     if (!env.shouldLiftInstr(this))
       (s.push(REF_TYPE(), Set(this)), Set())
     else {
-      val newFrame = s.push(V_TYPE(), Set(this))
+      val newFrame = s.push(V_TYPE(false), Set(this))
       val backtrack = Set[Instruction]()
       (newFrame, backtrack)
     }
