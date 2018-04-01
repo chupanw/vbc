@@ -58,14 +58,14 @@ trait ArrayStoreInstructions extends Instruction {
     val (vType, vPrev, frame1) = s.pop()
     val (idxType, idxPrev, frame2) = frame1.pop()
     val (refType, refPrev, frame3) = frame2.pop()
-    // we assume that all elements in an array are of type V
+    // values must be V
     if (!vType.isInstanceOf[V_TYPE]) return (frame3, vPrev)
-    if (idxType != V_TYPE(false)) return (frame3, idxPrev)
-//    if (refType == V_TYPE(false)) {
-//      env.setLift(this)
-//    }
-    if (refType != V_TYPE(false)) return (frame3, refPrev)
-    env.setLift(this)
+    if (refType == V_TYPE(false)) {
+      env.setLift(this)
+      if (idxType != V_TYPE(false)) return (frame3, idxPrev)
+    } else {
+      if (idxType == V_TYPE(false)) env.setTag(this, env.TAG_HAS_VARG)
+    }
     (frame3, Set())
   }
 
@@ -90,6 +90,29 @@ trait ArrayStoreInstructions extends Instruction {
         )
         visitor.visitInsn(RETURN)
       }
+    }
+  }
+
+  def storeVArray(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    loadCurrentCtx(mv, env, block)
+    if (env.getTag(this, env.TAG_HAS_VARG)) {
+      // index is a V
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getArrayOps,
+        MethodName("aastore"),
+        MethodDesc(s"([${vclasstype}${vclasstype}${vclasstype}${fexprclasstype})V"),
+        false
+      )
+    } else {
+      // index is a primitive int
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getArrayOps,
+        MethodName("aastore"),
+        MethodDesc(s"([${vclasstype}I${vclasstype}${fexprclasstype})V"),
+        false
+      )
     }
   }
 
@@ -153,9 +176,12 @@ trait ArrayLoadInstructions extends Instruction {
   def updateStackWithReturnType(s: VBCFrame, env: VMethodEnv, is64Bit: Boolean): (VBCFrame, Set[Instruction]) = {
     val (idxType, idxPrev, frame1) = s.pop()
     val (refType, refPrev, frame2) = frame1.pop()
-    if (idxType != V_TYPE(false)) return (frame2, idxPrev)
     if (refType == V_TYPE(false)) {
       env.setLift(this)
+      if (idxType != V_TYPE(false)) return (frame2, idxPrev)
+    } else {
+      if (idxType == V_TYPE(false))
+        env.setTag(this, env.TAG_HAS_VARG)
     }
     (frame2.push(V_TYPE(is64Bit), Set(this)), Set())
   }
@@ -174,6 +200,21 @@ trait ArrayLoadInstructions extends Instruction {
         visitor.visitInsn(ARETURN)
       }
     }
+  }
+
+  def loadVArray(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.getTag(this, env.TAG_HAS_VARG)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getArrayOps,
+        MethodName("aaload"),
+        MethodDesc(s"([$vclasstype$vclasstype$fexprclasstype)$vclasstype"),
+        false
+      )
+    }
+    else
+      mv.visitInsn(AALOAD)
   }
 }
 
@@ -318,15 +359,7 @@ case class InstrAASTORE() extends ArrayStoreInstructions {
       storeOperation(mv, env, block)
     }
     else {
-      ??? // should not happen
-      loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(
-        INVOKESTATIC,
-        Owner.getArrayOps,
-        MethodName("aastore"),
-        MethodDesc(s"([${vclasstype}${vclasstype}${vclasstype}${fexprclasstype})V"),
-        false
-      )
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -347,7 +380,7 @@ case class InstrAALOAD() extends ArrayLoadInstructions {
       loadOperation(mv, env, block)
     }
     else {
-      mv.visitInsn(AALOAD)
+      loadVArray(mv, env, block)
     }
   }
 
@@ -362,7 +395,7 @@ case class InstrIALOAD() extends ArrayLoadInstructions {
       loadOperation(mv, env, block)
     }
     else {
-      mv.visitInsn(AALOAD)
+      loadVArray(mv, env, block)
     }
   }
 
@@ -380,8 +413,7 @@ case class InstrIASTORE() extends ArrayStoreInstructions {
       storeOperation(mv, env, block)
     }
     else {
-      ???
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -404,8 +436,7 @@ case class InstrCASTORE() extends ArrayStoreInstructions {
       storeBCSI(mv, env, block, PrimitiveType.char)
     }
     else {
-      ???
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -428,7 +459,7 @@ case class InstrCALOAD() extends ArrayLoadInstructions {
       loadOperation(mv, env, block)
     }
     else {
-      mv.visitInsn(AALOAD)
+      loadVArray(mv, env, block)
     }
   }
 

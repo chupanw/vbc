@@ -548,6 +548,10 @@ public class ArrayOps {
 //        });
     }
 
+    public static V<?> aaload(V[] arrayref, V<Integer> index, FeatureExpr ctx) {
+        return index.sflatMap(ctx, (fe, i) -> arrayref[i].select(fe));
+    }
+
     //////////////////////////////////////////////////
     // Transform a primitive array to an array of Vs
     //////////////////////////////////////////////////
