@@ -3,6 +3,9 @@ package edu.cmu.cs.vbc
 import com.typesafe.config._
 
 import scala.collection.JavaConversions._
+
+import edu.cmu.cs.vbc.utils.LiftUtils.ctxListEnabled
+
 /**
   * Project specific configuration file for model classes.
   *
@@ -58,7 +61,7 @@ class ModelConfig(fileName: String) {
     * All JDK classes that we DO lift
     */
   val jdkLiftingClasses: List[String] = {
-    try {
+    val liftingClasses = try {
       val classes: List[String] = config.getStringList("jdk-lifting").toList
       if (defaultConfig.isDefined)
         defaultConfig.get.jdkLiftingClasses ::: classes
@@ -67,6 +70,8 @@ class ModelConfig(fileName: String) {
     } catch {
       case _: Throwable => defaultConfig.get.jdkLiftingClasses
     }
+    if (!ctxListEnabled) liftingClasses :+ "java/util/Iterator"
+    else liftingClasses
   }
 
   val libraryLiftingClasses: List[String] = {
