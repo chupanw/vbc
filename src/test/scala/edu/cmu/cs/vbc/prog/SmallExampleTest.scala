@@ -131,7 +131,7 @@ test("conditional field assignment") {
   /**
     * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
     */
-  ignore("SortLinkedList") {
+  test("SortLinkedList") {
     testMain(classOf[SortLinkedList], configFile = Some("util.conf"), useModel = false)
   }
 
