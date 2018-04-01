@@ -540,12 +540,11 @@ public class ArrayOps {
     }
 
     public static void aastore(V[] arrayref, V<Integer> index, V newValue, FeatureExpr ctx) {
-        throw new RuntimeException("Type of arrayref is not accurate.");
-//        index.sforeach(ctx, (fe, i) -> {
-//            V oldValue = arrayref[i];
-//            V choice = V.choice(ctx, newValue, oldValue);
-//            arrayref[i] = choice;
-//        });
+        index.sforeach(ctx, (fe, i) -> {
+            V oldValue = arrayref[i];
+            V choice = V.choice(ctx, newValue, oldValue);
+            arrayref[i] = choice;
+        });
     }
 
     public static V<?> aaload(V[] arrayref, V<Integer> index, FeatureExpr ctx) {
