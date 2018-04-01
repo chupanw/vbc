@@ -87,7 +87,9 @@ trait DiffLaunchTestInfrastructure {
 
 //  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
 
-  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true, fm: (Map[String, Boolean]) => Boolean = _ => true, configFile: Option[String] = None): Unit = {
+  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true,
+               fm: (Map[String, Boolean]) => Boolean = _ => true, configFile: Option[String] = None,
+               feListFeatures: Int = -1): Unit = {
     //test uninstrumented variational execution to see whether it crashes
     val classname = clazz.getName
     val origClassLoader = this.getClass.getClassLoader
@@ -96,7 +98,7 @@ trait DiffLaunchTestInfrastructure {
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(testCrashLoader)
     val testCrash = testCrashLoader.loadClass(classname)
-    generateList(testCrash, lifted = true, feListFeatures)
+    if (feListFeatures > -1) generateList(testCrash, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(testCrash, new Array[String](0))
 
     //test instrumented version, executed variationally
@@ -106,7 +108,7 @@ trait DiffLaunchTestInfrastructure {
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(vloader)
     val vcls: Class[_] = vloader.loadClass(classname)
-    generateList(vcls, lifted = true, feListFeatures)
+    if (feListFeatures > -1) generateList(vcls, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(vcls, new Array[String](0))
 
     val vtrace = TestTraceOutput.trace
@@ -124,7 +126,7 @@ trait DiffLaunchTestInfrastructure {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
-        generateList(cls, lifted = false, feListFeatures)
+        if (feListFeatures > -1) generateList(cls, lifted = false, feListFeatures)
         VBCLauncher.invokeMain(cls, new Array[String](0))
         val atrace = TestTraceOutput.trace
 
@@ -196,7 +198,8 @@ trait DiffLaunchTestInfrastructure {
   }
 
 
-  def benchmark(classname: String, vloader: VBCClassLoader, loader: VBCClassLoader, configOptions: Set[String], fm: (Map[String, Boolean]) => Boolean): Unit = {
+  def benchmark(classname: String, vloader: VBCClassLoader, loader: VBCClassLoader, configOptions: Set[String],
+                fm: (Map[String, Boolean]) => Boolean, feListFeatures: Int = -1): Unit = {
     import org.scalameter._
 
     //measure V execution
@@ -210,7 +213,7 @@ trait DiffLaunchTestInfrastructure {
     } setUp { _ =>
       TestTraceOutput.trace = Nil
       TraceConfig.config = Map()
-      generateList(testVClass, lifted = true, feListFeatures)
+      if (feListFeatures > -1) generateList(testVClass, lifted = true, feListFeatures)
       println("[info] starting vExecution")
     } measure {
       //      Profiler.reset()
