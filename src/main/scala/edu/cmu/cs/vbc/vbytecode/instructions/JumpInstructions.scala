@@ -24,20 +24,33 @@ trait JumpInstruction extends Instruction {
 
   def updateStack1(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (v1, prev1, newFrame) = s.pop()
-    env.setLift(this)
-    if (v1 != V_TYPE(false)) return (newFrame, prev1)
-    val backtrack = backtrackNonVStackElements(s)
-    (newFrame, backtrack)
+    val jumpingToVBlockHead: Boolean = env.nVBlockAnalysis > 1 &&
+      (getSuccessor()._1.exists(i => env.isVBlockHead(env.getBlock(i))) ||
+        getSuccessor()._2.exists(i => env.isVBlockHead(env.getBlock(i))))
+    if (v1 == V_TYPE(false) || jumpingToVBlockHead) {
+      env.setLift(this)
+      val backtrack = backtrackNonVStackElements(s)
+      (newFrame, backtrack)
+    } else (newFrame, Set())
   }
 
   def updateStack2(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (v1, prev1, frame1) = s.pop()
     val (v2, prev2, newFrame) = frame1.pop()
-    env.setLift(this)
-    if (v1 != V_TYPE(false)) return (newFrame, prev1)
-    if (v1 != V_TYPE(false)) return (newFrame, prev2)
-    val backtrack = backtrackNonVStackElements(s)
-    (newFrame, backtrack)
+    val hasV: Boolean = v1 == V_TYPE(false) || v2 == V_TYPE(false)
+    val jumpingToVBlockHead: Boolean = env.nVBlockAnalysis > 1 &&
+      (getSuccessor()._1.exists(i => env.isVBlockHead(env.getBlock(i))) ||
+        getSuccessor()._2.exists(i => env.isVBlockHead(env.getBlock(i))))
+    if (hasV || jumpingToVBlockHead) {
+      env.setLift(this)
+      if (v1 != V_TYPE(false)) return (newFrame, prev1)
+      if (v1 != V_TYPE(false)) return (newFrame, prev2)
+      val backtrack = backtrackNonVStackElements(s)
+      (newFrame, backtrack)
+    }
+    else {
+      (newFrame, Set())
+    }
   }
 
   def backtrackNonVStackElements(f: VBCFrame): Set[Instruction] = {
@@ -48,6 +61,10 @@ trait JumpInstruction extends Instruction {
         if (!b._1.isInstanceOf[V_TYPE]) (a._1, a._2 ++ b._2)
         else a
       })._2
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    throw new RuntimeException("Unexpected backtracking to jump instructions")
   }
 }
 

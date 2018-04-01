@@ -140,8 +140,12 @@ trait VBlockAnalysis extends CFGAnalysis {
     *
     * The list is sorted, following the original order of the entry points
     * (which may not necessarily be very meaningful)
+    *
+    * This needs to be var because we update it after tagV analysis, until we
+    * reach a fixed point
     */
-  val vblocks: List[VBlock] = {
+  var vblocks: List[VBlock] = computeVBlocks()
+  def computeVBlocks(): List[VBlock] = {
     //initially every block has its own id
     var vblockId: Map[Block, Int] = (blocks zip blocks.indices).toMap
     //which block is the first for each VBlock group?
@@ -167,7 +171,8 @@ trait VBlockAnalysis extends CFGAnalysis {
         // 2. Second filter excludes exception handler blocks of the current block. If we take
         //  those into account, we might get distracted by the old vblock values. Exception handler
         //  blocks are in the same vblock anyway.
-        val predVBlockIdxs = pred.filter(_ != block).filter(!isExceptionHandlerBlockOf(_, block)).map(vblockId)
+        // 3. Third filter excludes the same vblock
+        val predVBlockIdxs = pred.filter(_ != block).filter(!isExceptionHandlerBlockOf(_, block)).map(vblockId).filter(_ != thisVBlockIdx)
         // condition 1: the first block must be the start of a VBlock todo: add test case
         // condition 2: all predecessors must come from the same VBlock
         // condition 3: must be in different VBlocks so that they can be merged
@@ -177,8 +182,10 @@ trait VBlockAnalysis extends CFGAnalysis {
         }
       }
     }
-    for ((vblockId, blocks) <- vblockId.groupBy(_._2).toList.sortBy(_._1))
+    val newVblocks: List[VBlock] = for ((vblockId, blocks) <- vblockId.groupBy(_._2).toList.sortBy(_._1))
       yield VBlock(vblockHead(vblockId), blocks.keys.toSet)
+    sanityCheck(newVblocks)
+    newVblocks
   }
 
   /**
@@ -265,8 +272,9 @@ trait VBlockAnalysis extends CFGAnalysis {
     vblock.allBlocks.flatMap(getExceptionHandlers).map(e => (e._1, getVBlock(e._2)))
 
 
-  //sanity checks
-  for (vblock <- vblocks)
-    assert(vblock.allBlocks contains vblock.firstBlock, "VBlock: firstblock not in allblocks " + vblock)
-
+  def sanityCheck(bs: List[VBlock]): Unit = {
+    //sanity checks
+    for (b <- bs)
+      assert(b.allBlocks contains b.firstBlock, "VBlock: firstblock not in allblocks " + b)
+  }
 }

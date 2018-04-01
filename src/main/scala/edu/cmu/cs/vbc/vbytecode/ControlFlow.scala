@@ -42,11 +42,14 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     //generate block code
     instr.foreach(_.toVByteCode(mv, env, this))
 
+    val isUnliftedJump = this.instr.last.isJumpInstr && !env.shouldLiftInstr(this.instr.last)
     //if this block ends with a jump to a different VBlock (always all jumps are to the same or to
     //different VBlocks, never mixed)
     if (env.isVBlockEnd(this)) {
       storeUnbalancedStackVariables(mv, env)
       variationalJump(mv, env)
+    } else if (isUnliftedJump) {
+      // do nothing?
     } else {
       nonvariationalJump(mv, env)
     }

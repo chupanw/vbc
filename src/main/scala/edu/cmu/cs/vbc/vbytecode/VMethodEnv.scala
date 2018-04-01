@@ -173,13 +173,20 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
       case InstrGOTO(t) => false // GOTO does not change the context
       //      case method: MethodInstruction => true // all methods can have conditional exceptions
       case jump: JumpInstruction =>
-        // all possible jump targets are variational, exception edges are not
-        val succ = jump.getSuccessor()
-        toBlockIdx == succ._1.getOrElse(fromBlockIdx + 1) || succ._2.exists(_ == toBlockIdx)
+        if (hasTagVInfo && !shouldLiftInstr(jump))
+          false
+        else {
+          // all possible jump targets are variational, exception edges are not
+          val succ = jump.getSuccessor()
+          toBlockIdx == succ._1.getOrElse(fromBlockIdx + 1) || succ._2.exists(_ == toBlockIdx)
+        }
       case _ => false // exceptions do not change the context
     }
   }
 
+  def hasTagVInfo: Boolean = instructionTags != null && instructionTags.exists(_ != 0)
+
+  var nVBlockAnalysis: Int = 1
   val analyzer = new VBCAnalyzer(this)
   val framesBefore: Array[VBCFrame] = tagVWithVBlocksUpdate()
   val framesAfter: Array[VBCFrame] = analyzer.computeAfterFrames(framesBefore)
@@ -190,14 +197,17 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
     var frames: Array[VBCFrame] = analyzer.computeBeforeFrames
     // recompute vblocks
     var vblocks: List[VBlock] = computeVBlocks()
+    nVBlockAnalysis += 1
     // repeat until we reach a fixed point
     while (vblocks != this.vblocks) {
-      logger.info("Updating VBlocks")
+      logger.info(s"\t\t ${this.vblocks.size} VBlocks, ${blocks.size} basic blocks")
+      logger.info("\t\t (Updating VBlocks)")
       this.vblocks = vblocks
       frames = analyzer.computeBeforeFrames
       vblocks = computeVBlocks()
+      nVBlockAnalysis += 1
     }
-    logger.info(s"\t\t ${vblocks.size} VBlocks")
+    logger.info(s"\t\t ${vblocks.size} VBlocks, ${blocks.size} basic blocks")
     frames
   }
 
