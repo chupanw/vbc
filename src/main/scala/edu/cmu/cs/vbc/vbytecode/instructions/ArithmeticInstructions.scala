@@ -16,20 +16,20 @@ trait BinOpInstruction extends Instruction {
     val (v1, prev1, frame1) = s.pop()
     val (v2, prev2, frame2) = frame1.pop()
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame2.push(V_TYPE(false), Set(this))
       else {
         frame2.push(INT_TYPE(), Set(this))
       }
     val backtrack: Set[Instruction] =
-      if (env.shouldLiftInstr(this)) {
-        if (v1 != V_TYPE(false)) prev1
-        else if (v2 != V_TYPE(false)) prev2
-        else Set()
-      }
-      else
-        Set()
+      if (v1 == V_TYPE(false) && v2 != V_TYPE(false)) prev2
+      else if (v2 == V_TYPE(false) && v1 != V_TYPE(false)) prev1
+      else Set()
     (newFrame, backtrack)
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    env.setTag(this, env.TAG_NEED_V)
   }
 }
 
@@ -46,20 +46,20 @@ trait BinOpNonIntInstruction extends Instruction {
     val (v1, prev1, frame1) = s.pop()
     val (v2, prev2, frame2) = frame1.pop()
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame2.push(retVType, Set(this))
       else {
         frame2.push(retType, Set(this))
       }
     val backtrack: Set[Instruction] =
-      if (env.shouldLiftInstr(this)) {
-        if (!v1.isInstanceOf[V_TYPE]) prev1
-        else if (!v2.isInstanceOf[V_TYPE]) prev2
-        else Set()
-      }
-      else
-        Set()
+      if (!v1.isInstanceOf[V_TYPE] && v2.isInstanceOf[V_TYPE]) prev1
+      else if (!v2.isInstanceOf[V_TYPE] && v1.isInstanceOf[V_TYPE]) prev2
+      else Set()
     (newFrame, backtrack)
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    env.setTag(this, env.TAG_NEED_V)
   }
 }
 
@@ -76,8 +76,10 @@ case class InstrIADD() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IADD", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
     }
-    else
+    else {
       mv.visitInsn(IADD)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -92,8 +94,10 @@ case class InstrISUB() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "ISUB", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
     }
-    else
+    else {
       mv.visitInsn(ISUB)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -108,8 +112,10 @@ case class InstrIMUL() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IMUL", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
     }
-    else
+    else {
       mv.visitInsn(IMUL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -123,8 +129,10 @@ case class InstrIDIV() extends BinOpInstruction {
     if (env.shouldLiftInstr(this)) {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IDIV", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
-    } else
+    } else {
       mv.visitInsn(IDIV)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -143,13 +151,11 @@ case class InstrINEG() extends Instruction {
     if (v == V_TYPE(false))
       env.setLift(this)
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame.push(V_TYPE(false), Set(this))
       else {
         frame.push(INT_TYPE(), Set(this))
       }
-    if (env.shouldLiftInstr(this) && v != V_TYPE(is64Bit = false))
-        return (s, prev)
     (newFrame, Set())
   }
 
@@ -169,15 +175,18 @@ case class InstrINEG() extends Instruction {
     }
     else {
       mv.visitInsn(INEG)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
 
 /** Shift left int
   *
   * ..., value1(int), value2(int) -> ..., result
   */
-case class InstrISHL() extends Instruction {
+case class InstrISHL() extends BinOpInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(ISHL)
   }
@@ -209,22 +218,10 @@ case class InstrISHL() extends Instruction {
         }
       }
     }
-    else
+    else {
       mv.visitInsn(ISHL)
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    val (argType, argBacktrack, frame1) = s.pop()
-    val (receiverType, receiverBacktrack, frame2) = frame1.pop()
-    val hasV = argType == V_TYPE(false) || receiverType == V_TYPE(false)
-    if (hasV) env.setLift(this)
-    val newFrame = frame2.push(if (hasV) V_TYPE(false) else INT_TYPE(), Set(this))
-    val backtrack: Set[Instruction] = (argType, receiverType) match {
-      case (INT_TYPE(), _) => argBacktrack
-      case (_, INT_TYPE()) => receiverBacktrack
-      case _ => Set()
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
-    (newFrame, backtrack)
   }
 }
 
@@ -232,7 +229,7 @@ case class InstrISHL() extends Instruction {
   *
   * ..., value1(long), value2(long) -> ..., result(int)
   */
-case class InstrLCMP() extends Instruction {
+case class InstrLCMP() extends BinOpNonIntInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(LCMP)
   }
@@ -260,22 +257,13 @@ case class InstrLCMP() extends Instruction {
         }
       }
     }
-    else
+    else {
       mv.visitInsn(LCMP)
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    val (value2Type, value2Backtrack, frame2) = s.pop()
-    val (value1Type, value1Backtrack, frame1) = frame2.pop()
-    ((value1Type, value2Type): @unchecked) match {
-      case (LONG_TYPE(), LONG_TYPE()) => (frame1.push(INT_TYPE(), Set(this)), Set())
-      case (LONG_TYPE(), V_TYPE(true)) => (frame1, value1Backtrack) // backtrack, frame1 will be discarded
-      case (V_TYPE(true), LONG_TYPE()) => (frame1, value2Backtrack) // backtrack, frame2 will be discarded
-      case (V_TYPE(true), V_TYPE(true)) =>
-        env.setLift(this)
-        (frame1.push(V_TYPE(false), Set(this)), Set())
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, INT_TYPE())
 }
 
 /** Negate long
@@ -306,26 +294,31 @@ case class InstrLNEG() extends Instruction {
         }
       }
     }
-    else
+    else {
       mv.visitInsn(LNEG)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
     val (vType, _, frame) = s.pop()
-    if (vType == V_TYPE(true)) {
+    if (vType == V_TYPE(true))
       env.setLift(this)
+    if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V)) {
       (frame.push(V_TYPE(true), Set(this)), Set())
     }
     else
       (frame.push(LONG_TYPE(), Set(this)), Set())
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
 
 /** Arithmetic shift right int
   *
   * ..., value1(int), value2(int) -> ..., result(int)
   */
-case class InstrISHR() extends Instruction {
+case class InstrISHR() extends BinOpInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(ISHR)
   }
@@ -353,20 +346,9 @@ case class InstrISHR() extends Instruction {
         }
       }
     }
-    else
+    else {
       mv.visitInsn(ISHR)
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    val (value2Type, value2Backtrack, frame2) = s.pop()
-    val (value1Type, value1Backtrack, frame1) = frame2.pop()
-    ((value1Type, value2Type): @unchecked) match {
-      case (INT_TYPE(), INT_TYPE()) => (frame1.push(INT_TYPE(), Set(this)), Set())
-      case (INT_TYPE(), V_TYPE(false)) => (frame1, value1Backtrack)
-      case (V_TYPE(false), INT_TYPE()) => (frame1, value2Backtrack)
-      case (V_TYPE(false), V_TYPE(false)) =>
-        env.setLift(this)
-        (frame1.push(V_TYPE(false), Set(this)), Set())
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 }
@@ -380,14 +362,19 @@ case class InstrIAND() extends BinOpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    loadCurrentCtx(mv, env, block)
-    mv.visitMethodInsn(
-      INVOKESTATIC,
-      Owner.getVOps,
-      "iand",
-      MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
-      false
-    )
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getVOps,
+        "iand",
+        MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
+        false
+      )
+    } else {
+      mv.visitInsn(IAND)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -406,8 +393,10 @@ case class InstrLAND() extends BinOpNonIntInstruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(LAND)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -427,8 +416,10 @@ case class InstrIOR() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("ior"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
     }
-    else
+    else {
       mv.visitInsn(IOR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
 }
 }
 
@@ -448,8 +439,10 @@ case class InstrLSUB() extends BinOpNonIntInstruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(LSUB)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -467,8 +460,10 @@ case class InstrIUSHR() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("iushr"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
     }
-    else
+    else {
       mv.visitInsn(IUSHR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
 }
 
 /** Remainder int
@@ -483,8 +478,10 @@ case class InstrIREM() extends BinOpInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("irem"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
     }
-    else
+    else {
       mv.visitInsn(IREM)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
 }
 
 /** Boolean XOR int
@@ -495,14 +492,20 @@ case class InstrIXOR() extends BinOpInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(IXOR)
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    loadCurrentCtx(mv, env, block)
-    mv.visitMethodInsn(
-      INVOKESTATIC,
-      Owner.getVOps,
-      "ixor",
-      MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
-      false
-    )
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getVOps,
+        "ixor",
+        MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
+        false
+      )
+    }
+    else {
+      mv.visitInsn(IXOR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 }
 
@@ -526,8 +529,10 @@ case class InstrL2I() extends Instruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(L2I)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
@@ -535,15 +540,15 @@ case class InstrL2I() extends Instruction {
     if (v == V_TYPE(true))
       env.setLift(this)
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame.push(V_TYPE(false), Set(this))
       else {
         frame.push(INT_TYPE(), Set(this))
       }
-    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
-      return (s, prev)
     (newFrame, Set())
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
 
 /** Convert int to short
@@ -565,8 +570,10 @@ case class InstrI2S() extends Instruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(I2S)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
@@ -574,16 +581,15 @@ case class InstrI2S() extends Instruction {
     if (v == V_TYPE(false))
       env.setLift(this)
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame.push(V_TYPE(false), Set(this))
       else {
         frame.push(INT_TYPE(), Set(this))
       }
-    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
-      return (s, prev)
     (newFrame, Set())
-
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
 
 /** Logical shift right long
@@ -605,8 +611,10 @@ case class InstrLUSHR() extends BinOpNonIntInstruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(LUSHR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -633,6 +641,7 @@ case class InstrLDIV() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LDIV)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -660,8 +669,10 @@ case class InstrLADD() extends BinOpNonIntInstruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(LADD)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -684,8 +695,10 @@ case class InstrDMUL() extends BinOpNonIntInstruction {
         false
       )
     }
-    else
+    else {
       mv.visitInsn(DMUL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, DOUBLE_TYPE())
@@ -711,31 +724,13 @@ case class InstrDCMPL() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dcmpl", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(DCMPL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    if (s.stack.take(2).exists(_._1 == V_TYPE(true)))
-      env.setLift(this)
-    val (v1, prev1, frame1) = s.pop()
-    val (v2, prev2, frame2) = frame1.pop()
-    val newFrame =
-      if (env.shouldLiftInstr(this))
-        frame2.push(V_TYPE(false), Set(this))
-      else {
-        frame2.push(INT_TYPE(), Set(this))
-      }
-    val backtrack: Set[Instruction] =
-      if (env.shouldLiftInstr(this)) {
-        if (v1 != V_TYPE(true)) prev1
-        else if (v2 != V_TYPE(true)) prev2
-        else Set()
-      }
-      else
-        Set()
-    (newFrame, backtrack)
-  }
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, INT_TYPE())
 }
 
 
@@ -749,8 +744,10 @@ case class InstrLOR() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lor", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(LOR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -769,8 +766,10 @@ case class InstrLSHL() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lshl", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(LSHL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -787,22 +786,13 @@ case class InstrLSHR() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lshr", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(LSHR)
-  }
-
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    val (value2Type, value2Backtrack, frame2) = s.pop()
-    val (value1Type, value1Backtrack, frame1) = frame2.pop()
-    ((value1Type, value2Type): @unchecked) match {
-      case (LONG_TYPE(), INT_TYPE()) => (frame1.push(LONG_TYPE(), Set(this)), Set())
-      case (LONG_TYPE(), V_TYPE(false)) => (frame1, value1Backtrack)
-      case (V_TYPE(true), INT_TYPE()) => (frame1, value2Backtrack)
-      case (V_TYPE(true), V_TYPE(false)) =>
-        env.setLift(this)
-        (frame1.push(V_TYPE(true), Set(this)), Set())
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
 }
 
 case class InstrLXOR() extends BinOpNonIntInstruction {
@@ -815,8 +805,10 @@ case class InstrLXOR() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lxor", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(LXOR)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
 
   }
 
@@ -833,8 +825,10 @@ case class InstrLMUL() extends BinOpNonIntInstruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lmul", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(LMUL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
@@ -854,30 +848,11 @@ case class InstrDCMPG() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dcmpg", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DCMPG)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
-    if (s.stack.take(2).exists(_._1 == V_TYPE(true)))
-      env.setLift(this)
-    val (v1, prev1, frame1) = s.pop()
-    val (v2, prev2, frame2) = frame1.pop()
-    val newFrame =
-      if (env.shouldLiftInstr(this))
-        frame2.push(V_TYPE(false), Set(this))
-      else {
-        frame2.push(INT_TYPE(), Set(this))
-      }
-    val backtrack: Set[Instruction] =
-      if (env.shouldLiftInstr(this)) {
-        if (v1 != V_TYPE(true)) prev1
-        else if (v2 != V_TYPE(true)) prev2
-        else Set()
-      }
-      else
-        Set()
-    (newFrame, backtrack)
-  }
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, INT_TYPE())
 }
 
 /**
@@ -894,6 +869,7 @@ case class InstrDDIV() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "ddiv", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DDIV)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -909,6 +885,7 @@ case class InstrDADD() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dadd", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DADD)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -924,6 +901,7 @@ case class InstrLREM() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lrem", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(LREM)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -944,6 +922,7 @@ case class InstrFDIV() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fdiv", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FDIV)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -964,6 +943,7 @@ case class InstrFCMPG() extends BinOpInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fcmpg", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FCMPG)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 }
@@ -977,6 +957,7 @@ case class InstrFCMPL() extends BinOpInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fcmpl", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FCMPL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 }
@@ -990,6 +971,7 @@ case class InstrFMUL() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fmul", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FMUL)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -1005,6 +987,7 @@ case class InstrFADD() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fadd", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FADD)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -1020,6 +1003,7 @@ case class InstrDSUB() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dsub", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DSUB)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
     }
   }
 
@@ -1039,8 +1023,10 @@ case class InstrD2I() extends Instruction {
       loadCurrentCtx(mv, env, block)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "d2i", s"($vclasstype$fexprclasstype)$vclasstype", false)
     }
-    else
+    else {
       mv.visitInsn(D2I)
+      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
@@ -1048,13 +1034,13 @@ case class InstrD2I() extends Instruction {
     if (v == V_TYPE(true))
       env.setLift(this)
     val newFrame =
-      if (env.shouldLiftInstr(this))
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
         frame.push(V_TYPE(false), Set(this))
       else {
         frame.push(INT_TYPE(), Set(this))
       }
-    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
-      return (s, prev)
     (newFrame, Set())
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
