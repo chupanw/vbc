@@ -16,6 +16,7 @@ public class Main {
 
     public static void splPrint___(String s)
     {
+        System.out.println(s);
     }
 
     public static void main( String[] args ) throws IOException {
@@ -112,41 +113,41 @@ public class Main {
     public static boolean Gtp = true;
 
     @VConditional
-    public static boolean Src = true;
+    public static boolean Src =true;
     @VConditional
-    public static boolean SrcProg = true;
+    public static boolean SrcProg =true;
     @VConditional
-    public static boolean Src2 = true;
+    public static boolean Src2 =true;
     @VConditional
-    public static boolean BASE = true;
+    public static boolean BASE =true;
     @VConditional
-    public static boolean DIRECTED = true;
+    public static boolean DIRECTED =true;
     @VConditional
     public static boolean UNDIRECTED= !DIRECTED;
     @VConditional
-    public static boolean WEIGHTED= false;
+    public static boolean WEIGHTED=true;
     @VConditional
     public static boolean SEARCH= true;
     @VConditional
-    public static boolean BFS= true;
+    public static boolean BFS= false;
     @VConditional
-    public static boolean DFS= false;
+    public static boolean DFS=true;
     @VConditional
-    public static boolean NUMBER= true;
+    public static boolean NUMBER=true;
     @VConditional
     public static boolean CONNECTED= false;
     @VConditional
-    public static boolean STRONGLYCONNECTED= false;
+    public static boolean STRONGLYCONNECTED=true;
     @VConditional
-    public static boolean TRANSPOSE= true;
+    public static boolean TRANSPOSE=true;
     @VConditional
-    public static boolean CYCLE= false;
+    public static boolean CYCLE=true;
     @VConditional
     public static boolean MSTPRIM= false;
     @VConditional
     public static boolean MSTKRUSKAL= false;
     @VConditional
-    public static boolean SHORTEST= true;
+    public static boolean SHORTEST=true;
 
     public static boolean valid() {
         return GPL  &&  (!GPL  ||  MainGpl)  &&  (!MainGpl  ||  GPL)  &&  (!MainGpl  ||  Alg)  &&  (!MainGpl  ||  Gtp)  &&  (!MainGpl  ||  BASE)  &&  (!Alg  ||  MainGpl)  &&  (!Src  ||  MainGpl)  &&  (!WEIGHTED  ||  MainGpl)  &&  (!Gtp  ||  MainGpl)  &&  (!BASE  ||  MainGpl)  &&  (!Alg  ||  NUMBER  ||  CONNECTED  ||  TRANSPOSE  ||  STRONGLYCONNECTED  ||  CYCLE  ||  MSTPRIM  ||  MSTKRUSKAL  ||  SHORTEST)  &&  (!NUMBER  ||  Alg)  &&  (!CONNECTED  ||  Alg)  &&  (!TRANSPOSE  ||  Alg)  &&  (!STRONGLYCONNECTED  ||  Alg)  &&  (!CYCLE  ||  Alg)  &&  (!MSTPRIM  ||  Alg)  &&  (!MSTKRUSKAL  ||  Alg)  &&  (!SHORTEST  ||  Alg)  &&  (!Src  ||  SrcProg)  &&  (!SrcProg  ||  Src)  &&  (!SrcProg  ||  Src2)  &&  (!SrcProg  ||  SEARCH)  &&  (!Src2  ||  SrcProg)  &&  (!SEARCH  ||  SrcProg)  &&  (!Src2  ||  BFS  ||  DFS)  &&  (!BFS  ||  Src2)  &&  (!DFS  ||  Src2)  &&  (!BFS  ||  !DFS)  &&  (!Gtp  ||  DIRECTED  ||  UNDIRECTED)  &&  (!DIRECTED  ||  Gtp)  &&  (!UNDIRECTED  ||  Gtp)  &&  (!DIRECTED  ||  !UNDIRECTED)  &&  (!NUMBER  ||  Src)  &&  (!CONNECTED  ||  UNDIRECTED)  &&  (!CONNECTED  ||  Src)  &&  (!STRONGLYCONNECTED  ||  DIRECTED)  &&  (!STRONGLYCONNECTED  ||  DFS)  &&  (!CYCLE  ||  DFS)  &&  (!MSTKRUSKAL  ||  UNDIRECTED)  &&  (!MSTKRUSKAL  ||  WEIGHTED)  &&  (!MSTPRIM  ||  UNDIRECTED)  &&  (!MSTPRIM  ||  WEIGHTED)  &&  (!MSTKRUSKAL  ||  !MSTKRUSKAL  ||  !MSTPRIM)  &&  (!SHORTEST  ||  DIRECTED)  &&  (!SHORTEST  ||  WEIGHTED)  &&  (!STRONGLYCONNECTED  ||  TRANSPOSE);

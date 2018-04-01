@@ -18,6 +18,16 @@ trait CFGAnalysis {
 
   protected def blocks = method.body.blocks
 
+  /**
+    * Get successor block and predecessor block relationships.
+    *
+    * First we build successor relationship by analyzing the last instruction of each
+    * block, to check whether that's a jump instruction. Then, predecessor relationship
+    * is the inverse of successor relationship plus exception handler edges. The exception
+    * handler edges are necessary for generating VBlock.
+    *
+    * @todo Shall we add exception handler edges to the successor relationship as well?
+    */
   private val (succ, pred) = {
     var succ: Map[Block, Set[Block]] = Map()
     var pred: Map[Block, Set[Block]] = blocks.map((_, Set[Block]())).toMap
@@ -150,10 +160,20 @@ trait VBlockAnalysis extends CFGAnalysis {
 
       val pred: Set[Block] = getPredecessors(block)
       val variationalEdgeFromPred = pred.exists(isVariationalJump(_, block))
-      if (!variationalEdgeFromPred) {
-        val predVBlockIdxs = pred.map(vblockId)
+      val variationalEdgeToPred = pred.exists(isVariationalJump(block, _))
+      if (!variationalEdgeFromPred && !variationalEdgeToPred) {
         val thisVBlockIdx = vblockId(block)
-        if (predVBlockIdxs.size == 1 && predVBlockIdxs.head != thisVBlockIdx) {
+        val thisBlockIdx = blocks.indexOf(block)
+        // 1. First filter excludes self loop. We do not need to consider the node itself since
+        //  we are updating the node itself.
+        // 2. Second filter excludes exception handler blocks of the current block. If we take
+        //  those into account, we might get distracted by the old vblock values. Exception handler
+        //  blocks are in the same vblock anyway.
+        val predVBlockIdxs = pred.filter(_ != block).filter(!isExceptionHandlerBlockOf(_, block)).map(vblockId)
+        // condition 1: the first block must be the start of a VBlock todo: add test case
+        // condition 2: all predecessors must come from the same VBlock
+        // condition 3: must be in different VBlocks so that they can be merged
+        if (thisBlockIdx != 0 && predVBlockIdxs.size == 1 && predVBlockIdxs.head != thisVBlockIdx) {
           vblockId += (block -> predVBlockIdxs.head)
           queue = queue.enqueue(getSuccessorsAndExceptionHandlers(block))
         }
@@ -163,13 +183,22 @@ trait VBlockAnalysis extends CFGAnalysis {
       yield VBlock(vblockHead(vblockId), blocks.keys.toSet)
   }
 
+  /**
+    * Check if b1 is the exception handler block of b2
+    */
+  def isExceptionHandlerBlockOf(b1: Block, b2: Block): Boolean = {
+    b2.exceptionHandlers.exists(h => blocks(h.handlerBlockIdx) == b1)
+  }
 
   def getNextVBlock(vblock: VBlock): Option[VBlock] = {
     assert(vblocks.contains(vblock), s"parameter $vblock is not a vblock")
     val b = vblocks.dropWhile(_ != vblock)
     if (b.isEmpty)
       None
-    else b.tail.headOption
+    else {
+      val bb = b.tail.dropWhile(vblock => isExceptionHandlerBlock(vblock.firstBlock))
+      bb.headOption
+    }
   }
 
   /**
@@ -186,7 +215,10 @@ trait VBlockAnalysis extends CFGAnalysis {
 
     val succ: Set[Block] = getSuccessors(block)
 
-    assert(currentVBlock.allBlocks.size == 1 || succ.forall(currentVBlock.allBlocks contains _) || succ.forall(s => !(currentVBlock.allBlocks contains s)), "either all or none of the successors should be in the current VBlock")
+    assert(currentVBlock.allBlocks.size == 1 ||
+      succ.filter(_ != block).forall(currentVBlock.allBlocks contains _) ||
+      succ.filter(_ != block).forall(s => !(currentVBlock.allBlocks contains s)),
+      "either all or none of the successors should be in the current VBlock")
 
     !succ.forall(currentVBlock.allBlocks contains _)
   }
@@ -198,6 +230,8 @@ trait VBlockAnalysis extends CFGAnalysis {
   def isVBlockBefore(firstv: VBlock, secondv: VBlock): Boolean =
     vblocks.indexOf(firstv) < vblocks.indexOf(secondv)
 
+  def isSameVBlock(firstv: VBlock, secondv: VBlock): Boolean =
+    vblocks.indexOf(firstv) == vblocks.indexOf(secondv)
 
   /**
     * finds the VBlock that this block is in

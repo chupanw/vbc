@@ -19,17 +19,42 @@ object Rewrite {
 
   def rewriteV(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
     if (m.body.blocks.nonEmpty) {
-      initializeConditionalFields(
-        appendGOTO(
-          ensureUniqueReturnInstr(
-            replaceAthrowWithAreturn(m)
-          )
-        ), cls
+//      profiling(
+        initializeConditionalFields(
+          addFakeHanlderBlocks(
+            appendGOTO(
+              ensureUniqueReturnInstr(
+                replaceAthrowWithAreturn(m)
+              )
+            )
+          ),
+          cls
       )
+//        , cls)
     }
     else {
       m
     }
+  }
+
+  var idCount = 0
+  private def profiling(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
+    val id = cls.name + "#" + m.name + "#" + idCount
+    idCount += 1
+    val newBlocks = m.body.blocks.map(b =>
+      if (b == m.body.blocks.head)
+        Block(InstrStartTimer(id) +: b.instr, b.exceptionHandlers)
+      else if (b == m.body.blocks.last)
+        Block(b.instr.flatMap(i =>
+          if (i.isReturnInstr)
+            List(InstrStopTimer(id), i)
+          else
+            List(i)
+        ), b.exceptionHandlers)
+      else
+        b
+    )
+    m.copy(body = CFG(newBlocks))
   }
 
   private def appendGOTO(m: VBCMethodNode): VBCMethodNode = {
@@ -78,13 +103,21 @@ object Rewrite {
     val newReturnBlock = Block(newReturnBlockInstr, Nil)
     val newReturnBlockIdx = method.body.blocks.size
 
-    def storeAndGoto: List[Instruction] = List(InstrASTORE(returnVariable), InstrGOTO(newReturnBlockIdx))
-    def storeNullAndGoto: List[Instruction] = InstrACONST_NULL() :: storeAndGoto
+    def getStoreInstr(retInstr: Instruction): Instruction = retInstr match {
+      case _: InstrIRETURN => InstrISTORE(returnVariable)
+      case _: InstrLRETURN => InstrLSTORE(returnVariable)
+      case _: InstrFRETURN => InstrFSTORE(returnVariable)
+      case _: InstrDRETURN => InstrDSTORE(returnVariable)
+      case _: InstrARETURN => InstrASTORE(returnVariable)
+      case _ => throw new RuntimeException("Not a return instruction: " + retInstr)
+    }
+    def storeAndGotoSeq(retInstr: Instruction): List[Instruction] = List(getStoreInstr(retInstr), InstrGOTO(newReturnBlockIdx))
+    def storeNullAndGotoSeq: List[Instruction] = List(InstrACONST_NULL(), InstrASTORE(returnVariable), InstrGOTO(newReturnBlockIdx))
 
     val rewrittenBlocks = method.body.blocks.map(block =>
       Block(block.instr.flatMap(instr =>
         if (instr.isReturnInstr) {
-          if (instr.isRETURN) storeNullAndGoto else storeAndGoto
+          if (instr.isRETURN) storeNullAndGotoSeq else storeAndGotoSeq(instr)
         }
         else
           List(instr)
@@ -110,35 +143,45 @@ object Rewrite {
     */
   private def initializeConditionalFields(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
     if (m.isInit) {
-      val firstBlock = m.body.blocks.head
-      val firstBlockInstructions = firstBlock.instr
-
-      val nopPrefix = firstBlockInstructions.takeWhile(_.isInstanceOf[EmptyInstruction])
-      val restInstrs = firstBlockInstructions.drop(nopPrefix.length).toList
-      // this is a stronger assumption
-      assert(restInstrs.head.isALOAD0, "first instruction in <init> is NOT ALOAD 0")
-      val (initSeq, nonInitSeq) = extractSuperInit(restInstrs, cls)
-
-      val newInstrs = nopPrefix ++ (InstrINIT_CONDITIONAL_FIELDS() :: initSeq ::: nonInitSeq)
-      val newBlocks = Block(newInstrs, Nil) +: m.body.blocks.drop(1)
+      val firstBlockInstructions = m.body.blocks.head.instr
+      val newBlocks = Block(InstrINIT_CONDITIONAL_FIELDS() +: firstBlockInstructions, Nil) +: m.body.blocks.drop(1)
       m.copy(body = CFG(newBlocks))
     } else m
 
-  private def isInvokeSpecialInit(i: Instruction, cls: VBCClassNode): Boolean = i match {
-    case invokespecial: InstrINVOKESPECIAL =>
-      invokespecial.name.contentEquals("<init>") &&
-        (invokespecial.owner.contentEquals(cls.superName) || invokespecial.owner.contentEquals(cls.name))
-    case _ => false
-  }
-  private def extractSuperInit(instrs: List[Instruction], cls: VBCClassNode): (List[Instruction], List[Instruction]) = {
-    val invokeSpecialInit = instrs.filter(isInvokeSpecialInit(_, cls))
-    assert(invokeSpecialInit.size == 1, "Suspicious number of <init> call: " + invokeSpecialInit.size)
-    val (prefix, postfix) = instrs.splitAt(instrs.indexOf(invokeSpecialInit.head))
-    val aload0 = prefix.reverse.find(_.isALOAD0)
-    assert(aload0.nonEmpty, "No ALOAD 0 before calling <init>")
-    val (beforeALOAD0, afterALOAD0) = prefix.splitAt(prefix.indexOf(aload0.get))
-    val initSeq: List[Instruction] = afterALOAD0 ::: invokeSpecialInit.head :: Nil
-    val nonInitSeq: List[Instruction] = beforeALOAD0 ::: postfix.tail
-    (initSeq, nonInitSeq)
+  /**
+    * Attach one or more fake handler blocks to each Block.
+    *
+    * This way we ensure that each fake handler block is part of only one VBlock, so that the context is available
+    * in handler block. Each fake handler block is simply one GOTO instruction that jumps to the original handler
+    * block.
+    *
+    * Note that we add all fake blocks to the end of method, so that we do not need to change indexes of existing
+    * jump instructions
+    */
+  private def addFakeHanlderBlocks(m: VBCMethodNode): VBCMethodNode = {
+    var currentIdx: Int = m.body.blocks.size
+    val pairs: List[(Block, List[Block])] = m.body.blocks.map(b => {
+      if (b.exceptionHandlers.isEmpty) (b, Nil)
+      else {
+        // replace exceptionHandlers in current block to point to new fake blocks
+        val fakePairs: List[(VBCHandler, Block)] = b.exceptionHandlers.toList.map { h =>
+          val fakeHandler = new VBCHandler(
+            h.exceptionType,
+            currentIdx,
+            h.visibleTypeAnnotations,
+            h.invisibleTypeAnnotations
+          )
+          val fakeBlock = Block(InstrWrapOne(), InstrGOTO(h.handlerBlockIdx))
+          currentIdx = currentIdx + 1
+          (fakeHandler, fakeBlock)
+        }
+        val (fakeExceptionHandlers, fakeBlocks) = fakePairs.unzip
+        val newBlock: Block = b.copy(exceptionHandlers = fakeExceptionHandlers)
+        (newBlock, fakeBlocks)
+      }
+    })
+    val newBlocks: List[Block] = pairs.unzip._1
+    val fakeBlocks: List[Block] = pairs.unzip._2.flatten
+    m.copy(body = new CFG(newBlocks ::: fakeBlocks))
   }
 }

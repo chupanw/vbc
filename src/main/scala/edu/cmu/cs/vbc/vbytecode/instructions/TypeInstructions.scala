@@ -62,7 +62,7 @@ case class InstrCHECKCAST(clsName: Owner) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
     // TODO: since we don't support exception now, stack is unchanged
-    if (s.stack.head._1 == V_TYPE()) {
+    if (s.stack.head._1 == V_TYPE(false)) {
       env.setLift(this)
     }
     (s, Set())
@@ -109,18 +109,18 @@ case class InstrI2C() extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (value, prev, frame) = s.pop()
-    if (value == V_TYPE())
+    if (value == V_TYPE(false))
       env.setLift(this)
     val newFrame =
       if (env.shouldLiftInstr(this)) {
         // lifting tag could be set when backtracked from other instructions
-        frame.push(V_TYPE(), Set(this))
+        frame.push(V_TYPE(false), Set(this))
       }
       else {
         frame.push(CHAR_TYPE(), Set(this))
       }
     val backtrack =
-      if (env.shouldLiftInstr(this) && value != V_TYPE())
+      if (env.shouldLiftInstr(this) && value != V_TYPE(false))
         prev
       else
         Set[Instruction]()
@@ -177,9 +177,9 @@ case class InstrINSTANCEOF(owner: Owner) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
     val (objType, objBacktrack, frame) = s.pop()
-    if (objType == V_TYPE()) {
+    if (objType == V_TYPE(false)) {
       env.setLift(this)
-      (frame.push(V_TYPE(), Set(this)), Set())
+      (frame.push(V_TYPE(false), Set(this)), Set())
     }
     else if (env.shouldLiftInstr(this)) {
       (frame, objBacktrack)
@@ -190,20 +190,287 @@ case class InstrINSTANCEOF(owner: Owner) extends Instruction {
   }
 }
 
+/**
+  * Convert int to byte
+  *
+  * ..., value (int) -> ..., result (int)
+  */
 case class InstrI2B() extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(I2B)
   }
 
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = ???
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getVOps,
+        "i2b",
+        s"($vclasstype$fexprclasstype)$vclasstype",
+        false
+      )
+    }
+    else
+      mv.visitInsn(I2B)
+  }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = ???
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(INT_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+
+  }
 }
 
+/**
+  * Convert int to long
+  *
+  * ..., value (int) -> result (long)
+  */
 case class InstrI2L() extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(I2L)
   }
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(
+        INVOKESTATIC,
+        Owner.getVOps,
+        "i2l",
+        s"($vclasstype$fexprclasstype)$vclasstype",
+        false
+      )
+    }
+    else
+      mv.visitInsn(I2L)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(true), Set(this))
+      else {
+        frame.push(LONG_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrI2D() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(I2D)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "i2d", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(I2D)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(true), Set(this))
+      else {
+        frame.push(DOUBLE_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrL2D() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(L2D)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "l2d", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(L2D)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(true))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(true), Set(this))
+      else {
+        frame.push(DOUBLE_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrD2F() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(D2F)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "d2f", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(D2F)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(true))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(FLOAT_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrF2D() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(F2D)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "f2d", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(F2D)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(true), Set(this))
+      else {
+        frame.push(DOUBLE_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrI2F() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(I2F)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "i2f", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(I2F)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(FLOAT_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrF2I() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(F2I)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "f2i", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(F2I)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(INT_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(false))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrD2L() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(D2L)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "d2l", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else
+      mv.visitInsn(D2L)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(true))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this))
+        frame.push(V_TYPE(true), Set(this))
+      else {
+        frame.push(LONG_TYPE(), Set(this))
+      }
+    if (env.shouldLiftInstr(this) && v != V_TYPE(true))
+      return (s, prev)
+    (newFrame, Set())
+  }
+}
+
+case class InstrL2F() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(L2F)
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = ???
 

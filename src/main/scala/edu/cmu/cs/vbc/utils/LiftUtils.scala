@@ -49,9 +49,19 @@ object LiftUtils {
     value match {
       case 0 => mv.visitInsn(LCONST_0)
       case 1 => mv.visitInsn(LCONST_1)
-      case v => mv.visitLdcInsn(value)
+      case v => mv.visitLdcInsn(v)
     }
   }
+
+  def pushDoubleConstant(mv: MethodVisitor, value: Double): Unit = {
+    value match {
+      case 0 => mv.visitInsn(DCONST_0)
+      case 1 => mv.visitInsn(DCONST_1)
+      case v => mv.visitLdcInsn(v)
+    }
+  }
+
+  def pushFloatConstant(mv: MethodVisitor, value: Float): Unit = mv.visitLdcInsn(value)
 
   def pushConstantFALSE(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "False", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
@@ -81,7 +91,7 @@ object LiftUtils {
     mv.visitVarInsn(ALOAD, env.getVarIdx(v))
 
   def loadCurrentCtx(mv: MethodVisitor, env: VMethodEnv, block: Block) =
-    if (env.isMain) pushConstantTRUE(mv) else loadFExpr(mv, env, env.getVBlockVar(block))
+    /*if (env.isMain) pushConstantTRUE(mv) else */loadFExpr(mv, env, env.getVBlockVar(block))
 
   def storeV(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))
@@ -147,5 +157,8 @@ object LiftUtils {
     mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getChar, "charValue", MethodDesc("()C"), false)
   def char2Character(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getChar, "valueOf", MethodDesc(s"(C)${TypeDesc.getChar}"), false)
-
+  def double2Double(mv: MethodVisitor) =
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, "valueOf", MethodDesc(s"(D)${TypeDesc.getDouble}"), false)
+  def float2Float(mv: MethodVisitor) =
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getFloat, "valueOf", MethodDesc(s"(F)${TypeDesc.getFloat}"), false)
 }

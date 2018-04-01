@@ -37,8 +37,7 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
   test("static fields with clinit") {
     testMain(classOf[edu.cmu.cs.vbc.prog.StaticFieldsWithClinit])
   }
-
-  test("conditional field assignment") {
+test("conditional field assignment") {
     testMain(classOf[edu.cmu.cs.vbc.prog.FieldTest])
   }
 
@@ -59,7 +58,7 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
   }
 
   test("LinkedList") {
-    testMain(classOf[LinkedListExample])
+    testMain(classOf[LinkedListExample], configFile = Some("util.conf"))
   }
 
   test("Different ways of superclass initialization") {
@@ -75,6 +74,42 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
   }
 
   test("ArrayListExample") {
-    testMain(classOf[ArrayListExample])
+    testMain(classOf[ArrayListExample], configFile = Some("util.conf"))
+  }
+
+  ignore("LongExample") {
+    testMain(classOf[LongExample])
+  }
+
+  test("SwitchExample") {
+    testMain(classOf[SwitchExample])
+  }
+
+  test("ExpandObjectArrayExample") {
+    testMain(classOf[ExpandObjectArrayExample], configFile = Some("checkstyle.conf"))
+  }
+
+  test("TryCatchExample") {
+    testMain(classOf[TryCatchExample], configFile = Some("default.conf"))
+  }
+
+  test("VBlockAnalysisTest") {
+    testMain(classOf[VBlockAnalysisTest])
+  }
+
+  test("HashMapExample") {
+    testMain(classOf[HashMapExample], configFile = Some("util.conf"))
+  }
+
+  test("HashSetExample") {
+    testMain(classOf[HashSetExample], configFile = Some("util.conf"))
+  }
+
+  test("TernaryOperatorExample") {
+    testMain(classOf[TernaryOperatorExample], configFile = Some("default.conf"))
+  }
+
+  test("MultiArrayExample") {
+    testMain(classOf[MultiArrayExample], configFile = Some("default.conf"))
   }
 }

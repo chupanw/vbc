@@ -249,4 +249,8 @@ public interface V<T> {
      * @return If the wrapped values are equal.
      */
     boolean equalValue(Object o);
+
+    boolean hasThrowable();
+
+    V<T> simplified();
 }

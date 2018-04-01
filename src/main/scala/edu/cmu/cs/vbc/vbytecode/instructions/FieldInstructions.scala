@@ -38,12 +38,29 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
       }
       else {
         // fields are not lifted but we need a V, so we wrap it into a V
-        mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toObject.toModel)
+        mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toModel)
+        if (desc.isPrimitive) boxField(desc, mv)
         callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
       }
     }
     else {
       mv.visitFieldInsn(GETSTATIC, owner.toModel, name, desc.toModel)
+    }
+  }
+
+  def boxField(desc: TypeDesc, mv: MethodVisitor): Unit = {
+    Type.getType(desc).getSort match {
+      case Type.INT =>
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+      case Type.BOOLEAN =>
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+      case Type.LONG =>
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, MethodName("valueOf"), MethodDesc(s"(J)${TypeDesc.getLong}"), false)
+      case Type.CHAR =>
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+      case Type.OBJECT => // do nothing
+      case Type.ARRAY => // do nothing
+      case _ => ???
     }
   }
 
@@ -54,11 +71,11 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
     if (LiftingPolicy.shouldLiftField(owner, name, desc)) {
       // This field should be lifted (e.g. fields that are not from java.lang)
       env.setLift(this)
-      (s.push(V_TYPE(), Set(this)), Set())
+      (s.push(V_TYPE(TypeDesc(desc).is64Bit), Set(this)), Set())
     }
     else {
       if (env.shouldLiftInstr(this)) {
-        (s.push(V_TYPE(), Set(this)), Set())
+        (s.push(V_TYPE(TypeDesc(desc).is64Bit), Set(this)), Set())
       }
       else {
         (s.push(VBCType(Type.getType(desc)), Set(this)), Set())
@@ -100,7 +117,7 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
     val (v, prev, newFrame) = s.pop()
     env.setLift(this)
     val backtrack =
-      if (v != V_TYPE())
+      if (!v.isInstanceOf[V_TYPE])
         prev
       else
         Set[Instruction]()
@@ -127,14 +144,14 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       mv.visitFieldInsn(GETFIELD, owner, name, "Ledu/cmu/cs/varex/V;")
 
     //select V to current context
-    loadCurrentCtx(mv, env, block)
-    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "select", s"($fexprclasstype)$vclasstype", true)
+//    loadCurrentCtx(mv, env, block)
+//    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "select", s"($fexprclasstype)$vclasstype", true)
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (v, prev, frame) = s.pop()
-    if (v == V_TYPE()) env.setLift(this)
-    val newFrame = frame.push(V_TYPE(), Set(this))
+    if (v == V_TYPE(false)) env.setLift(this)
+    val newFrame = frame.push(V_TYPE(TypeDesc(desc).is64Bit), Set(this))
     (newFrame, Set())
   }
 
@@ -149,7 +166,12 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
       (visitor: MethodVisitor) => {
         val label = new Label()
         visitor.visitVarInsn(ALOAD, 1) //obj ref
-        visitor.visitFieldInsn(GETFIELD, owner, name, vclasstype)
+        if (LiftingPolicy.shouldLiftField(this.owner, this.name, this.desc))
+          visitor.visitFieldInsn(GETFIELD, owner, name, vclasstype)
+        else {
+          visitor.visitFieldInsn(GETFIELD, owner, name, desc)
+          callVCreateOne(visitor, (m) => m.visitVarInsn(ALOAD, 0))
+        }
         visitor.visitInsn(ARETURN)
       }
     }
@@ -284,8 +306,8 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (value, prev1, frame) = s.pop()
     val (ref, prev2, newFrame) = frame.pop()
-    if (value != V_TYPE()) return (newFrame, prev1)
-    if (ref == V_TYPE()) env.setLift(this)
+    if (!value.isInstanceOf[V_TYPE]) return (newFrame, prev1)
+    if (ref == V_TYPE(false)) env.setLift(this)
     (newFrame, Set())
   }
 

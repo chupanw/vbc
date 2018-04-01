@@ -47,8 +47,10 @@ class VBCAnalyzer(env: VMethodEnv) {
     }
     // init args
     val args = Type.getArgumentTypes(env.method.desc)
+    var n64Bit = 0
     for (argIdx <- 0 until args.size) {
-      initialFrame = initialFrame.setLocal(new Parameter(if (env.method.isStatic) argIdx else argIdx + 1, "ctx", TypeDesc(fexprclasstype)), VBCType(args(argIdx)), Set())
+      initialFrame = initialFrame.setLocal(new Parameter(if (env.method.isStatic) argIdx + n64Bit else argIdx + 1 + n64Bit, "parameter", TypeDesc(fexprclasstype)), VBCType(args(argIdx)), Set())
+      if (TypeDesc(args(argIdx).getDescriptor).is64Bit) n64Bit = n64Bit + 1
     }
 
     def getInstr(insn: Int) = instructions(insn)

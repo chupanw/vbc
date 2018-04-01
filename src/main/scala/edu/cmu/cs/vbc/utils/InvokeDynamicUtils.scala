@@ -159,8 +159,12 @@ object InvokeDynamicUtils {
       val helper = (cv: ClassVisitor) => {
         val mv: MethodVisitor = cv.visitMethod(ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC, helperName, helperDesc, null, Array[String]())
         mv.visitVarInsn(ALOAD, 0)  // [V
+        if (!baseType.isPrimitive) mv.visitLdcInsn(Type.getObjectType(currentInvokeObjType))
         mv.visitVarInsn(ALOAD, nArg + 1)  // ctx
-        mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, s"expand${baseTypeStr}Array", MethodDesc(s"([${vclasstype}${fexprclasstype})$vclasstype"), false)
+        if (baseType.isPrimitive)
+          mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, s"expand${baseTypeStr}Array", MethodDesc(s"([${vclasstype}${fexprclasstype})$vclasstype"), false)
+        else
+          mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, s"expandArray", MethodDesc(s"([${vclasstype}Ljava/lang/Class;${fexprclasstype})$vclasstype"), false)
         mv.visitVarInsn(ASTORE, nArg + 2) // store the expanded array
         mv.visitVarInsn(ALOAD, nArg + 2)
         (1 to nArg) foreach {i => mv.visitVarInsn(ALOAD, i)}

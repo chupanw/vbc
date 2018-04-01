@@ -1,8 +1,8 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.OpcodePrint
-import edu.cmu.cs.vbc.analysis.VBCFrame
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
+import edu.cmu.cs.vbc.analysis.{VBCFrame, V_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.Opcodes._
@@ -32,9 +32,9 @@ trait Instruction {
 
   def getVariables: Set[LocalVar] = Set()
 
-  def getJumpInstr: Option[JumpInstruction] = None
-
   final def isJumpInstr: Boolean = getJumpInstr.isDefined
+
+  def getJumpInstr: Option[JumpInstruction] = None
 
   def isReturnInstr: Boolean = false
   def isATHROW: Boolean = false
@@ -68,7 +68,7 @@ trait Instruction {
 
 case class UNKNOWN(opCode: Int = -1) extends Instruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
-    throw new RuntimeException("Unknown Instruction: " + OpcodePrint.print(opCode))
+    throw new RuntimeException("Unknown Instruction in " + s"${env.clazz.name}#${env.method.name}" + ": " + OpcodePrint.print(opCode))
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
@@ -83,23 +83,23 @@ case class UNKNOWN(opCode: Int = -1) extends Instruction {
 trait EmptyInstruction extends Instruction
 
 case class InstrNOP() extends EmptyInstruction {
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = toByteCode(mv, env, block)
+
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     mv.visitInsn(NOP)
   }
-
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = toByteCode(mv, env, block)
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set.empty[Instruction])
 }
 
 case class InstrLINENUMBER(line: Int) extends EmptyInstruction {
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = toByteCode(mv, env, block)
+
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
     val l = new Label()
     mv.visitLabel(l)
     mv.visitLineNumber(line, l)
   }
-
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = toByteCode(mv, env, block)
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set())
 }
@@ -166,16 +166,69 @@ case object InstrINIT_CONDITIONAL_FIELDS {
         if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
         mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
       case Type.OBJECT => mv.visitInsn(ACONST_NULL)
+      case Type.SHORT =>
+        if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
+      case Type.BYTE =>
+        if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
+      case Type.CHAR =>
+        if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
       case Type.BOOLEAN =>
         if (f.value == null) mv.visitInsn(ICONST_0) else pushConstant(mv, f.value.asInstanceOf[Int])
         mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
       case Type.LONG =>
         if (f.value == null) mv.visitInsn(LCONST_0) else pushLongConstant(mv, f.value.asInstanceOf[Long])
         mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, "valueOf", s"(J)${Owner.getLong.getTypeDesc}", false)
+      case Type.DOUBLE =>
+        if (f.value == null) mv.visitInsn(DCONST_0) else pushDoubleConstant(mv, f.value.asInstanceOf[Double])
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, "valueOf", s"(D)${Owner.getDouble.getTypeDesc}", false)
+      case Type.FLOAT =>
+        if (f.value == null) mv.visitInsn(FCONST_0) else pushFloatConstant(mv, f.value.asInstanceOf[Float])
+        float2Float(mv)
       case Type.ARRAY => mv.visitInsn(ACONST_NULL)
       case _ =>
         ???
     }
     callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+  }
+}
+
+case class InstrStartTimer(id: String) extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {}
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitLdcInsn(id)
+    mv.visitMethodInsn(INVOKESTATIC, Owner("edu/cmu/cs/vbc/utils/Profiler"), MethodName("startTimer"), MethodDesc("(Ljava/lang/String;)V"), false)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = (s, Set())
+}
+
+case class InstrStopTimer(id: String) extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {}
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitLdcInsn(id)
+    mv.visitMethodInsn(INVOKESTATIC, Owner("edu/cmu/cs/vbc/utils/Profiler"), MethodName("stopTimer"), MethodDesc("(Ljava/lang/String;)V"), false)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = (s, Set())
+}
+
+/**
+  * Our own instruction for wrapping the value on stack into V.One
+  *
+  * This is used, for example, in our fake TryCatchBlocks to wrap the exceptions.
+  */
+case class InstrWrapOne() extends Instruction {
+  import LiftUtils._
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {} // do nothing
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
+    callVCreateOne(mv, loadCurrentCtx(_, env, block))
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (_, _, frame) = s.pop()
+    (frame.push(V_TYPE(false), Set(this)), Set())
   }
 }

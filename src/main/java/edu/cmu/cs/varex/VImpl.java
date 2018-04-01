@@ -4,13 +4,14 @@ import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.util.*;
 import java.util.function.*;
 
 /**
  * internal implementation of V
  */
-class VImpl<T> implements V<T> {
+class VImpl<T> implements V<T>, Serializable {
 
     static <U> V<? extends U> choice(FeatureExpr condition, U a, U b) {
         Map<U, FeatureExpr> result = new HashMap<>(2);
@@ -171,7 +172,7 @@ class VImpl<T> implements V<T> {
         FeatureExpr result = FeatureExprFactory.False();
         for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
             if (filterNull && e.getKey() == null) continue;
-            if (condition.test(e.getKey()))
+            if (e.getValue().isSatisfiable() && condition.test(e.getKey()))
                 result = result.or(e.getValue());
         }
         return result;
@@ -195,8 +196,16 @@ class VImpl<T> implements V<T> {
         while (it.hasNext()) {
             Map.Entry<T, FeatureExpr> entry = it.next();
             FeatureExpr newCondition = entry.getValue().and(reducedConfigSpace);
-            if (newCondition.isSatisfiable())
-                result.put(entry.getKey(), newCondition);
+            if (newCondition.isSatisfiable()) {
+                if (result.containsKey(entry.getKey())) {
+                    // duplicate values, merge conditions
+                    FeatureExpr existingCond = result.get(entry.getKey());
+                    FeatureExpr combinedCond = existingCond.or(newCondition);
+                    result.put(entry.getKey(), combinedCond);
+                } else {
+                    result.put(entry.getKey(), newCondition);
+                }
+            }
         }
         return createV(result);
     }
@@ -247,6 +256,35 @@ class VImpl<T> implements V<T> {
     @Override
     public boolean equalValue(Object o) {
         return equals(o);
+    }
+
+    @Override
+    public boolean hasThrowable() {
+        for (Object o : values.keySet()) {
+            if (o instanceof Throwable)
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Remove values that have False context
+     * @return
+     */
+    @Override
+    public V<T> simplified() {
+        HashMap<T, FeatureExpr> simplified = new HashMap<>();
+        for (HashMap.Entry<T, FeatureExpr> entry : values.entrySet()) {
+            if (entry.getValue().isSatisfiable()) {
+                simplified.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (simplified.size() == 1) {
+            HashMap.Entry<T, FeatureExpr> entry = simplified.entrySet().iterator().next();
+            return V.one(entry.getValue(), entry.getKey());
+        } else {
+            return new VImpl<T>(simplified);
+        }
     }
 
 }

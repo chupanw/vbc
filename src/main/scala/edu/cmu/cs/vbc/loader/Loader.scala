@@ -24,13 +24,6 @@ class Loader {
     adaptClass(classNode)
   }
 
-  def loadClass(bytes: Array[Byte]): VBCClassNode = {
-    val cr = new ClassReader(bytes)
-    val classNode = new ClassNode(ASM5)
-    cr.accept(classNode, 0)
-    adaptClass(classNode)
-  }
-
   def adaptClass(cl: ClassNode): VBCClassNode = new VBCClassNode(
     cl.version,
     cl.access,
@@ -39,7 +32,15 @@ class Loader {
     cl.superName,
     if (cl.interfaces == null) Nil else cl.interfaces.toList,
     if (cl.fields == null) Nil else cl.fields.map(adaptField).toList,
-    if (cl.methods == null) Nil else cl.methods.map(adaptMethod(cl.name, _)).toList,
+    if (cl.methods == null) Nil else cl.methods.map(
+      m => adaptMethod(cl.name,
+        TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
+          InitRewriter.extractInitSeq(
+              transformSwitches(LocalVariableTransformer.transform(m)), cl
+          )
+        )
+      )
+    ).toList,
     if (cl.sourceDebug != null && cl.sourceFile != null) Some(cl.sourceFile, cl.sourceDebug) else None,
     if (cl.outerClass != null) Some(cl.outerClass, cl.outerMethod, cl.outerMethodDesc) else None,
     if (cl.visibleAnnotations == null) Nil else cl.visibleAnnotations.toList,
@@ -50,6 +51,50 @@ class Loader {
     if (cl.innerClasses == null) Nil else cl.innerClasses.map(adaptInnerClass).toList
   )
 
+  /**
+    * Transform LookupSwitch and TableSwitch to IFEQ and GOTO
+    *
+    * In case of errors, we modify instruction list instead of creating a new MethodNode
+    *
+    * @param m  origin MethodNode
+    * @return new MethodNode that could not have any switch
+    */
+  def transformSwitches(m: MethodNode): MethodNode = {
+    val instructions: List[AbstractInsnNode] = m.instructions.toArray.toList
+    val newInstructions: List[AbstractInsnNode] = instructions.flatMap(i => i match {
+      case table: TableSwitchInsnNode =>
+        val switchValueIdx = m.maxLocals
+        m.localVariables.add(new LocalVariableNode(s"switch${util.Random.nextInt()}", "I", "I", null, null, switchValueIdx))
+        m.maxLocals += 1
+        val ifs: List[AbstractInsnNode] = (table.min to table.max).toList.flatMap(num => {
+          List(
+            new VarInsnNode(ILOAD, switchValueIdx),
+            new LdcInsnNode(num),
+            new InsnNode(ISUB),
+            new JumpInsnNode(IFEQ, table.labels(num - table.min))
+          )
+        })
+        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, table.dflt))
+      case lookup: LookupSwitchInsnNode =>
+        val switchValueIdx = m.maxLocals
+        m.localVariables.add(new LocalVariableNode(s"switch${util.Random.nextInt()}", "I", "I", null, null, switchValueIdx))
+        m.maxLocals += 1
+        val ifs: List[AbstractInsnNode] = (0 until lookup.keys.length).toList.flatMap(index => {
+          List(
+            new VarInsnNode(ILOAD, switchValueIdx),
+            new LdcInsnNode(lookup.keys(index)),
+            new InsnNode(ISUB),
+            new JumpInsnNode(IFEQ, lookup.labels(index))
+          )
+        })
+        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, lookup.dflt))
+      case _ => List(i)
+    })
+    m.instructions.clear()
+    newInstructions foreach {i => m.instructions.add(i)}
+    if (m.maxStack < 2) m.maxStack = 2  // rare but possible
+    m
+  }
 
   def adaptMethod(owner: String, m: MethodNode): VBCMethodNode = {
     //    println("\tMethod: " + m.name)
@@ -59,24 +104,33 @@ class Loader {
     val ordered = methodAnalyzer.blocks.toArray :+ m.instructions.size()
 
     var varCache: Map[Int, Variable] = Map()
-    //    if (m.parameters != null)
-    //      for (paramIdx <- 0 until m.parameters.size())
-    //        varCache += (paramIdx -> new Parameter(paramIdx, m.parameters(paramIdx).name))
     val isStatic = (m.access & Opcodes.ACC_STATIC) > 0
-    val parameterRange = Type.getArgumentTypes(m.desc).size + (if (isStatic) 0 else 1) +
-      Type.getArgumentTypes(m.desc).count(t => t.getDescriptor == "J" || t.getDescriptor == "D") // long and double
+    val parameterRange = Type.getArgumentTypes(m.desc).size + // numbers of arguments
+        (if (isStatic) 0 else 1) +  // 'this' for nonstatic methods
+        Type.getArgumentTypes(m.desc).count(t => t.getDescriptor == "J" || t.getDescriptor == "D") // long and double
 
     // adding "this" explicitly, because it may not be included if it's the only parameter
     if (!isStatic)
       varCache += (0 -> new Parameter(0, "this", Owner(owner).getTypeDesc))
-    if (m.localVariables != null)
-      for (i <- 0 until m.localVariables.size()) {
-        val vIdx = m.localVariables(i).index
+    if (m.localVariables != null) {
+      val localVarList = m.localVariables.toList
+      for (i <- 0 until localVarList.size()) {
+        val vIdx = localVarList(i).index
         if (vIdx < parameterRange)
-          varCache += (vIdx -> new Parameter(vIdx, m.localVariables(i).name, TypeDesc(m.localVariables(i).desc)))
+          varCache += (vIdx -> new Parameter(
+            vIdx,
+            localVarList(i).name,
+            TypeDesc(localVarList(i).desc),
+            is64Bit = TypeDesc(localVarList(i).desc).is64Bit
+          ))
         else
-          varCache += (vIdx -> new LocalVar(m.localVariables(i).name, m.localVariables(i).desc))
+          varCache += (vIdx -> new LocalVar(
+            localVarList(i).name,
+            localVarList(i).desc,
+            is64Bit = TypeDesc(localVarList(i).desc).is64Bit
+          ))
       }
+    }
 
     // typically we initialize all variables and parameters from the table, but that table is technically optional,
     // so we need a fallback option and generate them on the fly with name "$unknown"
@@ -87,15 +141,15 @@ class Loader {
         val newVar =
           if (idx < parameterRange) {
             opCode match {
-              case LLOAD | LSTORE => new Parameter(idx, "$unknown", TypeDesc("J"))
-              case DLOAD | DSTORE => new Parameter(idx, "$unknown", TypeDesc("D"))
+              case LLOAD | LSTORE => new Parameter(idx, "$unknown", TypeDesc("J"), is64Bit = true)
+              case DLOAD | DSTORE => new Parameter(idx, "$unknown", TypeDesc("D"), is64Bit = true)
               case _ => new Parameter(idx, "$unknown", TypeDesc("Ljava/lang/Object;"))
             }
           }
           else {
             opCode match {
-              case LLOAD | LSTORE => new LocalVar("$unknown", TypeDesc("J"), is64bit = true)
-              case DLOAD | DSTORE => new LocalVar("$unknown", TypeDesc("D"), is64bit = true)
+              case LLOAD | LSTORE => new LocalVar("$unknown", TypeDesc("J"), is64Bit = true)
+              case DLOAD | DSTORE => new LocalVar("$unknown", TypeDesc("D"), is64Bit = true)
               case _ => new LocalVar("$unknown", "V")
             }
           }
@@ -112,8 +166,8 @@ class Loader {
 
 
 
-    val blocks = for (i <- 0 to ordered.length - 2)
-      yield createBlock(ordered(i), ordered(i + 1))
+    val blocks = for (i <- 0 to ordered.length - 2) yield createBlock(ordered(i), ordered(i + 1))
+    val nonEmptyBlocks = blocks.filter(_.instr.nonEmpty)
 
     VBCMethodNode(
       m.access,
@@ -121,31 +175,10 @@ class Loader {
       m.desc,
       if (m.signature == null) None else Some(m.signature),
       if (m.exceptions == null) Nil else m.exceptions.toList,
-      new CFG(blocks.toList),
+      new CFG(nonEmptyBlocks.toList),
       varCache.values.toList
     )
   }
-
-  def adaptField(field: FieldNode): VBCFieldNode = new VBCFieldNode(
-    field.access,
-    field.name,
-    field.desc,
-    field.signature,
-    field.value,
-    if (field.visibleAnnotations == null) Nil else field.visibleAnnotations.toList,
-    if (field.invisibleAnnotations == null) Nil else field.invisibleAnnotations.toList,
-    if (field.visibleTypeAnnotations == null) Nil else field.visibleTypeAnnotations.toList,
-    if (field.invisibleTypeAnnotations == null) Nil else field.invisibleTypeAnnotations.toList,
-    if (field.attrs == null) Nil else field.attrs.toList
-  )
-
-  def adaptInnerClass(m: InnerClassNode): VBCInnerClassNode = new VBCInnerClassNode(
-    m.name,
-    m.outerName,
-    m.innerName,
-    m.access
-  )
-
 
   def adaptBytecodeInstruction(inst: AbstractInsnNode, labelLookup: LabelNode => Int, variables: (Int, Int) => Variable): Instruction =
     inst.getOpcode match {
@@ -160,11 +193,11 @@ class Loader {
       case ICONST_5 => InstrICONST(5)
       case LCONST_0 => InstrLCONST(0)
       case LCONST_1 => InstrLCONST(1)
-      case FCONST_0 => UNKNOWN(FCONST_0)
-      case FCONST_1 => UNKNOWN(FCONST_1)
+      case FCONST_0 => InstrFCONST_0()
+      case FCONST_1 => InstrFCONST_1()
       case FCONST_2 => UNKNOWN(FCONST_2)
-      case DCONST_0 => UNKNOWN(DCONST_0)
-      case DCONST_1 => UNKNOWN(DCONST_1)
+      case DCONST_0 => InstrDCONST_0()
+      case DCONST_1 => InstrDCONST_1()
       case BIPUSH => {
         val i = inst.asInstanceOf[IntInsnNode]
         InstrBIPUSH(i.operand)
@@ -195,59 +228,66 @@ class Loader {
         InstrALOAD(variables(i.`var`, ALOAD))
       }
       case IALOAD => InstrIALOAD()
-      case LALOAD => UNKNOWN(LALOAD)
-      case FALOAD => UNKNOWN(FALOAD)
-      case DALOAD => UNKNOWN(DALOAD)
+      case LALOAD => InstrLALOAD()
+      case FALOAD => InstrFALOAD()
+      case DALOAD => InstrDALOAD()
       case AALOAD => InstrAALOAD()
       case BALOAD => InstrBALOAD()
       case CALOAD => InstrCALOAD()
-      case SALOAD => UNKNOWN(SALOAD)
+      case SALOAD => InstrSALOAD()
       case ISTORE => {
         val i = inst.asInstanceOf[VarInsnNode]
         InstrISTORE(variables(i.`var`, ISTORE))
       }
-      case LSTORE => UNKNOWN(LSTORE)
-      case FSTORE => UNKNOWN(FSTORE)
-      case DSTORE => UNKNOWN(DSTORE)
+      case LSTORE => {
+        val i = inst.asInstanceOf[VarInsnNode]
+        InstrLSTORE(variables(i.`var`, LSTORE))
+      }
+      case FSTORE =>
+        val i = inst.asInstanceOf[VarInsnNode]
+        InstrFSTORE(variables(i.`var`, FSTORE))
+      case DSTORE =>
+        val i = inst.asInstanceOf[VarInsnNode]
+        InstrDSTORE(variables(i.`var`, DSTORE))
       case ASTORE => {
         val i = inst.asInstanceOf[VarInsnNode]
         InstrASTORE(variables(i.`var`, ASTORE))
       }
       case IASTORE => InstrIASTORE()
-      case LASTORE => UNKNOWN(LASTORE)
-      case FASTORE => UNKNOWN(FASTORE)
-      case DASTORE => UNKNOWN(DASTORE)
+      case LASTORE => InstrLASTORE()
+      case FASTORE => InstrFASTORE()
+      case DASTORE => InstrDASTORE()
       case AASTORE => InstrAASTORE()
       case BASTORE => InstrBASTORE()
       case CASTORE => InstrCASTORE()
-      case SASTORE => UNKNOWN(SASTORE)
+      case SASTORE => InstrSASTORE()
       case POP => InstrPOP()
-      case POP2 => UNKNOWN(POP2)
+      case POP2 => InstrPOP2()
       case DUP => InstrDUP()
       case DUP_X1 => InstrDUP_X1()
-      case DUP_X2 => UNKNOWN(DUP_X2)
-      case DUP2 => UNKNOWN(DUP2)
-      case DUP2_X1 => UNKNOWN(DUP2_X1)
+      case DUP_X2 => InstrDUP_X2()
+      case DUP2 => InstrDUP2()
+      case DUP2_X1 => InstrDUP2_X1()
       case DUP2_X2 => UNKNOWN(DUP2_X2)
       case SWAP => InstrSWAP()
       case IADD => InstrIADD()
-      case LADD => UNKNOWN(LADD)
-      case FADD => UNKNOWN(FADD)
-      case DADD => UNKNOWN(DADD)
+      case LADD => InstrLADD()
+      case FADD => InstrFADD()
+      case DADD => InstrDADD()
       case ISUB => InstrISUB()
       case LSUB => InstrLSUB()
       case FSUB => UNKNOWN(FSUB)
-      case DSUB => UNKNOWN(DSUB)
+      case DSUB => InstrDSUB()
       case IMUL => InstrIMUL()
-      case LMUL => UNKNOWN(LMUL)
-      case FMUL => UNKNOWN(FMUL)
-      case DMUL => UNKNOWN(DMUL)
+      case LMUL => InstrLMUL()
+      case FMUL => InstrFMUL()
+      case DMUL => InstrDMUL()
       case IDIV => InstrIDIV()
-      case LDIV => UNKNOWN(LDIV)
-      case FDIV => UNKNOWN(FDIV)
-      case DDIV => UNKNOWN(DDIV)
+      case LDIV => InstrLDIV()
+      case FDIV => InstrFDIV()
+      case DDIV => InstrDDIV()
       case IREM => InstrIREM()
-      case LREM => UNKNOWN(LREM)
+      case LREM => InstrLREM()
       case FREM => UNKNOWN(FREM)
       case DREM => UNKNOWN(DREM)
       case INEG => InstrINEG()
@@ -255,41 +295,41 @@ class Loader {
       case FNEG => UNKNOWN(FNEG)
       case DNEG => UNKNOWN(DNEG)
       case ISHL => InstrISHL()
-      case LSHL => UNKNOWN(LSHL)
+      case LSHL => InstrLSHL()
       case ISHR => InstrISHR()
-      case LSHR => UNKNOWN(LSHR)
+      case LSHR => InstrLSHR()
       case IUSHR => InstrIUSHR()
-      case LUSHR => UNKNOWN(LUSHR)
+      case LUSHR => InstrLUSHR()
       case IAND => InstrIAND()
-      case LAND => UNKNOWN(LAND)
+      case LAND => InstrLAND()
       case IOR => InstrIOR()
-      case LOR => UNKNOWN(LOR)
-      case IXOR => UNKNOWN(IXOR)
-      case LXOR => UNKNOWN(LXOR)
+      case LOR => InstrLOR()
+      case IXOR => InstrIXOR()
+      case LXOR => InstrLXOR()
       case IINC => {
         val i = inst.asInstanceOf[IincInsnNode]
         InstrIINC(variables(i.`var`, IINC), i.incr)
       }
       case I2L => InstrI2L()
-      case I2F => UNKNOWN(I2F)
-      case I2D => UNKNOWN(I2D)
-      case L2I => UNKNOWN(L2I)
-      case L2F => UNKNOWN(L2F)
-      case L2D => UNKNOWN(L2D)
-      case F2I => UNKNOWN(F2I)
+      case I2F => InstrI2F()
+      case I2D => InstrI2D()
+      case L2I => InstrL2I()
+      case L2F => InstrL2F()
+      case L2D => InstrL2D()
+      case F2I => InstrF2I()
       case F2L => UNKNOWN(F2L)
-      case F2D => UNKNOWN(F2D)
-      case D2I => UNKNOWN(D2I)
-      case D2L => UNKNOWN(D2L)
-      case D2F => UNKNOWN(D2F)
+      case F2D => InstrF2D()
+      case D2I => InstrD2I()
+      case D2L => InstrD2L()
+      case D2F => InstrD2F()
       case I2B => InstrI2B()
       case I2C => InstrI2C()
-      case I2S => UNKNOWN(I2S)
+      case I2S => InstrI2S()
       case LCMP => InstrLCMP()
-      case FCMPL => UNKNOWN(FCMPL)
-      case FCMPG => UNKNOWN(FCMPG)
-      case DCMPL => UNKNOWN(DCMPL)
-      case DCMPG => UNKNOWN(DCMPG)
+      case FCMPL => InstrFCMPL()
+      case FCMPG => InstrFCMPG()
+      case DCMPL => InstrDCMPL()
+      case DCMPG => InstrDCMPG()
       case IFEQ => {
         val insIFEQ = inst.asInstanceOf[JumpInsnNode]
         val label = insIFEQ.label
@@ -354,9 +394,9 @@ class Loader {
       case TABLESWITCH => UNKNOWN(TABLESWITCH)
       case LOOKUPSWITCH => UNKNOWN(LOOKUPSWITCH)
       case IRETURN => InstrIRETURN()
-      case LRETURN => UNKNOWN(LRETURN)
-      case FRETURN => UNKNOWN(FRETURN)
-      case DRETURN => UNKNOWN(DRETURN)
+      case LRETURN => InstrLRETURN()
+      case FRETURN => InstrFRETURN()
+      case DRETURN => InstrDRETURN()
       case ARETURN => InstrARETURN()
       case RETURN => InstrRETURN()
       case GETSTATIC => {
@@ -391,7 +431,10 @@ class Loader {
         val i = inst.asInstanceOf[MethodInsnNode]
         InstrINVOKEINTERFACE(Owner(i.owner), MethodName(i.name), MethodDesc(i.desc), i.itf)
       }
-      case INVOKEDYNAMIC => UNKNOWN(INVOKEDYNAMIC)
+      case INVOKEDYNAMIC => {
+        val i = inst.asInstanceOf[InvokeDynamicInsnNode]
+        InstrINVOKEDYNAMIC(MethodName(i.name), MethodDesc(i.desc), i.bsm, i.bsmArgs)
+      }
       case NEW => {
         val i = inst.asInstanceOf[TypeInsnNode]
         InstrNEW(i.desc)
@@ -415,7 +458,9 @@ class Loader {
         InstrINSTANCEOF(Owner(i.desc))
       case MONITORENTER => InstrMONITORENTER()
       case MONITOREXIT => InstrMONITOREXIT()
-      case MULTIANEWARRAY => UNKNOWN(MULTIANEWARRAY)
+      case MULTIANEWARRAY =>
+        val i = inst.asInstanceOf[MultiANewArrayInsnNode]
+        InstrMULTIANEWARRAY(Owner(i.desc), i.dims)
       case IFNULL => {
         val i = inst.asInstanceOf[JumpInsnNode]
         InstrIFNULL(labelLookup(i.label))
@@ -434,6 +479,33 @@ class Loader {
         UNKNOWN()
       }
     }
+
+  def adaptField(field: FieldNode): VBCFieldNode = new VBCFieldNode(
+    field.access,
+    field.name,
+    field.desc,
+    field.signature,
+    field.value,
+    if (field.visibleAnnotations == null) Nil else field.visibleAnnotations.toList,
+    if (field.invisibleAnnotations == null) Nil else field.invisibleAnnotations.toList,
+    if (field.visibleTypeAnnotations == null) Nil else field.visibleTypeAnnotations.toList,
+    if (field.invisibleTypeAnnotations == null) Nil else field.invisibleTypeAnnotations.toList,
+    if (field.attrs == null) Nil else field.attrs.toList
+  )
+
+  def adaptInnerClass(m: InnerClassNode): VBCInnerClassNode = new VBCInnerClassNode(
+    m.name,
+    m.outerName,
+    m.innerName,
+    m.access
+  )
+
+  def loadClass(bytes: Array[Byte]): VBCClassNode = {
+    val cr = new ClassReader(bytes)
+    val classNode = new ClassNode(ASM5)
+    cr.accept(classNode, 0)
+    adaptClass(classNode)
+  }
 
 
 }

@@ -3,7 +3,7 @@ package edu.cmu.cs.vbc.vbytecode
 import javax.lang.model.SourceVersion
 
 import edu.cmu.cs.vbc.utils.LiftUtils._
-import edu.cmu.cs.vbc.utils.VBCModel
+import edu.cmu.cs.vbc.utils.{LiftingPolicy, VBCModel}
 import org.objectweb.asm.Type
 
 /**
@@ -42,30 +42,6 @@ case class Owner(name: String) extends TypeVerifier {
 
   def getTypeDesc: TypeDesc = TypeDesc(Type.getObjectType(name).getDescriptor)
 
-  val modelExceptionList = List(
-    // inheritance hierarchy
-    "java/lang/Object",
-    // some static field initial values are String constants
-    "java/lang/String",
-    // ATHROW can only throw java/lang/Throwable
-    "java/lang/Throwable",
-    // UnsatisfiedLinkError because of natives
-    "java/lang/System",
-    // because we are not lifting System
-    "java/io/PrintStream",
-    // reflection and exception handling
-    "java/lang/Class",
-    // Integer call a package access method from java/lang/Class
-    "java/lang/Integer", "java/lang/Short", "java/lang/Byte", "java/lang/Float", "java/lang/Double", "java/lang/Character",
-    // Native
-    "java/lang/Math",
-    // I/O natives
-    "java/io/UnixFileSystem", "java/io/FileSystem", "java/io/DefaultFileSystem", "java/io/File", "java/net/URL",
-    "java/io/FileInputStream", "java/io/InputStream"//,
-//    // Collections
-//    "java/util/Iterator"
-  )
-
   /** Get the corresponding model class
     *
     * @return
@@ -75,9 +51,7 @@ case class Owner(name: String) extends TypeVerifier {
   def toModel: Owner = name match {
     case s: String if s.startsWith("[") => Owner("[" + TypeDesc(s.tail).toModel)
     case s: String if s.startsWith("java") =>
-      if (modelExceptionList.contains(name))
-        this
-      else if (name.endsWith("Exception") || name.endsWith("Error"))
+      if (LiftingPolicy.getConfig.jdkNotLiftingClasses.exists(name.matches))
         this
       else if ((name.equals("java/util/LinkedList") || name.equals("java/util/ArrayList")) && ctxListEnabled)
         Owner(VBCModel.prefix + "/" + "java/util/CtxList")
@@ -108,6 +82,7 @@ object Owner {
   def getVOps = Owner("edu/cmu/cs/varex/VOps")
   def getChar = Owner("java/lang/Character")
   def getSystem = Owner("java/lang/System")
+  def getRuntime = Owner("java/lang/Runtime")
 }
 
 
@@ -211,6 +186,20 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     MethodDesc(argsString + retString)
   }
 
+  def prependPrintStream: MethodDesc = {
+    val args = Type.getType("Ljava/io/PrintStream;") +: Type.getArgumentTypes(descString)
+    val argsString = args.map(_.getDescriptor).mkString("(", "", ")")
+    val retString = Type.getReturnType(descString).getDescriptor
+    MethodDesc(argsString + retString)
+  }
+
+  def prepend(t: TypeDesc): MethodDesc = {
+    val args = Type.getType(t) +: Type.getArgumentTypes(descString)
+    val argsString = args.map(_.getDescriptor).mkString("(", "", ")")
+    val retString = Type.getReturnType(descString).getDescriptor
+    MethodDesc(argsString + retString)
+  }
+
   /** Turn all arguments into Vs, append FeatureExpr and finally append original argument types
     *
     * Only <init> method requires this transformation
@@ -250,6 +239,15 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     MethodDesc(argsString + retString)
   }
 
+  /**
+    * Only arguments are transformed to V type
+    */
+  def toVArguments: MethodDesc = {
+    val args = Type.getArgumentTypes(descString)
+    val argsString: String = "(" + vclasstype * args.length + ")"
+    MethodDesc(argsString + getReturnType.map(_.toString).getOrElse("V"))
+  }
+
   /** Change arguments and return type (if not void) to corresponding model class
     *
     * @return
@@ -267,7 +265,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * @return
     *         transformed MethodDesc
     */
-  def toVReturnType: MethodDesc = {
+  def toVReturnTypeIfReturningVoid: MethodDesc = {
     if (isReturnVoid) {
       val args = Type.getArgumentTypes(descString)
       val argsString: String = args.map(_.toString).mkString("(", "", ")")
@@ -276,6 +274,33 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     }
     else
       this
+  }
+
+  def toVReturnType: MethodDesc = {
+//    assume(getReturnType.isDefined, "trying to transform void return type to V")
+    val args = Type.getArgumentTypes(descString)
+    val argsString: String = args.map(_.toString).mkString("(", "", ")")
+    val retString: String = vclasstype
+    MethodDesc(argsString + retString)
+  }
+
+
+  /**
+    * Given local variable index, return the index of this parameter in the parameter list (0-based)
+    *
+    * For example, given a non-static method descriptor (JI) and local variable index 3, this
+    * method should return 2, so that local variable 3 corresponds to the second parameter
+    */
+  def getParameterIndex(localVarIndex: Int, isStatic: Boolean): Int = {
+    if (!isStatic) assert(localVarIndex != 0, "Not a parameter")
+    val staticOffset: Int = if (isStatic) 0 else 1
+    val expandedArgs: List[(TypeDesc, Int)] = getArgs.toList.zipWithIndex.flatMap(pair =>
+      if (pair._1.is64Bit) List(pair, (TypeDesc.getSecondSlotType, pair._2)) else List(pair)
+    )
+    val (resType, resIndex) = expandedArgs(localVarIndex - staticOffset)
+    if (resType.isSecondSlot)
+      throw new RuntimeException("Indexing the second slot of long or double")
+    else resIndex
   }
 }
 
@@ -298,6 +323,13 @@ case class TypeDesc(desc: String) extends TypeVerifier {
 
   def isPrimitive: Boolean = desc == "Z" || desc == "C" || desc == "B" || desc == "S" || desc == "I" || desc == "F" ||
     desc == "J" || desc == "D"
+
+  def is64Bit: Boolean = desc match {
+    case "J" | "D" => true
+    case _ => false
+  }
+
+  def isSecondSlot: Boolean = desc == "Ledu/cmu/cs/vbc/SecondSlotOfLongOrDouble;"
 
   def toObject: TypeDesc = desc match {
     case "Z" => TypeDesc("Ljava/lang/Boolean;")
@@ -328,6 +360,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     TypeDesc(desc.tail)
   }
 
+  def getMultiArrayBaseType: TypeDesc = if (isArray) TypeDesc(desc.tail).getMultiArrayBaseType else this
+
   /** Get the owner (if exists) of this type.
     *
     * @return
@@ -357,6 +391,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
       getOwner.get.toModel.getTypeDesc
   }
 
+  def toArray: TypeDesc = TypeDesc("[" + desc)
+
   def toVArray: TypeDesc = if (isArray) TypeDesc("[" + vclasstype) else this
 }
 
@@ -370,6 +406,10 @@ object TypeDesc {
   def getObject: TypeDesc = TypeDesc("Ljava/lang/Object;")
   def getChar: TypeDesc = TypeDesc("Ljava/lang/Character;")
   def getBoolean: TypeDesc = TypeDesc("Ljava/lang/Boolean;")
+  def getDouble: TypeDesc = TypeDesc("Ljava/lang/Double;")
+  def getFloat: TypeDesc = TypeDesc("Ljava/lang/Float;")
+  // a special type to represent the second slot of double and long
+  def getSecondSlotType: TypeDesc = TypeDesc("Ledu/cmu/cs/vbc/SecondSlotOfLongOrDouble;")
 }
 
 trait TypeVerifier {

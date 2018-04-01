@@ -17,18 +17,18 @@ object Launcher extends App {
 
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
 
-  VBCLauncher.launch(args(0), args.size < 2 || args(1) == "true", args.drop(2))
-
-
+  VBCLauncher.launch(args(0), args(1) == "true", args(2), args.drop(3))
 }
 
 
 object VBCLauncher {
-  def launch(classname: String, liftBytecode: Boolean = true, args: Array[String] = new Array[String](0)) {
-    val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, liftBytecode)
+  def launch(classname: String, liftBytecode: Boolean = true, configFile: String, args: Array[String] = new Array[String](0)) {
+    val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, liftBytecode, configFile = Some(configFile))
+    Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
     invokeMain(cls, args)
     //    if (liftBytecode) Statistics.printStatistics()
+//    Profiler.report()
   }
 
   def invokeMain(cls: Class[_], args: Array[String]): Unit = {

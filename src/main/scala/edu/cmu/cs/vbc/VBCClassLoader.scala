@@ -13,6 +13,9 @@ import org.objectweb.asm._
 
 import scala.sys.process.Process
 
+import scala.collection.mutable
+import scala.sys.process.Process
+
 /**
   * Custom class loader to modify bytecode before loading the class.
   *
@@ -23,35 +26,68 @@ import scala.sys.process.Process
   */
 class VBCClassLoader(parentClassLoader: ClassLoader,
                      isLift: Boolean = true,
-                     rewriter: VBCMethodNode => VBCMethodNode = a => a,
-                     toFileDebugging: Boolean = true) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
+                     toFileDebugging: Boolean = true,
+                     configFile: Option[String] = None) extends ClassLoader(parentClassLoader) with LazyLogging {
 
   val loader = new Loader()
+  if (configFile.isDefined) {
+    val config = new ModelConfig(configFile.get)
+    LiftingPolicy.setConfig(config)
+  }
 
   override def loadClass(name: String): Class[_] = {
-    if (name.startsWith(VBCModel.prefix)) {
-      val model = new VBCModel(name)
-      val bytes = model.getModelClassBytes
-      if (shouldLift(name)) {
-        val clazz = loader.loadClass(bytes)
-        liftClass(name, clazz)
+    VBCClassLoader.loadedClasses.getOrElseUpdate(name, {
+      if (name.startsWith(VBCModel.prefix)) {
+        val model = new VBCModel(name)
+        val bytes = model.getModelClassBytes(isLift)
+        if (shouldLift(name)) {
+          val clazz = loader.loadClass(bytes)
+          liftClass(name, clazz)
+        }
+        else {
+          defineClass(name, bytes, 0, bytes.length)
+        }
       }
-      else {
-        defineClass(name, bytes, 0, bytes.length)
-      }
-    }
-    else if (shouldLift(name))
-      findClass(name)
-    else
-      super.loadClass(name)
+      else if (shouldLift(name))
+        findClass(name)
+      else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
+        loadClassAndUseModelClasses(name)
+      else if (name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
+        loadClassWithoutChanges(name) // avoid LinkageError
+      else
+        super.loadClass(name)
+    })
   }
 
   override def findClass(name: String): Class[_] = {
     val resource: String = name.replace('.', '/') + ".class"
     val is: InputStream = getResourceAsStream(resource)
-    assert(is != null, s"Class file not found: $name")
+//    assert(is != null, s"Class file not found: $name")
+    if (is == null) throw new ClassNotFoundException(name)
     val clazz: VBCClassNode = loader.loadClass(is)
     liftClass(name, clazz)
+  }
+
+  def loadClassWithoutChanges(name: String): Class[_] = {
+    val resource: String = name.replace('.', '/') + ".class"
+    val is: InputStream = getResourceAsStream(resource)
+    if (is == null) throw new ClassNotFoundException(name)
+    val cr = new ClassReader(is)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    cr.accept(cw, 0)
+    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
+  }
+
+  def loadClassAndUseModelClasses(name: String): Class[_] = {
+    val resource: String = name.replace('.', '/') + ".class"
+    val is: InputStream = getResourceAsStream(resource)
+    val clazz: VBCClassNode = loader.loadClass(is)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    clazz.toByteCode(cw, rewriter)
+    if (toFileDebugging)
+      toFile(name, cw)
+    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
   def liftClass(name: String, clazz: VBCClassNode): Class[_] = {
@@ -137,3 +173,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 }
 
+object VBCClassLoader {
+  val loadedClasses = mutable.Map[String, Class[_]]()
+  def clearCache(): Unit = loadedClasses.clear
+}

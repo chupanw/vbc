@@ -10,6 +10,11 @@ import org.scalatest.FunSuite
 class GPLTest extends FunSuite with DiffLaunchTestInfrastructure{
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
   test("GPL") {
-    testMain(classOf[gpl.Main])
+    testMain(classOf[gpl.Main], fm = fm, configFile = Some("gpl.conf"))
+  }
+
+  def fm(config: Map[String, Boolean]): Boolean = {
+    for ((n, v) <- config) classOf[edu.cmu.cs.vbc.prog.gpl.Main].getField(n).set(null, v)
+    edu.cmu.cs.vbc.prog.gpl.Main.valid()
   }
 }

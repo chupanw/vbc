@@ -177,7 +177,7 @@ case class TraceInstr_Print() extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val backtrack =
-      if (s.stack.head._1 != V_TYPE()) s.stack.head._2
+      if (s.stack.head._1 != V_TYPE(false)) s.stack.head._2
       else Set[Instruction]()
     (s, backtrack)
   }
@@ -200,7 +200,7 @@ case class TraceInstr_PrintI() extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val backtrack =
-      if (s.stack.head._1 != V_TYPE()) s.stack.head._2
+      if (s.stack.head._1 != V_TYPE(false)) s.stack.head._2
       else Set[Instruction]()
     (s, backtrack)
   }
@@ -233,7 +233,7 @@ case class TraceInstr_GetField(s: String, desc: String) extends Instruction {
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    if (s.stack.head._1 == V_TYPE()) env.setLift(this)
+    if (s.stack.head._1 == V_TYPE(false)) env.setLift(this)
     (s, Set())
   }
 }

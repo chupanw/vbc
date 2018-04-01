@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode.instructions
 
 import edu.cmu.cs.vbc.analysis.VBCFrame.{FrameEntry, UpdatedFrame}
-import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, V_TYPE}
+import edu.cmu.cs.vbc.analysis.{VBCFrame, VBCType, V_REF_TYPE, V_TYPE}
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.MethodVisitor
@@ -25,7 +25,7 @@ trait JumpInstruction extends Instruction {
   def updateStack1(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     val (v1, prev1, newFrame) = s.pop()
     env.setLift(this)
-    if (v1 != V_TYPE()) return (newFrame, prev1)
+    if (v1 != V_TYPE(false)) return (newFrame, prev1)
     val backtrack = backtrackNonVStackElements(s)
     (newFrame, backtrack)
   }
@@ -34,17 +34,18 @@ trait JumpInstruction extends Instruction {
     val (v1, prev1, frame1) = s.pop()
     val (v2, prev2, newFrame) = frame1.pop()
     env.setLift(this)
-    if (v1 != V_TYPE()) return (newFrame, prev1)
-    if (v1 != V_TYPE()) return (newFrame, prev2)
+    if (v1 != V_TYPE(false)) return (newFrame, prev1)
+    if (v1 != V_TYPE(false)) return (newFrame, prev2)
     val backtrack = backtrackNonVStackElements(s)
     (newFrame, backtrack)
   }
 
   def backtrackNonVStackElements(f: VBCFrame): Set[Instruction] = {
-    (Tuple2[VBCType, Set[Instruction]](V_TYPE(), Set()) /: f.stack) (
+    (Tuple2[VBCType, Set[Instruction]](V_TYPE(false), Set()) /: f.stack) (  // initial V_TYPE(false) is useless
       (a: FrameEntry, b: FrameEntry) => {
-        // a is always V_TYPE()
-        if (a._1 != b._1) (a._1, a._2 ++ b._2)
+        if (b._1.isInstanceOf[V_REF_TYPE])
+          throw new RuntimeException("Could not store uninitialized objects to unbalanced stack variables")
+        if (!b._1.isInstanceOf[V_TYPE]) (a._1, a._2 ++ b._2)
         else a
       })._2
   }
@@ -158,8 +159,11 @@ case class InstrGOTO(targetBlockIdx: Int) extends JumpInstruction {
   override def getSuccessor() = (Some(targetBlockIdx), None)
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
-    //lift only if it is jump across VBlock boundary
-    if (env.getVBlock(env.getBlockForInstruction(this)) != env.getVBlock(env.getBlock(targetBlockIdx)))
+    // Lift only if it is jump across VBlock boundary
+    // OR
+    // if it is jump to a VBlock head because this block might leave some value on the operand stack
+    if (env.getVBlock(env.getBlockForInstruction(this)) != env.getVBlock(env.getBlock(targetBlockIdx)) ||
+      env.isVBlockHead(env.getBlock(targetBlockIdx)))
       env.setLift(this)
     val backtrack = backtrackNonVStackElements(s)
     (s, backtrack)
@@ -201,8 +205,10 @@ case class InstrIF_ICMPGE(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGE", "(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGE", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPGE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -245,8 +251,10 @@ case class InstrIF_ICMPLT(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILT", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILT", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPLT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -425,8 +433,10 @@ case class InstrIF_ICMPGT(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGT", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIGT", s"($vclasstype$vclasstype$fexprclasstype)$fexprclasstype", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPGT, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }

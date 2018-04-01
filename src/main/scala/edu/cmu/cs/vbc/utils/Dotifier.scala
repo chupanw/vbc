@@ -126,7 +126,10 @@ class Dotifier() extends Printer(Opcodes.ASM5) {
 
   override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: AnyRef*): Unit = {
     val buf = new StringBuilder
-    buf.append("INVOKEDYNAMIC " + bsmArgs(1) + "\\l")
+    if (bsmArgs.length > 1)
+      buf.append("INVOKEDYNAMIC " + bsmArgs(1) + "\\l")
+    else
+      buf.append("INVOKEDYNAMIC\\l")
     textBuf += buf.toString()
   }
 

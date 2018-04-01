@@ -21,10 +21,16 @@ trait DiffLaunchTestInfrastructure {
     *
     * also change the way that conditional fields are initialized
     */
-  def instrumentMethod(method: VBCMethodNode): VBCMethodNode = {
+  def instrumentMethod(method: VBCMethodNode, clazz: VBCClassNode): VBCMethodNode = {
     instrumentCustomInit(
+      // Avoid comparing java classes because we might have model classes.
+      // For brute-force execution, we don't use model class (to avoid writing wrapper methods in model classes),
+      // so invokevirtual and getfield will be recorded. However, for V execution, we are using model class, which
+      // makes it difficult to compare the traces.
+      if (clazz.name.startsWith("model/java"))
+        method
       // we introduce extra method invocation instructions and return instructions while handling <clinit>.
-      if (!method.name.contains("clinit"))
+      else if (!method.name.contains("clinit"))
         method.copy(body = CFG(method.body.blocks.map(instrumentBlock)))
       else
         method
@@ -36,24 +42,26 @@ trait DiffLaunchTestInfrastructure {
       for (instr <- block.instr) yield instr match {
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/String;)V"), _) =>
           // reduce output
-//          List(vbc.TraceInstr_Print(), instr)
-            List(vbc.TraceInstr_Print(), InstrPOP(), InstrPOP())
+          //          List(vbc.TraceInstr_Print(), instr)
+          List(vbc.TraceInstr_Print(), InstrPOP(), InstrPOP())
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/Object;)V"), _) =>
           // reduce output
-//          List(vbc.TraceInstr_Print(), instr)
+          //          List(vbc.TraceInstr_Print(), instr)
           List(vbc.TraceInstr_Print(), InstrPOP(), InstrPOP())
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(I)V"), _) => List(vbc.TraceInstr_PrintI(), InstrPOP(), InstrPOP())
-//        case InstrINVOKEVIRTUAL(owner, name, desc, _) => List(vbc.TraceInstr_S("INVK_VIRT: " + owner + ";" + name + ";" + desc), instr)
-//        case InstrGETFIELD(owner, name, desc) if desc.contentEquals("I") || desc.contentEquals("Z") => List(instr, vbc.TraceInstr_GetField("GETFIELD: " + owner + ";" + name + ";" + desc, desc))
-//        case InstrRETURN() => List(vbc.TraceInstr_S("RETURN"), instr)
-//        case InstrIRETURN() => List(vbc.TraceInstr_S("IRETURN"), instr)
+        case InstrINVOKEVIRTUAL(owner, name, desc, _) => List(vbc.TraceInstr_S("INVK_VIRT: " + owner + ";" + name + ";" + desc), instr)
+        case InstrGETFIELD(owner, name, desc) if desc.contentEquals("I") || desc.contentEquals("Z") => List(instr, vbc.TraceInstr_GetField("GETFIELD: " + owner + ";" + name + ";" + desc, desc))
+        //        case InstrRETURN() => List(vbc.TraceInstr_S("RETURN"), instr)
+        //        case InstrIRETURN() => List(vbc.TraceInstr_S("IRETURN"), instr)
         case instr => List(instr)
       }
       ).flatten, block.exceptionHandlers
     )
 
-  def prepareBenchmark(method: VBCMethodNode): VBCMethodNode = instrumentCustomInit(avoidOutput(method))
-  def avoidOutput(method: VBCMethodNode): VBCMethodNode = method.copy(body = CFG(method.body.blocks.map(avoidOutput)))
+  def prepareBenchmark(method: VBCMethodNode, clazz: VBCClassNode): VBCMethodNode = instrumentCustomInit(avoidOutput(method, clazz))
+
+  def avoidOutput(method: VBCMethodNode, clazz: VBCClassNode): VBCMethodNode = method.copy(body = CFG(method.body.blocks.map(avoidOutput)))
+
   def avoidOutput(block: Block): Block =
     Block((
       for (instr <- block.instr) yield instr match {
@@ -77,14 +85,16 @@ trait DiffLaunchTestInfrastructure {
     )
 
 
-  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
+//  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
 
-  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true,
-               feListFeatures: Int = 1): Unit = {
+  def testMain(clazz: Class[_], compareTraceAgainstBruteForce: Boolean = true, runBenchmark: Boolean = true, fm: (Map[String, Boolean]) => Boolean = _ => true, configFile: Option[String] = None): Unit = {
     //test uninstrumented variational execution to see whether it crashes
     val classname = clazz.getName
+    val origClassLoader = this.getClass.getClassLoader
     //VBCLauncher.launch(classname)
-    val testCrashLoader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, true, avoidOutput)
+    val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, avoidOutput, configFile = configFile)
+    VBCClassLoader.clearCache()
+    Thread.currentThread().setContextClassLoader(testCrashLoader)
     val testCrash = testCrashLoader.loadClass(classname)
     generateList(testCrash, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(testCrash, new Array[String](0))
@@ -92,7 +102,9 @@ trait DiffLaunchTestInfrastructure {
     //test instrumented version, executed variationally
     TestTraceOutput.trace = Nil
     TraceConfig.options = Set()
-    val vloader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, true, instrumentMethod)
+    val vloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, rewriter = instrumentMethod, configFile = configFile)
+    VBCClassLoader.clearCache()
+    Thread.currentThread().setContextClassLoader(vloader)
     val vcls: Class[_] = vloader.loadClass(classname)
     generateList(vcls, lifted = true, feListFeatures)
     VBCLauncher.invokeMain(vcls, new Array[String](0))
@@ -103,10 +115,12 @@ trait DiffLaunchTestInfrastructure {
 //    println("Used Options: " + TraceConfig.options.mkString(", "))
 
     if (compareTraceAgainstBruteForce) {
-      val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, false, instrumentMethod, toFileDebugging = false)
+      val loader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, instrumentMethod, toFileDebugging = false, configFile = configFile)
+      VBCClassLoader.clearCache()
+      Thread.currentThread().setContextClassLoader(loader)
       val cls: Class[_] = loader.loadClass(classname)
       //run against brute force instrumented execution and compare traces
-      for ((sel, desel) <- scala.util.Random.shuffle(explode(scala.util.Random.shuffle(usedOptions.toList).take(10))).take(1000)) {
+      for ((sel, desel) <- explode(usedOptions.toList) if fm(configToMap((sel, desel)))) {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
@@ -122,11 +136,9 @@ trait DiffLaunchTestInfrastructure {
 
     if (runBenchmark) {
       //run benchmark (without instrumentation)
-      val vbenchmarkloader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, true, prepareBenchmark)
-      val vbenchmarkcls: Class[_] = vbenchmarkloader.loadClass(classname)
-      val benchmarkloader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, false, prepareBenchmark)
-      val benchmarkcls: Class[_] = benchmarkloader.loadClass(classname)
-      benchmark(classname, vbenchmarkcls, benchmarkcls, usedOptions, feListFeatures)
+      val vbenchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, prepareBenchmark, configFile = configFile)
+      val benchmarkloader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, prepareBenchmark, configFile = configFile)
+      benchmark(classname, vbenchmarkloader, benchmarkloader, usedOptions, fm)
     }
   }
 
@@ -144,8 +156,9 @@ trait DiffLaunchTestInfrastructure {
 
   /**
     * Randomly assign true or false to each option
-    * @param fs List of options in the program.
-    * @param num  Number of selections.
+    *
+    * @param fs  List of options in the program.
+    * @param num Number of selections.
     * @return List of pairs, each pair consists of a list selected options and a list of deselected options. Might
     *         contain duplicate pairs because of the randomness.
     */
@@ -157,6 +170,7 @@ trait DiffLaunchTestInfrastructure {
       (0 to num).toList.map(_ => Random.shuffle(fs).splitAt(Random.nextInt(fs.size)))
     }
   }
+
 
   def configToMap(c: Config): Map[String, Boolean] = {
     var r = Map[String, Boolean]()
@@ -182,11 +196,13 @@ trait DiffLaunchTestInfrastructure {
   }
 
 
-  def benchmark(classname: String, testVClass: Class[_], testClass: Class[_], configOptions: Set[String],
-                feListFeatures: Int): Unit = {
+  def benchmark(classname: String, vloader: VBCClassLoader, loader: VBCClassLoader, configOptions: Set[String], fm: (Map[String, Boolean]) => Boolean): Unit = {
     import org.scalameter._
 
     //measure V execution
+    VBCClassLoader.clearCache()
+    Thread.currentThread().setContextClassLoader(vloader)
+    val testVClass: Class[_] = vloader.loadClass(classname)
     val vtime = config(
       Key.exec.benchRuns -> 100
     ) withWarmer {
@@ -197,18 +213,23 @@ trait DiffLaunchTestInfrastructure {
       generateList(testVClass, lifted = true, feListFeatures)
       println("[info] starting vExecution")
     } measure {
-      if (testVClass.getName.endsWith(".memory"))
-        println("Memory consumption: " + (Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()) + " bytes")
-      else
-        VBCLauncher.invokeMain(testVClass, new Array[String](0))
+      //      Profiler.reset()
+      VBCLauncher.invokeMain(testVClass, new Array[String](0))
+      //      Profiler.report()
     }
     //        println(s"Total time V: $time")
 
 
+    VBCClassLoader.clearCache()
+    Thread.currentThread().setContextClassLoader(loader)
+    lazy val testClass: Class[_] = loader.loadClass(classname)
     //measure brute-force execution
-//    val configs = explode(configOptions.toList)
-    val configs = selectOptRandomly(configOptions.toList, 100)
-    val bftimes = for ((sel, desel) <- scala.util.Random.shuffle(configs).take(10))
+    val configs =
+      if (configOptions.size < 20)
+        explode(configOptions.toList)
+      else
+        selectOptRandomly(configOptions.toList, 1000000)  // close to 2^20
+    val bftimes = for ((sel, desel) <- configs if fm(configToMap((sel, desel))))
       yield config(
         Key.exec.benchRuns -> 5
       ) withWarmer {
@@ -224,6 +245,7 @@ trait DiffLaunchTestInfrastructure {
 
 
     val avgTime = bftimes.map(_.value).sum / bftimes.size
+    println()
     println(s"VExecution time [$classname]: " + vtime)
     println(s"Execution time [$classname]: " + avgTime + bftimes.mkString(" (", ",", ")"))
     println(s"Slowdown [$classname]: " + vtime.value / avgTime)

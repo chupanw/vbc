@@ -7,7 +7,7 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory;
  * Store context when going into unlifted code.
  *
  * When going from variational world to non-variational world, we cannot carry context anymore.
- * This should be find for most cases, but there are some corner cases where unlifted code needs
+ * This should be fine for most cases, but there are some corner cases where unlifted code needs
  * to call into lifted code and thus we need to provide the contexts.
  *
  * @author chupanw

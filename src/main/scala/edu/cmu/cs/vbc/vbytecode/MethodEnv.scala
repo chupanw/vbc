@@ -35,18 +35,18 @@ class MethodEnv(val clazz: VBCClassNode, val method: VBCMethodNode) extends CFGA
   }
 
   def countSlots(l: List[LocalVar]): Int = {
-    val ll = l.map(v => if (v.is64bit) 2 else 1)
+    val ll = l.map(v => if (v.is64Bit) 2 else 1)
     (0 /: ll) (_ + _)
   }
 
   def getVarIdx(variable: Variable): Int = variable match {
     case p: Parameter =>
-      assert(p.idx >= 0, "parameter with negative index not supported")
+      assert(p.idx >= 0, "Parameter with negative index")
       p.idx
     case l: LocalVar =>
       val localIdxPos = localVars.reverse.indexOf(l)
       if (localIdxPos >= 0) {
-        parameterCount + countSlots(localVars.splitAt(localIdxPos)._1)
+        parameterCount + countSlots(localVars.splitAt(localVars.size - 1 - localIdxPos)._1)
       }
       else {
         val freshIdxPos = freshVars.reverse.indexOf(l)

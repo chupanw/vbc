@@ -56,6 +56,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       nonvariationalJump(mv, env)
     }
 
+    mv.visitLabel(env.getBlockEndLabel(this))
 //    writeExceptions(mv, env)
   }
 
@@ -71,8 +72,8 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
   def vvalidate(env: VMethodEnv): Unit = {
     validate()
     //additionally ensure that the last block is the only one that contains a return statement
-    if (this != env.getLastBlock())
-      assert(!instr.last.isReturnInstr, "only the last block may contain a return instruction in variational byte code")
+//    if (this != env.getLastBlock())
+//      assert(!instr.last.isReturnInstr, "only the last block may contain a return instruction in variational byte code")
   }
 
 
@@ -202,6 +203,16 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
 
   private def nonvariationalJump(mv: MethodVisitor, env: VMethodEnv): Unit = {
     //nothing to do. already handled as part of the normal instruction
+    val (unconditional, conditional) = env.getJumpTargets(this)
+    assert(conditional.isEmpty, "Non-variational jump could not jump to a conditional target")
+    if (unconditional.isDefined) {
+      val jumpTarget: Block = unconditional.get
+      if (env.isVBlockHead(jumpTarget))
+        storeUnbalancedStackVariables(mv, env)
+      mv.visitJumpInsn(GOTO, env.getBlockLabel(jumpTarget))
+    } else {
+      // last block, do nothing
+    }
   }
 
   private def variationalJump(mv: MethodVisitor, env: VMethodEnv): Unit = {
@@ -221,8 +232,10 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       storeFExpr(mv, env, targetBlockConditionVar)
 
       //- set this block's condition to FALSE
-      pushConstantFALSE(mv)
-      storeFExpr(mv, env, thisVBlockConditionVar)
+      if (thisVBlockConditionVar != targetBlockConditionVar) {
+        pushConstantFALSE(mv)
+        storeFExpr(mv, env, thisVBlockConditionVar)
+      }
 
       //- if backward jump, jump there (target condition is satisfiable, because this block's condition is and it's propagated)
       if (env.isVBlockBefore(targetBlock, env.getVBlock(this))) {
@@ -251,24 +264,30 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       callFExprNot(mv)
       loadFExpr(mv, env, thisVBlockConditionVar)
       callFExprAnd(mv)
-      loadFExpr(mv, env, elseBlockConditionVar)
-      callFExprOr(mv)
+      if (thisVBlockConditionVar != elseBlockConditionVar) {
+        loadFExpr(mv, env, elseBlockConditionVar)
+        callFExprOr(mv)
+      }
       storeFExpr(mv, env, elseBlockConditionVar)
 
 
-      val needToJumpBack = env.isVBlockBefore(thenBlock, env.getVBlock(this))
+      val needToJumpBack = env.isVBlockBefore(thenBlock, env.getVBlock(this)) || env.isSameVBlock(thenBlock, env.getVBlock(this))
       //- update then-block's condition to "then-successor.condition or (thisblock.condition and A)"
       loadFExpr(mv, env, thisVBlockConditionVar)
       callFExprAnd(mv)
-      loadFExpr(mv, env, thenBlockConditionVar)
-      callFExprOr(mv)
+      if (thisVBlockConditionVar != thenBlockConditionVar) {
+        loadFExpr(mv, env, thenBlockConditionVar)
+        callFExprOr(mv)
+      }
       if (needToJumpBack)
         mv.visitInsn(DUP)
       storeFExpr(mv, env, thenBlockConditionVar)
 
       //- set this block's condition to FALSE
-      pushConstantFALSE(mv)
-      storeFExpr(mv, env, thisVBlockConditionVar)
+      if (thisVBlockConditionVar != thenBlockConditionVar && thisVBlockConditionVar != elseBlockConditionVar) {
+        pushConstantFALSE(mv)
+        storeFExpr(mv, env, thisVBlockConditionVar)
+      }
 
       //- if then-block is behind and its condition is satisfiable, jump there
       if (needToJumpBack) {
@@ -288,10 +307,45 @@ case class CFG(blocks: List[Block]) {
     blocks.foreach(_.toByteCode(mv, env))
   }
 
+  def writeHandler(mv: MethodVisitor,
+                   env: VMethodEnv,
+                   handler: VBCHandler,
+                   startIdx: Int,
+                   endIdx: Int,
+                   remaining: List[Int]): Unit = {
+    def write(): Unit = {
+      mv.visitTryCatchBlock(
+        env.getBlockLabel(env.getBlock(startIdx)),  // start label
+        env.getBlockEndLabel(env.getBlock(endIdx)), // end label
+        env.getBlockLabel(env.getBlock(handler.handlerBlockIdx)), // handler block label
+        handler.exceptionType // exception type
+      )
+      for (an <- handler.visibleTypeAnnotations)
+        an.accept(mv.visitTryCatchAnnotation(an.typeRef, an.typePath, an.desc, true))
+      for (an <- handler.invisibleTypeAnnotations)
+        an.accept(mv.visitTryCatchAnnotation(an.typeRef, an.typePath, an.desc, true))
+    }
+    if (remaining.isEmpty)
+      write()
+    else {
+      val next = remaining.head
+      if (next == endIdx + 1)
+        writeHandler(mv, env, handler, startIdx, next, remaining.tail)
+      else {
+        write()
+        writeHandler(mv, env, handler, remaining.head, remaining.head, remaining.tail)
+      }
+    }
+  }
 
   def toVByteCode(mv: MethodVisitor, env: VMethodEnv) = {
-//    println(env.method.name)
-//    println(env.toDot)
+    // Write exception handler table
+    val allHandlers = blocks.flatMap(_.exceptionHandlers).distinct
+    for (handler <- allHandlers) {
+      val bs = blocks.filter(_.exceptionHandlers.contains(handler))
+      val indexes = bs.map(blocks.indexOf(_))
+      writeHandler(mv, env, handler, indexes.head, indexes.head, indexes.tail)
+    }
 
     var initializeVars: List[LocalVar] = Nil
 

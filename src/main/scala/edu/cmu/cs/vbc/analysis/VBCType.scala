@@ -30,7 +30,7 @@ case class CHAR_TYPE() extends VBCType {
   override def toString: String = "C"
 }
 
-case class V_TYPE() extends VBCType {
+case class V_TYPE(is64Bit: Boolean) extends VBCType {
   override def toString: String = "V"
 }
 

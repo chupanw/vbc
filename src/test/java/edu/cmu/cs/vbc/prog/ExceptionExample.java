@@ -13,7 +13,7 @@ public class ExceptionExample {
         ExceptionExample example = new ExceptionExample();
         example.noThrow();
         example.noThrow2();
-        example.simpleThrow();
+//        example.simpleThrow();    // partial exception is not supported yet
     }
 
     // in fact we are returning a One(null) to indicate no exception

@@ -4,12 +4,13 @@ import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.util.function.*;
 
 /**
  * Created by ckaestne on 11/27/2015.
  */
-public class One<T> implements V<T> {
+public class One<T> implements V<T>, Serializable {
     final FeatureExpr configSpace;
     final T value;
 
@@ -122,5 +123,25 @@ public class One<T> implements V<T> {
             return ((One) o).value.equals(value);
         }
         return super.equals(o);
+    }
+
+    @Override
+    public boolean hasThrowable() {
+        if (value instanceof Throwable)
+            return true;
+        else
+            return false;
+    }
+
+    /**
+     * Return Empty if the value has False context
+     */
+    @Override
+    public V<T> simplified() {
+        if (configSpace.isSatisfiable()) {
+            return this;
+        } else {
+            return new VEmpty();
+        }
     }
 }

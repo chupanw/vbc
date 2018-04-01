@@ -26,9 +26,18 @@ class VBCModel(fqName: String) extends LazyLogging {
   val modelClsName: String = fqName.replace('.', '/')
   val originalClsName: String = modelClsName.substring(VBCModel.prefix.length + 1)
 
-  def getModelClassBytes: Array[Byte] = {
+  val alwaysUseModelClass: List[String] = List(
+    "model/java/lang/Integer",  // stringSize()
+    "model/java/lang/Long",  // stringSize()
+    "model/java/lang/System", // arrayCopy()
+    "model/java/util/Arrays",  // native sorting methods
+    "model/java/util/List"  // Some classes of Jetty require not lifting List, but apparently the Arrays
+                            //  class is using the List model class, so we have to add it here as well.
+  )
+
+  def getModelClassBytes(isLift: Boolean) : Array[Byte] = {
     val eis = this.getClass.getClassLoader.getResourceAsStream(modelClsName + ".class")
-    if (eis != null) {
+    if (eis != null && (isLift || alwaysUseModelClass.contains(modelClsName))) {
       logger.info(s"Using existing model class: " + fqName)
       val cr = new ClassReader(eis)
       val cn = new ClassNode(ASM5)
@@ -135,6 +144,11 @@ class VBCModel(fqName: String) extends LazyLogging {
           t.desc = rename(t.desc)
         } catch {
           case e: IllegalArgumentException => t.desc = rewriteTypeDesc(t.desc)
+        }
+      case ldc: LdcInsnNode if ldc.cst.isInstanceOf[Type] =>
+        val t = ldc.cst.asInstanceOf[Type]
+        if (t.getSort == Type.OBJECT) {
+          ldc.cst = Type.getType(TypeDesc(t.getDescriptor).toModel.desc)
         }
       case _ => // keep it as it is
     }

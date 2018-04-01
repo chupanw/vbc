@@ -30,8 +30,16 @@ object Config {
       throw new RuntimeException("Configuration value for `B` not set")
   }
 
+  def C = {
+    if (configValues contains "C")
+      configValues("C")
+    else
+      throw new RuntimeException("Configuration value for `C` not set")
+  }
+
   val VA = V.choice(FeatureExprFactory.createDefinedExternal("A"), new Integer(1), new Integer(0))
   val VB = V.choice(FeatureExprFactory.createDefinedExternal("B"), new Integer(1), new Integer(0))
+  val VC = V.choice(FeatureExprFactory.createDefinedExternal("C"), new Integer(1), new Integer(0))
 }
 
 object TestOutput {
@@ -78,7 +86,7 @@ case class InstrLoadConfig(config: String) extends Instruction {
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
     env.setLift(this)
-    (s.push(V_TYPE(), Set(this)), Set())
+    (s.push(V_TYPE(false), Set(this)), Set())
   }
 }
 
@@ -97,7 +105,7 @@ case class InstrDBGIPrint() extends Instruction {
     env.setLift(this)
     val (v, prev, newFrame) = s.pop()
     val backtrack =
-      if (v != V_TYPE()) prev
+      if (v != V_TYPE(false)) prev
       else Set[Instruction]()
     (newFrame, backtrack)
   }
@@ -117,7 +125,7 @@ case class InstrDBGStrPrint() extends Instruction {
     env.setLift(this)
     val (v, prev, newFrame) = s.pop()
     val backtrack =
-      if (v != V_TYPE()) prev
+      if (v != V_TYPE(false)) prev
       else Set[Instruction]()
     (newFrame, backtrack)
   }
