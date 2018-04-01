@@ -8,22 +8,22 @@ import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes._
 
 abstract class StoreInstruction(val v: Variable) extends Instruction {
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+  def updateStack(s: VBCFrame, env: VMethodEnv, is64Bit: Boolean): UpdatedFrame = {
     val (value, prev, frame) = s.pop()
     // these are the two cases where we are certain that we need to lift this store instruction
-    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(false))
+    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit))
       env.setLift(this)
     if (env.shouldLiftInstr(this)) {
       env.liftLV(v)
       // more specific tags to determine if we need wrapping or not
-      if (value != V_TYPE(false))
+      if (value != V_TYPE(is64Bit))
         env.setTag(this, env.TAG_NEED_V)  // we need to wrap the value on the operand stack into V
       if (frame.localVar.contains(v) && !frame.localVar(v)._1.isInstanceOf[V_TYPE])
         env.setTag(this, env.TAG_NEED_V2)
     }
     val newFrame = frame.setLocal(
       v,
-      if (env.shouldLiftInstr(this)) V_TYPE(false) else value,
+      if (env.shouldLiftInstr(this)) V_TYPE(is64Bit) else value,
       Set(this))
     (newFrame, Set())
   }
@@ -54,7 +54,7 @@ abstract class StoreInstruction(val v: Variable) extends Instruction {
 }
 
 abstract class LoadInstruction(val v: Variable) extends Instruction {
-  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+  def updateStack(s: VBCFrame, env: VMethodEnv, is64Bit: Boolean): UpdatedFrame = {
     if (s.localVar(v)._1.isInstanceOf[V_TYPE]) {
       env.setLift(this)
     }
@@ -62,7 +62,7 @@ abstract class LoadInstruction(val v: Variable) extends Instruction {
       env.setTag(this, env.TAG_NEED_V)
     val newFrame =
       if (env.shouldLiftInstr(this))
-        s.push(V_TYPE(false), Set(this))
+        s.push(V_TYPE(is64Bit), Set(this))
       else
         s.push(s.localVar(v)._1, Set(this))
     (newFrame, Set())
@@ -103,6 +103,8 @@ case class InstrISTORE(variable: Variable) extends StoreInstruction(v = variable
       case lv: LocalVar => Set(lv)
     }
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 
@@ -125,6 +127,8 @@ case class InstrILOAD(variable: Variable) extends LoadInstruction(v = variable) 
       case lv: LocalVar => Set(lv)
     }
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 
@@ -205,6 +209,8 @@ case class InstrALOAD(variable: Variable) extends LoadInstruction(v = variable) 
     * @see [[Rewrite.rewrite()]]
     */
   override def isALOAD0: Boolean = variable.getIdx().contains(0)
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 
@@ -234,6 +240,8 @@ case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable
     // This should not happen. Backtracking can only go to ALOAD
     throw new RuntimeException("No expecting backtracking to ASTORE")
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 /** Load long from local variable
@@ -260,6 +268,8 @@ case class InstrLLOAD(variable: Variable) extends LoadInstruction(v = variable) 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     load(mv, env, block, LLOAD, long2Long)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = true)
 }
 
 /** Load float from local variable
@@ -286,6 +296,8 @@ case class InstrFLOAD(variable: Variable) extends LoadInstruction(v = variable) 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     load(mv, env, block, FLOAD, float2Float)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 /** Load double from local variable
@@ -312,6 +324,8 @@ case class InstrDLOAD(variable: Variable) extends LoadInstruction(v = variable) 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     load(mv, env, block, DLOAD, double2Double)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = true)
 }
 
 
@@ -335,6 +349,8 @@ case class InstrLSTORE(variable: Variable) extends StoreInstruction(v = variable
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     store(mv, env, block, LLOAD, LSTORE, long2Long)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = true)
 }
 
 case class InstrFSTORE(variable: Variable) extends StoreInstruction(v = variable) {
@@ -353,6 +369,8 @@ case class InstrFSTORE(variable: Variable) extends StoreInstruction(v = variable
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     store(mv, env, block, FLOAD, FSTORE, float2Float)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)
 }
 
 case class InstrDSTORE(variable: Variable) extends StoreInstruction(v = variable) {
@@ -372,4 +390,6 @@ case class InstrDSTORE(variable: Variable) extends StoreInstruction(v = variable
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     store(mv, env, block, DLOAD, DSTORE, double2Double)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = true)
 }
