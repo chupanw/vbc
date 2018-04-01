@@ -7,6 +7,7 @@ import edu.cmu.cs.varex.VHelper;
 
 import java.util.*;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 
 /**
@@ -36,7 +37,10 @@ public class CtxList<T> implements List {
         list.add(new FEPair<>(ctx, v));
         return V.one(ctx, true); // list.add always returns true
     }
-    public boolean add(T v) {
+    public void add(int i, Object v) {
+        list.add(i, new FEPair(FeatureExprFactory.True(), v));
+    }
+    public boolean add(Object v) {
         return list.add(new FEPair(FeatureExprFactory.True(), v));
     }
     public V<Boolean> add__Ljava_lang_Object__Z(V<? extends T> v, FeatureExpr vCtx) {
@@ -51,7 +55,7 @@ public class CtxList<T> implements List {
         return V.one(FeatureExprFactory.True(), true); // list.add always returns true
     }
 
-    public boolean remove(T v) {
+    public boolean remove(Object v) {
         Iterator<FEPair<T>> it = list.iterator();
         while(it.hasNext()) {
             FEPair<T> el = it.next();
@@ -178,6 +182,16 @@ public class CtxList<T> implements List {
     public V<CtxIterator<T>> iterator____Lmodel_java_util_CtxIterator(FeatureExpr ctx) {
         return V.one(ctx, new CtxListIterator<>(list.iterator()));
     }
+    public ListIterator<T> listIterator(int i) {
+        // todo: Implement this
+        // This is dummy code to make the types match
+        List<T> x = list.stream().map(fepair -> fepair.v).collect(Collectors.toList());
+        return x.listIterator();
+    }
+    public ListIterator<T> listIterator() {
+        // todo: Implement this
+        return listIterator(0);
+    }
 
      // simplify: Remove duplicate elements and elements with unsatisfiable contexts.
     public void simplify____V() {
@@ -261,5 +275,76 @@ public class CtxList<T> implements List {
     }
     public V<Integer> indexOf__Ljava_lang_Object__I(V<Object> vObj, FeatureExpr ctx) {
         return (V<Integer>)vObj.sflatMap(ctx, (FeatureExpr objCtx, Object obj) -> indexOf(obj, objCtx));
+    }
+
+    public int lastIndexOf(Object o) {
+        int i = 0;
+        int index = -1;
+        CtxIterator<T> it = this.iterator();
+        while (it.hasNext()) {
+            T el = it.next();
+            if (o.equals(el))
+                index = i;
+            i++;
+        }
+        return index;
+    }
+
+    public CtxList<T> subList(int start, int end) {
+        assert false;
+        return new CtxList<>();
+    }
+
+    public T set(int i, Object o) {
+        assert false;
+        return list.set(i, (FEPair<T>)o).v;
+    }
+
+    public void clear() {
+        assert false;
+        list.clear();
+    }
+
+    public boolean retainAll(Collection c) {
+        assert false;
+        return list.retainAll(c);
+    }
+
+    public boolean removeAll(Collection c) {
+        assert false;
+        return list.removeAll(c);
+    }
+
+    public boolean addAll(Collection c) {
+        assert false;
+        return list.addAll(c);
+    }
+    public boolean addAll(int i, Collection c) {
+        assert false;
+        return list.addAll(i, c);
+    }
+
+    public boolean containsAll(Collection c) {
+        assert false;
+        return list.containsAll(c);
+    }
+
+    public Object[] toArray(Object[] a) {
+        assert false;
+        return a;
+    }
+    public Object[] toArray() {
+        assert false;
+        Object a[] = new Object[]{};
+        return a;
+    }
+
+    public boolean contains(Object c) {
+        assert false;
+        return list.contains(c);
+    }
+    public boolean isEmpty() {
+        assert false;
+        return list.isEmpty();
     }
 }
