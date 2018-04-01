@@ -11,7 +11,7 @@ abstract class StoreInstruction(val v: Variable) extends Instruction {
   def updateStack(s: VBCFrame, env: VMethodEnv, is64Bit: Boolean): UpdatedFrame = {
     val (value, prev, frame) = s.pop()
     // these are the two cases where we are certain that we need to lift this store instruction
-    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit))
+    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit) || v.isInstanceOf[Parameter])
       env.setLift(this)
     if (env.shouldLiftInstr(this)) {
       env.liftLV(v)
