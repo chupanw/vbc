@@ -280,6 +280,13 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     MethodDesc(argsString + retString)
   }
 
+  def toVArrayReturnType: MethodDesc = {
+    val args = Type.getArgumentTypes(descString)
+    val argsString: String = args.map(_.toString).mkString("(", "", ")")
+    val retString: String = "[" + vclasstype
+    MethodDesc(argsString + retString)
+  }
+
 
   /**
     * Given local variable index, return the index of this parameter in the parameter list (0-based)

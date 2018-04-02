@@ -394,7 +394,7 @@ public class VOps {
     }
 
     public static V<Object> verifyAndThrowException(V<Object> e, FeatureExpr methodCtx) throws Throwable {
-        V<Object> simplifiedV = e.simplified();
+        V<Object> simplifiedV = e.select(methodCtx);
         if (simplifiedV.hasThrowable()) {
             if (simplifiedV instanceof One) {
                 Throwable t = (Throwable) ((One) simplifiedV).getOne();
@@ -638,5 +638,28 @@ public class VOps {
             }
             return sb.toString____Ljava_lang_String(fe);
         });
+    }
+
+    public static V<?> initVStrings_Array_CII(V<V<java.lang.Integer>[]> vA, V<java.lang.Integer> vOffset, V<java.lang.Integer> vCount, FeatureExpr ctx) {
+        return vA.sflatMap(ctx, (fe, a) -> {
+            return vOffset.sflatMap(fe, (fe2, offset) -> {
+                return (V) vCount.sflatMap(fe2, (fe3, count) -> {
+                    StringBuilder sb = new StringBuilder(fe3);
+                    for (int i = 0; i < count; i++) {
+                        sb.append__C__Lmodel_java_lang_StringBuilder(a[offset + i], fe3);
+                    }
+                    return sb.toString____Ljava_lang_String(fe3);
+                });
+            });
+        });
+    }
+
+    public static V[] getDeclaredFields(Class c, FeatureExpr fe) {
+        Field[] fields = c.getDeclaredFields();
+        V[] result = new V[fields.length];
+        for (int i = 0; i < fields.length; i++) {
+            result[i] = V.one(fe, fields[i]);
+        }
+        return result;
     }
 }
