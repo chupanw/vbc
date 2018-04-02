@@ -13,6 +13,8 @@ abstract class StoreInstruction(val v: Variable) extends Instruction {
     // these are the two cases where we are certain that we need to lift this store instruction
     if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit) || v.isInstanceOf[Parameter] || env.isLiftingLV(v))
       env.setLift(this)
+    if (v.isInstanceOf[LocalVar] && v.asInstanceOf[LocalVar].name == "$result" && v.asInstanceOf[LocalVar].desc == vclasstype)
+      env.setLift(this)
     if (env.shouldLiftInstr(this)) {
       env.liftLV(v)
       // more specific tags to determine if we need wrapping or not
