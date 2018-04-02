@@ -63,6 +63,10 @@ case class VBCFrame(localVar: Map[Variable, FrameEntry], stack: List[FrameEntry]
       case (a: UNINITIALIZED_TYPE, b: V_REF_TYPE) => (b, mergedInstrs)
       case (a: UNINITIALIZED_TYPE, b: UNINITIALIZED_TYPE) => (b, mergedInstrs)
       case (a: V_REF_TYPE, b: V_REF_TYPE) => (b, mergedInstrs) // id could be different (e.g. revisit the same NEW instruction)
+      case (a: UNINITIALIZED_TYPE, b: REF_TYPE) => (b, mergedInstrs)  // we trust that uninitialized objects will get initialized
+      case (a: REF_TYPE, b: UNINITIALIZED_TYPE) => (a, mergedInstrs)
+      case (a: INT_TYPE, b: UNINITIALIZED_TYPE) => (V_TYPE(false), mergedInstrs)  // possible if the same LV is used for different types
+      case (a: UNINITIALIZED_TYPE, b: INT_TYPE) => (V_TYPE(false), mergedInstrs)  // in normal cases this is not possible, but our return block could cause this to happen
       case _ => {
         if (v1._1 == v2._1) (v1._1, mergedInstrs)
         else throw new RuntimeException("Type mismatch, old: " + v1._1 + " new: " + v2._1)
