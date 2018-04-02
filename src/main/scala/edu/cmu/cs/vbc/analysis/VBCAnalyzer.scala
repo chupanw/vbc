@@ -41,6 +41,7 @@ class VBCAnalyzer(env: VMethodEnv) {
     * A map of frames before executing each instruction
     */
   def computeBeforeFramesOnce(): Array[VBCFrame] = {
+    env.resetAllTags()
     // we don't compute frames for abstract or native methods
     if ((mn.access & (ACC_ABSTRACT | ACC_NATIVE)) != 0) {
       Map()

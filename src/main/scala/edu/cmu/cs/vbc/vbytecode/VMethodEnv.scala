@@ -45,6 +45,9 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
     * Using an Int to represent instruction tag, we could have 32 different tags.
     */
   val instructionTags = new Array[Int](instructions.length)
+  def resetAllTags(): Unit = {
+    instructionTags.indices.foreach(i => instructionTags(i) = 0)
+  }
   /**
     * Lift or not lift? Lifting means differently for different instructions.
     */
@@ -206,14 +209,15 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
     nVBlockAnalysis += 1
     // repeat until we reach a fixed point
     while (vblocks != this.vblocks) {
-      logger.info(s"\t\t ${this.vblocks.size} VBlocks, ${blocks.size} basic blocks")
-      logger.info("\t\t (Updating VBlocks)")
+//      logger.info(s"\t\t ${this.vblocks.size} VBlocks, ${blocks.size} basic blocks")
+//      logger.info("\t\t (Updating VBlocks)")
       this.vblocks = vblocks
       frames = analyzer.computeBeforeFrames
       vblocks = computeVBlocks()
       nVBlockAnalysis += 1
     }
-    logger.info(s"\t\t ${vblocks.size} VBlocks, ${blocks.size} basic blocks")
+    if (vblocks.size < blocks.size)
+      logger.info(s"\t\t ${vblocks.size} VBlocks, ${blocks.size} basic blocks")
     frames
   }
 
