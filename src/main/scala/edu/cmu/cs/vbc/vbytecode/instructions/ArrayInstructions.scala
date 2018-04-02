@@ -494,21 +494,29 @@ case class InstrARRAYLENGTH() extends Instruction {
         }
       }
     }
-    else
+    else {
       mv.visitInsn(ARRAYLENGTH)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
     val (vt, _, frame) = s.pop()
+    if (vt == V_TYPE(false))
+      env.setLift(this)
     val newFrame =
-      if (vt == V_TYPE(false)) {
-        env.setLift(this)
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V)) {
         frame.push(V_TYPE(false), Set(this))
       } else {
         frame.push(INT_TYPE(), Set(this))
       }
     (newFrame, Set())
   }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
 
 /**
