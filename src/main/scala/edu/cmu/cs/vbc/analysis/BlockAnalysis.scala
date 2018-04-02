@@ -144,7 +144,8 @@ trait VBlockAnalysis extends CFGAnalysis {
     * This needs to be var because we update it after tagV analysis, until we
     * reach a fixed point
     */
-  var vblocks: List[VBlock] = computeVBlocks()
+  var vblocks: List[VBlock] = List(VBlock(blocks(0), blocks.toSet))
+//  var vblocks: List[VBlock] = computeVBlocks()
   def computeVBlocks(): List[VBlock] = {
     //initially every block has its own id
     var vblockId: Map[Block, Int] = (blocks zip blocks.indices).toMap
