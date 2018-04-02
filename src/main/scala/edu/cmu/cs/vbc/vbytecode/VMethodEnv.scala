@@ -124,8 +124,13 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
   //todo: refine this to consider store operations in different VBlocks, but the same method context
   def isLVStoredAcrossVBlocks(v: Variable): Boolean = {
     blocks.filter{
-      b => b.instr.filter(_.isInstanceOf[StoreInstruction]).exists(_.asInstanceOf[StoreInstruction].v == v)
-    }.map(getVBlock).size > 1
+      b => b.instr.exists {
+        case s: StoreInstruction => s.v == v
+        case l: LoadInstruction => l.v == v
+        case i: InstrIINC => i.variable == v
+        case _ => false
+      }
+    }.map(getVBlock).distinct.size > 1
   }
 
 
