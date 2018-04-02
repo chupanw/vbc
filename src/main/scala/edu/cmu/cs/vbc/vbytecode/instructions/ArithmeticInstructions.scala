@@ -78,7 +78,10 @@ case class InstrIADD() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IADD)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -96,7 +99,10 @@ case class InstrISUB() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(ISUB)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -114,7 +120,10 @@ case class InstrIMUL() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IMUL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -131,7 +140,10 @@ case class InstrIDIV() extends BinOpInstruction {
       mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IDIV", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
     } else {
       mv.visitInsn(IDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -175,7 +187,10 @@ case class InstrINEG() extends Instruction {
     }
     else {
       mv.visitInsn(INEG)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -220,7 +235,10 @@ case class InstrISHL() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(ISHL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -259,7 +277,10 @@ case class InstrLCMP() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LCMP)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -296,7 +317,10 @@ case class InstrLNEG() extends Instruction {
     }
     else {
       mv.visitInsn(LNEG)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -348,7 +372,10 @@ case class InstrISHR() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(ISHR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -373,7 +400,10 @@ case class InstrIAND() extends BinOpInstruction {
       )
     } else {
       mv.visitInsn(IAND)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -395,7 +425,10 @@ case class InstrLAND() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LAND)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -418,7 +451,10 @@ case class InstrIOR() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IOR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
 }
 }
@@ -441,7 +477,10 @@ case class InstrLSUB() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LSUB)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -462,7 +501,10 @@ case class InstrIUSHR() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IUSHR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
 }
 
@@ -480,7 +522,10 @@ case class InstrIREM() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IREM)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
 }
 
@@ -504,7 +549,10 @@ case class InstrIXOR() extends BinOpInstruction {
     }
     else {
       mv.visitInsn(IXOR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -531,7 +579,10 @@ case class InstrL2I() extends Instruction {
     }
     else {
       mv.visitInsn(L2I)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -572,7 +623,10 @@ case class InstrI2S() extends Instruction {
     }
     else {
       mv.visitInsn(I2S)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -613,7 +667,10 @@ case class InstrLUSHR() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LUSHR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -641,7 +698,10 @@ case class InstrLDIV() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -671,7 +731,10 @@ case class InstrLADD() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LADD)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -697,7 +760,10 @@ case class InstrDMUL() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(DMUL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -726,7 +792,10 @@ case class InstrDCMPL() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(DCMPL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -746,7 +815,10 @@ case class InstrLOR() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LOR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -768,7 +840,10 @@ case class InstrLSHL() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LSHL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -788,7 +863,10 @@ case class InstrLSHR() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LSHR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -807,7 +885,10 @@ case class InstrLXOR() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LXOR)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
 
   }
@@ -827,7 +908,10 @@ case class InstrLMUL() extends BinOpNonIntInstruction {
     }
     else {
       mv.visitInsn(LMUL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -848,7 +932,10 @@ case class InstrDCMPG() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dcmpg", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DCMPG)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -869,7 +956,10 @@ case class InstrDDIV() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "ddiv", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -885,13 +975,21 @@ case class InstrDADD() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dadd", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DADD)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, DOUBLE_TYPE())
 }
 
+/**
+  * Remainder long
+  *
+  * ..., value1 (long), value2 (long) -> ..., result (long)
+  */
 case class InstrLREM() extends BinOpNonIntInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(LREM)
 
@@ -901,7 +999,10 @@ case class InstrLREM() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lrem", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(LREM)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        long2Long(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -922,7 +1023,10 @@ case class InstrFDIV() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fdiv", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        float2Float(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -943,11 +1047,17 @@ case class InstrFCMPG() extends BinOpInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fcmpg", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FCMPG)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
 
+/**
+  * ..., value1 (float), value2 (float) -> ..., result (int)
+  */
 case class InstrFCMPL() extends BinOpInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(FCMPL)
 
@@ -957,7 +1067,10 @@ case class InstrFCMPL() extends BinOpInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fcmpl", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FCMPL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 }
@@ -971,7 +1084,10 @@ case class InstrFMUL() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fmul", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FMUL)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        float2Float(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -987,7 +1103,10 @@ case class InstrFADD() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fadd", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(FADD)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        float2Float(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -1003,7 +1122,10 @@ case class InstrDSUB() extends BinOpNonIntInstruction {
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "dsub", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
     } else {
       mv.visitInsn(DSUB)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
@@ -1025,7 +1147,10 @@ case class InstrD2I() extends Instruction {
     }
     else {
       mv.visitInsn(D2I)
-      if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        int2Integer(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
     }
   }
 
