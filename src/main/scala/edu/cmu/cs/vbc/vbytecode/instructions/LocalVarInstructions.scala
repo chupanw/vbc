@@ -11,7 +11,7 @@ abstract class StoreInstruction(val v: Variable) extends Instruction {
   def updateStack(s: VBCFrame, env: VMethodEnv, is64Bit: Boolean): UpdatedFrame = {
     val (value, prev, frame) = s.pop()
     // these are the two cases where we are certain that we need to lift this store instruction
-    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit) || v.isInstanceOf[Parameter])
+    if (env.isLVStoredAcrossVBlocks(v) || value == V_TYPE(is64Bit) || v.isInstanceOf[Parameter] || env.isLiftingLV(v))
       env.setLift(this)
     if (env.shouldLiftInstr(this)) {
       env.liftLV(v)
@@ -81,6 +81,11 @@ abstract class LoadInstruction(val v: Variable) extends Instruction {
     }
     else
       mv.visitVarInsn(loadOp, env.getVarIdx(v))
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {
+    env.setLift(this)
+    env.setTag(this, env.TAG_NEED_V)
   }
 }
 
@@ -238,7 +243,7 @@ case class InstrASTORE(variable: Variable) extends StoreInstruction(v = variable
 
   override def doBacktrack(env: VMethodEnv): Unit = {
     // This should not happen. Backtracking can only go to ALOAD
-    throw new RuntimeException("No expecting backtracking to ASTORE")
+    throw new RuntimeException("Not expecting backtracking to ASTORE")
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack(s, env, is64Bit = false)

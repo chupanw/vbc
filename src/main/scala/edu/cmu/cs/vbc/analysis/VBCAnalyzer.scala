@@ -28,10 +28,19 @@ class VBCAnalyzer(env: VMethodEnv) {
     */
   val n: Int = instructions.length
 
+  def computeBeforeFrames: Array[VBCFrame] = {
+    var lastLiftingLVs: Int = 0
+    var frames = computeBeforeFramesOnce()
+    while (lastLiftingLVs != env.getLiftingLVSize) {
+      lastLiftingLVs = env.getLiftingLVSize
+      frames = computeBeforeFramesOnce()
+    }
+    frames
+  }
   /**
     * A map of frames before executing each instruction
     */
-  def computeBeforeFrames: Array[VBCFrame] = {
+  def computeBeforeFramesOnce(): Array[VBCFrame] = {
     // we don't compute frames for abstract or native methods
     if ((mn.access & (ACC_ABSTRACT | ACC_NATIVE)) != 0) {
       Map()

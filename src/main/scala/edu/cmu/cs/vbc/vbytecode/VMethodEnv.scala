@@ -154,6 +154,7 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
   private val liftingLVs: collection.mutable.Set[Variable] = collection.mutable.Set[Variable]()
   def liftLV(v: Variable): Unit = liftingLVs add v
   def isLiftingLV(v: Variable): Boolean = liftingLVs contains v
+  def getLiftingLVSize = liftingLVs.size
 
   /**
     * determines whether a CFJ edge between two blocks could be executed
