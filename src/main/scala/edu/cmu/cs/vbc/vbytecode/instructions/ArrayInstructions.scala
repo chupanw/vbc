@@ -554,7 +554,7 @@ case class InstrBASTORE() extends ArrayStoreInstructions {
       storeBCSI(mv, env, block, PrimitiveType.byte)
     }
     else {
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -569,7 +569,7 @@ case class InstrSASTORE() extends ArrayStoreInstructions {
       storeBCSI(mv, env, block, PrimitiveType.short)
     }
     else {
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -601,8 +601,7 @@ case class InstrDASTORE() extends ArrayStoreInstructions {
       storeOperation(mv, env, block)
     }
     else {
-      ??? // should not happen because currently everything is V
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -632,8 +631,7 @@ case class InstrLASTORE() extends ArrayStoreInstructions {
       storeOperation(mv, env, block)
     }
     else {
-      ??? // should not happen because currently everything is V
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
     }
   }
 }
@@ -676,7 +674,7 @@ case class InstrFASTORE() extends ArrayStoreInstructions {
     if (env.shouldLiftInstr(this))
       storeOperation(mv, env, block)
     else
-      mv.visitInsn(AASTORE)
+      storeVArray(mv, env, block)
   }
 }
 
