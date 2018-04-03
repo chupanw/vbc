@@ -125,16 +125,16 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         println("Exception thrown in ASM: ")
         println(e.getClass + ": " + e.getMessage)
         println(e.getStackTrace.toList mkString("\t", "\n\t", "\n"))
-        println("Please check bug.gv and bug.txt")
-        val writer = new PrintWriter(new File("bug.gv"))
-        writer.write(dotifier.textBuf.mkString(""))
-        writer.write("}")
-        writer.close()
+//        println("Please check bug.gv and bug.txt")
+//        val writer = new PrintWriter(new File("bug.gv"))
+//        writer.write(dotifier.textBuf.mkString(""))
+//        writer.write("}")
+//        writer.close()
         val writer2 = new PrintWriter(new File("bug.txt"))
         writer2.write(textifier.text.mkString(""))
         writer2.close()
-        val output = Process("dot -Tpdf -O bug.gv").lineStream
-        println("Output from dot: " + output)
+//        val output = Process("dot -Tpdf -O bug.gv").lineStream
+//        println("Output from dot: " + output)
         System.exit(1)
     }
 
