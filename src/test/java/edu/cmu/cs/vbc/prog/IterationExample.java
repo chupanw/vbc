@@ -63,7 +63,7 @@ public class IterationExample {
         System.out.print("sum: ");
         System.out.println(sum);
         for (Integer el : l) {
-//            System.out.println(el);
+            System.out.println(el);
             sum = sum + el;
 //            System.out.println("sum: ");
 //            System.out.println(sum);
