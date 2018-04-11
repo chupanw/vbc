@@ -97,16 +97,40 @@ object SequenceAlignment {
   def alignAll(seqs: Set[List[String]], to: List[String]): Set[(Int, List[(String, String, Int)])] = {
     seqs.map(Align2.align(_, to))
   }
+  def alignAll(seqs: Set[List[String]]): Set[(Int, List[(String, String, Int)])] = {
+    for { s1 <- seqs
+          s2 <- seqs.diff(Set(s1)) }
+      yield Align2.align(s1, s2)
+  }
 
   def splitToList(s: String): List[String] = {
     s.split(" ").toList
   }
 
+  type TraceSet = (String, Int, List[List[String]])
+
+  def matchToTraceSet(groups: List[String]): TraceSet = {
+    (groups(0), groups(1).toInt, groups(2).split("\n").map(splitToList).toList)
+  }
+  def parseTraces(where: String): Iterator[TraceSet] = {
+    val pat = """(?m)([^\n]+)\n(\d+)\n(B[B\s\d]+\n)+\n""".r
+    val source = scala.io.Source.fromFile(where)
+    // getLines removes blank lines, mkString doesn't add trailing newline
+    val content = try source.getLines.mkString("\n") + "\n" finally source.close()
+    pat.findAllIn(content).matchData.map(m => matchToTraceSet(m.subgroups))
+  }
+
   def main(args: Array[String]): Unit = {
     val test1 = List("a", "c", "a", "cc", "aa", "c", "a", "c")
     val test2 = List("c", "a", "cc", "aa", "c", "a", "c", "a")
-    alignAll(Set(splitToList("a c a cc a c a c"), splitToList("c a cc aa c a c"), splitToList("c a cc aa c aa c a"),
-      splitToList("c a c a c a c a cc aa")), test2).foreach(res => println(format(res)))
+//    alignAll(Set(splitToList("a c a cc a c a c"), splitToList("c a cc aa c a c"), splitToList("c a cc aa c aa c a"),
+//      splitToList("c a c a c a c a cc aa")), test2).foreach(res => println(format(res)))
+    for { t <- parseTraces("/home/lukas/projects/cmu/varexc-paper/gpl.txt")
+          alignment <- alignAll(t._3.toSet)
+    } {
+      // (trace, smaller?, variational len, alignment len, alignment)
+      (t._1, t._2 < alignment._1,t._2, alignment._1, alignment._2)
+    }
   }
 }
 
