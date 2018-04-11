@@ -1,13 +1,15 @@
 package edu.cmu.cs.vbc.utils
 
 object SequenceAlignment {
+  type Alignment = List[(String, String, Int)]
+  type AlignmentReport = (Int, Alignment)
   object Align2 {
     val GAP_COST = 2
     val MATCH_COST = 0
     val NONMATCH_COST = 1
     type CostMatrix = Array[Array[Int]]
 
-    def align(seq1: List[String], seq2: List[String]): (Int, List[(String, String, Int)]) = {
+    def align(seq1: List[String], seq2: List[String]): AlignmentReport = {
       val cost = costMatrix(seq1, seq2)
       (cost(0)(0), alignment(seq1, seq2, cost))
     }
@@ -49,7 +51,7 @@ object SequenceAlignment {
       }
     }
 
-    def alignment(seq1: List[String], seq2: List[String], cost: CostMatrix): List[(String, String, Int)] = {
+    def alignment(seq1: List[String], seq2: List[String], cost: CostMatrix): Alignment = {
       val padded_seq1 = seq1 :+ "-"
       val padded_seq2 = seq2 :+ "-"
       var aligned = List.empty[(String, String, Int)]
@@ -90,47 +92,93 @@ object SequenceAlignment {
       aligned
     }
   }
-  def format(alignment: (Int, List[(String, String, Int)])): String = {
+  def format(alignment: AlignmentReport): String = {
     alignment._2.foldLeft("")((s, el) => s + s"${el._1}\t${el._2}\t${el._3}\n") + s"-----\n${alignment._1}\n"
   }
 
-  def alignAll(seqs: Set[List[String]], to: List[String]): Set[(Int, List[(String, String, Int)])] = {
+  def alignAll(seqs: Set[List[String]], to: List[String]): Set[AlignmentReport] = {
     seqs.map(Align2.align(_, to))
   }
-  def alignAll(seqs: Set[List[String]]): Set[(Int, List[(String, String, Int)])] = {
+
+
+
+
+  var serial = 0
+  // TraceSet := A set of traces belonging to a single method invocation
+  case class TraceSet(file: String, name: String, vTraceLen: Int, traces: List[List[String]]) {
+    val id: Int = {serial += 1; serial}
+  }
+  // TraceAlignmentSet := An alignment of TraceSet TS
+  case class TraceAlignmentSet(ts: TraceSet, alignments: Set[AlignmentReport])
+  // AlignmentComparison := An alignment comparison of REPORT w.r.t the TraceAlignment to which it belongs
+  case class AlignmentComparison(ta: TraceAlignmentSet, report: AlignmentReport) {
+    val alignLen: Int = report._2.size
+    val alignmentShorterThanVTrace: Boolean = alignLen < ta.ts.vTraceLen
+  }
+  // TraceComparisonSet := Just like TraceAlignmentSet, but instead of a set of alignments have a set of
+  // AlignmentComparisons of alignments to the vTrace of the TraceSet
+  case class TraceComparisonSet(ta: TraceAlignmentSet, comparisons: Set[AlignmentComparison])
+
+
+
+
+
+  def alignAll(seqs: Set[List[String]]): Set[AlignmentReport] = {
     for { s1 <- seqs
           s2 <- seqs.diff(Set(s1)) }
       yield Align2.align(s1, s2)
+  }
+  def alignAll(ts: TraceSet): TraceAlignmentSet = {
+    TraceAlignmentSet(ts, alignAll(ts.traces.toSet))
   }
 
   def splitToList(s: String): List[String] = {
     s.split(" ").toList
   }
-
-  type TraceSet = (String, Int, List[List[String]])
-
-  def matchToTraceSet(groups: List[String]): TraceSet = {
-    (groups(0), groups(1).toInt, groups(2).split("\n").map(splitToList).toList)
+  def matchToTraceSet(file: String, groups: List[String]): TraceSet = {
+    TraceSet(file, groups(0), groups(1).toInt, groups(2).split("\n").map(splitToList).toList)
   }
   def parseTraces(where: String): Iterator[TraceSet] = {
     val pat = """(?m)([^\n]+)\n(\d+)\n(B[B\s\d]+\n)+\n""".r
     val source = scala.io.Source.fromFile(where)
     // getLines removes blank lines, mkString doesn't add trailing newline
     val content = try source.getLines.mkString("\n") + "\n" finally source.close()
-    pat.findAllIn(content).matchData.map(m => matchToTraceSet(m.subgroups))
+    pat.findAllIn(content).matchData.map(m => matchToTraceSet(where, m.subgroups))
+  }
+  def report(comparisonSets: List[TraceComparisonSet]): List[TraceComparisonSet] = {
+    // maybe actually the useful metric to report is not the number of traces that are less than the vtrace,
+    // but rather the number of tracesets for which ALL trace alignments are less than the vtrace
+    // -> that would be the real problem, right?
+    var shorterAlignmentSets = List.empty[TraceComparisonSet]
+    for (cSet <- comparisonSets) {
+      println(s"${cSet.ta.ts.file}: ${cSet.ta.ts.name} (length ${cSet.ta.ts.vTraceLen})")
+      cSet.comparisons.foreach(ac =>
+        println(s"Trace pair: ${ac.alignLen}\t<?\t${cSet.ta.ts.vTraceLen}\t- ${ac.alignmentShorterThanVTrace}"))
+      println("\n")
+      // All of the pairwise alignments are shorter than the vTrace
+      if (cSet.comparisons.count(_.alignmentShorterThanVTrace) == cSet.comparisons.size) shorterAlignmentSets :+= cSet
+//      if (cSet.comparisons.count(_.alignmentShorterThanVTrace) != 0) shorterAlignmentSets :+= cSet
+    }
+    shorterAlignmentSets
   }
 
   def main(args: Array[String]): Unit = {
     val test1 = List("a", "c", "a", "cc", "aa", "c", "a", "c")
     val test2 = List("c", "a", "cc", "aa", "c", "a", "c", "a")
-//    alignAll(Set(splitToList("a c a cc a c a c"), splitToList("c a cc aa c a c"), splitToList("c a cc aa c aa c a"),
-//      splitToList("c a c a c a c a cc aa")), test2).foreach(res => println(format(res)))
-    for { t <- parseTraces("/home/lukas/projects/cmu/varexc-paper/gpl.txt")
-          alignment <- alignAll(t._3.toSet)
-    } {
-      // (trace, smaller?, variational len, alignment len, alignment)
-      (t._1, t._2 < alignment._1,t._2, alignment._1, alignment._2)
+    val files = List("/home/lukas/projects/cmu/varexc-paper/gpl.txt",
+  "/home/lukas/projects/cmu/varexc-paper/elevator.txt",
+  "/home/lukas/projects/cmu/varexc-paper/queval.txt")
+    val aligned = for { file <- files
+                        traceSet <- { println(s"Processing file $file"); parseTraces(file) }
+                        traceAlignmentSet = { println(s"Aligning traces for $file: ${traceSet.name}"); alignAll(traceSet) }
+    } yield {
+      TraceComparisonSet(traceAlignmentSet,
+        traceAlignmentSet.alignments.map(alignment => AlignmentComparison(traceAlignmentSet, alignment)))
     }
+    assert(!aligned.exists(tcSet => tcSet.comparisons.exists(ac => ac.ta != tcSet.ta)))
+    val setsWithOnlyShorterAlignments = report(aligned)
+    println(s"\n\n----- Summary -----\nNumber of set alignments shorter than vTrace: ${setsWithOnlyShorterAlignments.size}/${aligned.size}")
+    println(s"\n\nSet alignments shorter than vTrace:\n${setsWithOnlyShorterAlignments.map(_.ta.ts.name).mkString("\n")}")
   }
 }
 
