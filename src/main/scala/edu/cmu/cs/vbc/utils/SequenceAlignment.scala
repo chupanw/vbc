@@ -90,14 +90,23 @@ object SequenceAlignment {
       aligned
     }
   }
-  def format(alignment: List[(String, String, Int)]): String = {
-    alignment.foldLeft("")((s, el) => s + el._1 + " " + el._2 + " " + el._3 + "\n")
+  def format(alignment: (Int, List[(String, String, Int)])): String = {
+    alignment._2.foldLeft("")((s, el) => s + s"${el._1}\t${el._2}\t${el._3}\n") + s"-----\n${alignment._1}\n"
+  }
+
+  def alignAll(seqs: Set[List[String]], to: List[String]): Set[(Int, List[(String, String, Int)])] = {
+    seqs.map(Align2.align(_, to))
+  }
+
+  def splitToList(s: String): List[String] = {
+    s.split(" ").toList
   }
 
   def main(args: Array[String]): Unit = {
     val test1 = List("a", "c", "a", "cc", "aa", "c", "a", "c")
     val test2 = List("c", "a", "cc", "aa", "c", "a", "c", "a")
-    println(format(Align2.align(test1, test2)._2))
+    alignAll(Set(splitToList("a c a cc a c a c"), splitToList("c a cc aa c a c"), splitToList("c a cc aa c aa c a"),
+      splitToList("c a c a c a c a cc aa")), test2).foreach(res => println(format(res)))
   }
 }
 
