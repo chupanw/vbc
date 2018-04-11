@@ -6,7 +6,7 @@ object SequenceAlignment {
   object Align2 {
     val GAP_COST = 2
     val MATCH_COST = 0
-    val NONMATCH_COST = 1
+    val NONMATCH_COST = 1000000000
     type CostMatrix = Array[Array[Int]]
 
     def align(seq1: List[String], seq2: List[String]): AlignmentReport = {
@@ -177,7 +177,16 @@ object SequenceAlignment {
     }
     assert(!aligned.exists(tcSet => tcSet.comparisons.exists(ac => ac.ta != tcSet.ta)))
     val setsWithOnlyShorterAlignments = report(aligned)
-    println(s"\n\n----- Summary -----\nNumber of set alignments shorter than vTrace: ${setsWithOnlyShorterAlignments.size}/${aligned.size}")
+    def containsDups(l: List[Any]): Boolean = {
+      l.distinct.size != l.size
+    }
+    def tracesContainDups(ac: AlignmentComparison): Boolean = {
+      val t1 = ac.report._2.map(_._1)
+      val t2 = ac.report._2.map(_._2)
+      containsDups(t1) || containsDups(t2)
+    }
+    val shorterAlignmentSetsWithLoops = setsWithOnlyShorterAlignments.filter(tcs => tcs.comparisons.exists(tracesContainDups))
+    println(s"\n\n----- Summary -----\nNumber of set alignments shorter than vTrace: ${setsWithOnlyShorterAlignments.size}/${aligned.size} (${shorterAlignmentSetsWithLoops.size} are loops)")
     println(s"\n\nSet alignments shorter than vTrace:\n${setsWithOnlyShorterAlignments.map(_.ta.ts.name).mkString("\n")}")
   }
 }
