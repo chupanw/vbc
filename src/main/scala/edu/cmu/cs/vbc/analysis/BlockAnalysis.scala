@@ -124,12 +124,13 @@ trait CFGAnalysis {
   def getLastBlock(): Block = blocks.last
 }
 
+case class VBlock(firstBlock: Block, allBlocks: Set[Block])
+
 /**
   * group blocks depending on variational edges
   */
 trait VBlockAnalysis extends CFGAnalysis {
 
-  case class VBlock(firstBlock: Block, allBlocks: Set[Block])
 
   def isVariationalJump(fromBlock: Block, toBlock: Block): Boolean
 

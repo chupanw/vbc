@@ -16,6 +16,7 @@ object Block {
 }
 
 case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
+  var dominators: Set[Block] = Set()
 
   import LiftUtils._
 
@@ -31,12 +32,32 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     vvalidate(env)
     mv.visitLabel(env.getBlockLabel(this))
 
+    if (isUniqueFirstBlock(env)) {
+      if (env.loopDetector.hasComplexLoop) {
+        mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
+        loadCurrentCtx(mv, env, this)
+        mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("logBlock"), MethodDesc(s"(Ljava/lang/String;${fexprclasstype}Ljava/lang/String;)V"), false)
+      }
+    }
+
     //possibly jump over VBlocks and load extra stack variables (if this is the VBLock head)
     //a unique first block always has a satisfiable condition and no stack variables
     //exception blocks have no stack variables and always a satisfiable condition
     if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
       vblockSkipIfCtxContradition(mv, env)
       loadUnbalancedStackVariables(mv, env)
+      if (env.loopDetector.hasComplexLoop) {
+        mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
+        loadCurrentCtx(mv, env, this)
+        mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("logBlock"), MethodDesc(s"(Ljava/lang/String;${fexprclasstype}Ljava/lang/String;)V"), false)
+      }
+    }
+
+    if (instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
+      mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logEnd", "(Ljava/lang/String;)V", false)
     }
 
     //generate block code
@@ -361,6 +382,11 @@ case class CFG(blocks: List[Block]) {
         LocalVar.initOneNull(mv, env, v)
       else
         v.vinitialize(mv, env, v)
+    }
+
+    if (env.loopDetector.hasComplexLoop) {
+      mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)
     }
 
     //serialize blocks, but keep the last vblock in one piece at the end (requires potential reordering of blocks

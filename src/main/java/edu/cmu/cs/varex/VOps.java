@@ -5,8 +5,13 @@ import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.*;
+import java.util.HashMap;
+import java.util.Stack;
 
 /**
  * Created by ckaestne on 1/16/2016.
@@ -661,5 +666,44 @@ public class VOps {
             result[i] = V.one(fe, fields[i]);
         }
         return result;
+    }
+
+    public static HashMap<String, Stack<java.lang.StringBuilder>> traces = new HashMap<>();
+
+    public static void log(String s) {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter("vtrace.txt", true));
+            writer.write(s);
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void logStart(String methodName) {
+        java.lang.StringBuilder sb = new java.lang.StringBuilder();
+        sb.append("\n" + methodName + "\n");
+        if (traces.containsKey(methodName)) {
+            Stack<java.lang.StringBuilder> existing = traces.get(methodName);
+            existing.push(sb);
+        } else {
+            Stack<java.lang.StringBuilder> s = new Stack<>();
+            s.push(sb);
+            traces.put(methodName, s);
+        }
+//        log("\n" + methodName + "\n");
+    }
+
+    public static void logBlock(String b, FeatureExpr fe, String methodName) {
+        Stack<java.lang.StringBuilder> s = traces.get(methodName);
+        java.lang.StringBuilder sb = s.peek();
+        sb.append(b + " " + fe.toString() + "\n");
+//        log(b + " " + fe.toString() + "\n");
+    }
+
+    public static void logEnd(String methodName) {
+        Stack<java.lang.StringBuilder> s = traces.get(methodName);
+        java.lang.StringBuilder sb = s.pop();
+        log(sb.toString());
     }
 }
