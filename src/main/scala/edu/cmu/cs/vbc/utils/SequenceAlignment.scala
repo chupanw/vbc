@@ -111,25 +111,44 @@ object SequenceAlignment {
   // TraceAlignmentSet := An alignment of TraceSet TS
   case class TraceAlignmentSet(ts: TraceSet, alignments: Set[AlignmentReport])
   // AlignmentComparison := An alignment comparison of REPORT w.r.t the TraceAlignment to which it belongs
-  case class AlignmentComparison(ta: TraceAlignmentSet, report: AlignmentReport) {
+  case class AlignmentComparison(ts: TraceSet, report: AlignmentReport) {
     val alignLen: Int = report._2.size
-    val alignmentShorterThanVTrace: Boolean = alignLen < ta.ts.vTraceLen
+    val alignmentShorterThanVTrace: Boolean = alignLen < ts.vTraceLen
   }
+  case class TraceComparisonSet(ts: TraceSet, comparisons: List[AlignmentComparison], allAlignmentsShorterThanVTrace: Boolean)
   // TraceComparisonSet := Just like TraceAlignmentSet, but instead of a set of alignments have a set of
   // AlignmentComparisons of alignments to the vTrace of the TraceSet
-  case class TraceComparisonSet(ta: TraceAlignmentSet, comparisons: Set[AlignmentComparison])
+//  case class TraceComparisonSet(ta: TraceAlignmentSet, comparisons: Set[AlignmentComparison])
 
 
 
 
-
-  def alignAll(seqs: Set[List[String]]): Set[AlignmentReport] = {
-    for { s1 <- seqs
-          s2 <- seqs.diff(Set(s1)) }
-      yield Align2.align(s1, s2)
+  def factorial(n: Int, total: Int = 1): Int = {
+    if(n < 2) total
+    else factorial(n-1, n*total)
   }
-  def alignAll(ts: TraceSet): TraceAlignmentSet = {
-    TraceAlignmentSet(ts, alignAll(ts.traces.toSet))
+
+  def alignAll(ts: TraceSet): TraceComparisonSet = {
+    val seqs = ts.traces
+    var aligned = collection.mutable.Set.empty[(List[String], List[String])]
+    def alreadyAligned(a: List[String], b: List[String]) = {
+      aligned.contains((a, b)) || aligned.contains((b, a))
+    }
+    var alignCount = seqs.size*(seqs.size - 1)/2
+    var allAlignmentsShorterThanVTrace = true
+    println(s"$alignCount alignments to perform...")
+    val comparisons = for { s1 <- seqs
+          s2 <- seqs.diff(List(s1)) if !alreadyAligned(s1, s2) }
+      yield {
+        aligned.add((s1, s2))
+        alignCount -= 1
+        val alignment = Align2.align(s1, s2)
+//        println(s"Alignment done. $alignCount pairs left")
+        val ac = AlignmentComparison(ts, alignment)
+        if (!ac.alignmentShorterThanVTrace) allAlignmentsShorterThanVTrace = false
+        ac
+      }
+    TraceComparisonSet(ts, comparisons, allAlignmentsShorterThanVTrace)
   }
 
   def splitToList(s: String): List[String] = {
@@ -145,18 +164,18 @@ object SequenceAlignment {
     val content = try source.getLines.mkString("\n") + "\n" finally source.close()
     pat.findAllIn(content).matchData.map(m => matchToTraceSet(where, m.subgroups))
   }
-  def report(comparisonSets: List[TraceComparisonSet]): List[TraceComparisonSet] = {
+  def reportVTraceOptimality(comparisonSets: List[TraceComparisonSet]): List[TraceComparisonSet] = {
     // maybe actually the useful metric to report is not the number of traces that are less than the vtrace,
     // but rather the number of tracesets for which ALL trace alignments are less than the vtrace
     // -> that would be the real problem, right?
     var shorterAlignmentSets = List.empty[TraceComparisonSet]
     for (cSet <- comparisonSets) {
-      println(s"${cSet.ta.ts.file}: ${cSet.ta.ts.name} (length ${cSet.ta.ts.vTraceLen})")
+      println(s"${cSet.ts.file}: ${cSet.ts.name} (length ${cSet.ts.vTraceLen})")
       cSet.comparisons.foreach(ac =>
-        println(s"Trace pair: ${ac.alignLen}\t<?\t${cSet.ta.ts.vTraceLen}\t- ${ac.alignmentShorterThanVTrace}"))
+        println(s"Trace pair: ${ac.alignLen}\t<?\t${cSet.ts.vTraceLen}\t- ${ac.alignmentShorterThanVTrace}"))
       println("\n")
       // All of the pairwise alignments are shorter than the vTrace
-      if (cSet.comparisons.count(_.alignmentShorterThanVTrace) == cSet.comparisons.size) shorterAlignmentSets :+= cSet
+      if (cSet.allAlignmentsShorterThanVTrace) shorterAlignmentSets :+= cSet
 //      if (cSet.comparisons.count(_.alignmentShorterThanVTrace) != 0) shorterAlignmentSets :+= cSet
     }
     shorterAlignmentSets
@@ -165,18 +184,28 @@ object SequenceAlignment {
   def main(args: Array[String]): Unit = {
     val test1 = List("a", "c", "a", "cc", "aa", "c", "a", "c")
     val test2 = List("c", "a", "cc", "aa", "c", "a", "c", "a")
-    val files = List("/home/lukas/projects/cmu/varexc-paper/gpl.txt",
-  "/home/lukas/projects/cmu/varexc-paper/elevator.txt",
-  "/home/lukas/projects/cmu/varexc-paper/queval.txt")
+    val files = List(
+//      "/home/lukas/projects/cmu/varexc-paper/gpl-traces.txt"
+//      "/home/lukas/projects/cmu/varexc-paper/elevator-traces.txt"
+//      "/home/lukas/projects/cmu/varexc-paper/queval-traces.txt"
+      "/home/lukas/projects/cmu/varexc-paper/checkstyle-traces-truncated.txt"
+    )
+    var subOptimalCount = 0
+    var processedCount = 0
     val aligned = for { file <- files
                         traceSet <- { println(s"Processing file $file"); parseTraces(file) }
-                        traceAlignmentSet = { println(s"Aligning traces for $file: ${traceSet.name}"); alignAll(traceSet) }
     } yield {
-      TraceComparisonSet(traceAlignmentSet,
-        traceAlignmentSet.alignments.map(alignment => AlignmentComparison(traceAlignmentSet, alignment)))
+      println(s"(${traceSet.id}) Aligning traces for $file: ${traceSet.name}")
+      val tcs = alignAll(traceSet)
+      processedCount += 1
+      if (tcs.allAlignmentsShorterThanVTrace) {
+        subOptimalCount += 1
+        println(s"\n* Trace set ${traceSet.id} is suboptimal. *\n")
+      }
+      println(s"> $subOptimalCount/$processedCount trace sets found suboptimal so far. <")
+      tcs
     }
-    assert(!aligned.exists(tcSet => tcSet.comparisons.exists(ac => ac.ta != tcSet.ta)))
-    val setsWithOnlyShorterAlignments = report(aligned)
+    val setsWithOnlyShorterAlignments = reportVTraceOptimality(aligned)
     def containsDups(l: List[Any]): Boolean = {
       l.distinct.size != l.size
     }
@@ -185,9 +214,10 @@ object SequenceAlignment {
       val t2 = ac.report._2.map(_._2)
       containsDups(t1) || containsDups(t2)
     }
+    println("Checking for loop sets..")
     val shorterAlignmentSetsWithLoops = setsWithOnlyShorterAlignments.filter(tcs => tcs.comparisons.exists(tracesContainDups))
     println(s"\n\n----- Summary -----\nNumber of set alignments shorter than vTrace: ${setsWithOnlyShorterAlignments.size}/${aligned.size} (${shorterAlignmentSetsWithLoops.size} are loops)")
-    println(s"\n\nSet alignments shorter than vTrace:\n${setsWithOnlyShorterAlignments.map(_.ta.ts.name).mkString("\n")}")
+    println(s"\n\nSet alignments shorter than vTrace:\n${setsWithOnlyShorterAlignments.map(_.ts.name).mkString("\n")}")
   }
 }
 
