@@ -94,7 +94,7 @@ object TraceExpander extends App {
     lines = rest
   }
 
-  val validVTraces = allVTraces.filter(vt => !vt.isSameContext && !vt.isAllSingleContext)
+  val validVTraces = allVTraces.filterNot(vt => vt.isSameContext || (vt.isAllSingleContext && vt.onlyOneOccurence))
   println(s"Needs to explode ${validVTraces.size} vTraces")
   validVTraces.foreach(t => explodeVTrace(t, explodeCombinations(t.FEs), writer))
   writer.close()
@@ -106,6 +106,7 @@ case class VTrace(mn: String, elements: List[VTraceElement]) {
   val isAllSingleContext: Boolean = simplifiedElements.forall(_.fe.collectDistinctFeatureObjects.size <= 1)
 //  val isContradictingMethodCtx: Boolean = simplifiedElements.exists(_.fe.equivalentTo(FeatureExprFactory.False))
   val FEs: Set[FeatureExpr] = simplifiedElements.map(_.fe).flatMap(_.collectDistinctFeatureObjects).toSet
+  val onlyOneOccurence: Boolean = FEs.filter(!_.equivalentTo(FeatureExprFactory.True)).forall(e => simplifiedElements.count(_.fe.equivalentTo(e)) <= 1)
 }
 
 case class VTraceElement(b: String, fe: FeatureExpr)
