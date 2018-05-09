@@ -706,4 +706,9 @@ public class VOps {
         java.lang.StringBuilder sb = s.pop();
         log(sb.toString());
     }
+
+    public static long nSimpleInvocations = 0;
+    public static void logSimple() {
+        nSimpleInvocations += 1;
+    }
 }

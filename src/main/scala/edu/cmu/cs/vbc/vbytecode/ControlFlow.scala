@@ -387,6 +387,8 @@ case class CFG(blocks: List[Block]) {
     if (env.loopDetector.hasComplexLoop) {
       mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)
+    } else {
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logSimple", "()V", false)
     }
 
     //serialize blocks, but keep the last vblock in one piece at the end (requires potential reordering of blocks

@@ -206,6 +206,9 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
   loopDetector.go()
   if (loopDetector.hasComplexLoop) {
     logger.warn("Loop detected: " + clazz.name + " " + method.name + method.desc)
+    Statistics.nComplex += 1
+  } else {
+    Statistics.nSimple += 1
   }
 
   def tagVWithVBlocksUpdate(): Array[VBCFrame] = {
