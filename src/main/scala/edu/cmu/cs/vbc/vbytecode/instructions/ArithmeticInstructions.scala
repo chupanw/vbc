@@ -1169,3 +1169,120 @@ case class InstrD2I() extends Instruction {
 
   override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
+
+
+/** Negate double
+  *
+  * ..., value(double) -> ..., result(double)
+  */
+case class InstrDNEG() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(DNEG)
+  }
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      InvokeDynamicUtils.invoke(
+        VCall.smap,
+        mv,
+        env,
+        loadCtx = loadCurrentCtx(_, env, block),
+        lambdaName = "dneg",
+        desc = TypeDesc.getDouble + "()" + TypeDesc.getDouble
+      ) {
+        (mv: MethodVisitor) => {
+          mv.visitVarInsn(ALOAD, 1)
+          Double2double(mv)
+          mv.visitInsn(DNEG)
+          double2Double(mv)
+          mv.visitInsn(ARETURN)
+        }
+      }
+    }
+    else {
+      mv.visitInsn(DNEG)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (vType, _, frame) = s.pop()
+    if (vType == V_TYPE(true))
+      env.setLift(this)
+    if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V)) {
+      (frame.push(V_TYPE(true), Set(this)), Set())
+    }
+    else
+      (frame.push(DOUBLE_TYPE(), Set(this)), Set())
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
+}
+
+
+/**
+  *
+  */
+case class InstrFSUB() extends BinOpInstruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(FSUB)
+  }
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "FSUB", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
+    }
+    else {
+      mv.visitInsn(FSUB)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        float2Float(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
+  }
+}
+
+/**
+  * Negate float
+  */
+case class InstrFNEG() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(FNEG)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, frame) = s.pop()
+    if (v == V_TYPE(false))
+      env.setLift(this)
+    val newFrame =
+      if (env.shouldLiftInstr(this) || env.getTag(this, env.TAG_NEED_V))
+        frame.push(V_TYPE(false), Set(this))
+      else {
+        frame.push(FLOAT_TYPE(), Set(this))
+      }
+    (newFrame, Set())
+  }
+
+  /**
+    * Lifting means performing operations on a V object
+    */
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "fneg", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    }
+    else {
+      mv.visitInsn(FNEG)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        float2Float(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
+}

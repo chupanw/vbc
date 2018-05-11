@@ -139,6 +139,10 @@ public class VOps {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() - bb.intValue()));
     }
 
+    public static V<? extends Float> FSUB(V<? extends Float> a, V<? extends Float> b, FeatureExpr ctx) {
+        return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.floatValue() - bb.floatValue()));
+    }
+
 
     public static V<? extends Integer> IMUL(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() * bb.intValue()));
@@ -232,6 +236,10 @@ public class VOps {
 
     public static V<? extends Integer> ineg(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, v -> -v.intValue());
+    }
+
+    public static V<? extends Float> fneg(V<? extends Float> value1, FeatureExpr ctx) {
+        return value1.smap(ctx, v -> -v.floatValue());
     }
 
     public static V<? extends Double> dmul(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
