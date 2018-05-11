@@ -34,7 +34,7 @@ object LiftingPolicy {
   def shouldLiftClass(owner: Owner): Boolean = {
     if (currentConfig.jdkLiftingClasses.exists(n => owner.name.matches("model.*" + n))) return true
     if (currentConfig.libraryLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
-    else if (owner.name.startsWith("edu/cmu/cs/vbc/prog/") && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
+    else if ((owner.name.startsWith("org/apache/commons/math3/") || owner.name.startsWith("edu/cmu/cs/vbc/prog/")) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
     else false
   }
 
@@ -97,6 +97,7 @@ object LiftingPolicy {
       case (Owner("org/eclipse/jetty/webapp/MetaDataComplete"), _, _) => false
       case (Owner("org/eclipse/jetty/webapp/Origin"), _, _) => false
       case (Owner("org/eclipse/jetty/util/URIUtil"), _, _) => false
+      case (Owner("org/apache/commons/math3/exception/util/LocalizedFormats"), _, _) => false
       case _ => true
     }
   }
