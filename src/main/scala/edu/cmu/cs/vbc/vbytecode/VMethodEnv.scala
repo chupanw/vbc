@@ -1,6 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.cmu.cs.vbc.Config
 import edu.cmu.cs.vbc.analysis.{LoopDector, VBCAnalyzer, VBCFrame}
 import edu.cmu.cs.vbc.utils.{LiftUtils, Statistics}
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -203,12 +204,14 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
 
   // loop detection
   val loopDetector = new LoopDector(this)
-  loopDetector.go()
-  if (loopDetector.hasComplexLoop) {
-    logger.warn("Loop detected: " + clazz.name + " " + method.name + method.desc)
-    Statistics.nComplex += 1
-  } else {
-    Statistics.nSimple += 1
+  if (Config.detectComplexLoop) {
+    loopDetector.go()
+    if (loopDetector.hasComplexLoop) {
+      logger.warn("Loop detected: " + clazz.name + " " + method.name + method.desc)
+      Statistics.nComplex += 1
+    } else {
+      Statistics.nSimple += 1
+    }
   }
 
   def tagVWithVBlocksUpdate(): Array[VBCFrame] = {

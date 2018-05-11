@@ -1,5 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
+import edu.cmu.cs.vbc.Config
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
@@ -33,7 +34,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     mv.visitLabel(env.getBlockLabel(this))
 
     if (isUniqueFirstBlock(env)) {
-      if (env.loopDetector.hasComplexLoop) {
+      if (Config.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -47,7 +48,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
       vblockSkipIfCtxContradition(mv, env)
       loadUnbalancedStackVariables(mv, env)
-      if (env.loopDetector.hasComplexLoop) {
+      if (Config.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -55,7 +56,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       }
     }
 
-    if (instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
+    if (Config.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
       mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logEnd", "(Ljava/lang/String;)V", false)
     }
@@ -384,11 +385,13 @@ case class CFG(blocks: List[Block]) {
         v.vinitialize(mv, env, v)
     }
 
-    if (env.loopDetector.hasComplexLoop) {
-      mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)
-    } else {
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logSimple", "()V", false)
+    if (Config.logTrace) {
+      if (env.loopDetector.hasComplexLoop) {
+        mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)
+      } else {
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logSimple", "()V", false)
+      }
     }
 
     //serialize blocks, but keep the last vblock in one piece at the end (requires potential reordering of blocks
