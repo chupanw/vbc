@@ -85,6 +85,7 @@ case class InstrLDC(o: Object) extends Instruction {
         case i: Integer =>  // do nothing
         case l: java.lang.Long => // do nothing
         case _: java.lang.Double => // do nothing
+        case _: java.lang.Float => // do nothing
         case t: Type => // do nothing
         case _ => throw new UnsupportedOperationException("Unsupported LDC type: " + o.getClass)
       }
