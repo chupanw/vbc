@@ -195,7 +195,9 @@ trait MethodInstruction extends Instruction {
         )
       case Some(TypeDesc("[J")) => ???
       case Some(TypeDesc("[F")) => ???
-      case Some(TypeDesc("[D")) => ???
+      case Some(TypeDesc("[D")) =>
+        mv.visitVarInsn(ALOAD, ctxIdx)
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getArrayOps, "DArray2VArray", MethodDesc(s"([D$fexprclasstype)[$vclasstype"), false)
       case Some(t) if t.isArray =>
         mv.visitVarInsn(ALOAD, ctxIdx)
         mv.visitMethodInsn(

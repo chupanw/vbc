@@ -564,9 +564,44 @@ public class ArrayOps {
     }
 
     public static V<?>[] ObjectArray2VArray(Object[] objects, FeatureExpr ctx) {
-        V<?>[] vs = new V<?>[objects.length];
-        for (int i = 0; i < objects.length; i++) {
-            vs[i] = V.one(ctx, objects[i]);
+        return (V[]) array2VArray(objects, ctx);
+    }
+
+    private static Object array2VArray(Object o, FeatureExpr ctx) {
+        if (o instanceof Object[]) {
+            Object[] objects = (Object[]) o;
+            V<?>[] vs = new V<?>[objects.length];
+            for (int i = 0; i < objects.length; i++) {
+                vs[i] = V.one(ctx, array2VArray(objects[i], ctx));
+            }
+            return vs;
+        } else if (o instanceof double[]) {
+            double[] doubles = (double[]) o;
+            return DArray2VArray(doubles, ctx);
+        } else if (o instanceof byte[]) {
+            byte[] bytes = (byte[]) o;
+            return BArray2VArray(bytes, ctx);
+        } else if (o instanceof char[]) {
+            char[] chars = (char[]) o;
+            return CArray2VArray(chars, ctx);
+        } else if (o instanceof int[]) {
+            throw new RuntimeException("Not implemented: IArray2VArray");
+        } else if (o instanceof short[]) {
+            throw new RuntimeException("Not implemented: SArray2VArray");
+        } else if (o instanceof long[]) {
+            throw new RuntimeException("Not implemented: JArray2VArray");
+        } else if (o instanceof float[]) {
+            throw new RuntimeException("Not implemented: FArray2VArray");
+        } else {
+            // not an array
+            return o;
+        }
+    }
+
+    public static V<?>[] DArray2VArray(double[] doubles, FeatureExpr ctx) {
+        V<?>[] vs = new V<?>[doubles.length];
+        for (int i = 0; i < doubles.length; i++) {
+            vs[i] = V.one(ctx, doubles[i]);
         }
         return vs;
     }
