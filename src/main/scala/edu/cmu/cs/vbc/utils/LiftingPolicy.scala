@@ -98,6 +98,9 @@ object LiftingPolicy {
       case (Owner("org/eclipse/jetty/webapp/Origin"), _, _) => false
       case (Owner("org/eclipse/jetty/util/URIUtil"), _, _) => false
       case (Owner("org/apache/commons/math3/exception/util/LocalizedFormats"), _, _) => false
+      case (Owner("java/math/BigDecimal"), _, _) => false
+      case (Owner("java/math/RoundingMode"), _, _) => false
+      case (Owner("java/math/MathContext"), _, _) => false
       case _ => true
     }
   }
