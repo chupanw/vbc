@@ -191,7 +191,16 @@ class Loader {
       if (m.signature == null) None else Some(m.signature),
       if (m.exceptions == null) Nil else m.exceptions.toList,
       new CFG(nonEmptyBlocks.toList),
-      varCache.values.toList
+      varCache.values.toList,
+      annotationDefault = m.annotationDefault,
+      invisibleAnnotations = if (m.invisibleAnnotations == null) Nil else m.invisibleAnnotations.toList,
+      invisibleLocalVariableAnnotations = if (m.invisibleLocalVariableAnnotations == null) Nil else m.invisibleLocalVariableAnnotations.toList,
+      invisibleParameterAnnotations = if (m.invisibleParameterAnnotations == null) Array.empty else m.invisibleParameterAnnotations.toArray.map(_.toList),
+      invisibleTypeAnnotations = if (m.invisibleTypeAnnotations == null) Nil else m.invisibleTypeAnnotations.toList,
+      visibleAnnotations = if (m.visibleAnnotations == null) Nil else m.visibleAnnotations.toList,
+      visibleLocalVariableAnnotations = if (m.visibleLocalVariableAnnotations == null) Nil else m.visibleLocalVariableAnnotations.toList,
+      visibleParameterAnnotations = if (m.visibleParameterAnnotations == null) Array.empty else m.visibleParameterAnnotations.toArray.map(_.toList),
+      visibleTypeAnnotations = if (m.visibleTypeAnnotations == null) Nil else m.visibleTypeAnnotations.toList
     )
   }
 

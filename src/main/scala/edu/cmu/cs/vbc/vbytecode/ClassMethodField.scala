@@ -14,7 +14,17 @@ case class VBCMethodNode(access: Int,
                          signature: Option[String],
                          exceptions: List[String],
                          body: CFG,
-                         localVar: List[Variable] = Nil // initial local variables
+                         localVar: List[Variable] = Nil, // initial local variables
+                         // Annotations:
+                         annotationDefault: Object = null,
+                         invisibleAnnotations: List[AnnotationNode] = Nil,
+                         invisibleLocalVariableAnnotations: List[LocalVariableAnnotationNode] = Nil,
+                         invisibleParameterAnnotations: Array[List[AnnotationNode]] = Array.empty,
+                         invisibleTypeAnnotations: List[TypeAnnotationNode] = Nil,
+                         visibleAnnotations: List[AnnotationNode] = Nil,
+                         visibleLocalVariableAnnotations: List[LocalVariableAnnotationNode] = Nil,
+                         visibleParameterAnnotations: Array[List[AnnotationNode]] = Array.empty,
+                         visibleTypeAnnotations: List[TypeAnnotationNode] = Nil
                         ) extends LazyLogging {
 
   import LiftUtils._
@@ -22,6 +32,7 @@ case class VBCMethodNode(access: Int,
   def toByteCode(cw: ClassVisitor, clazz: VBCClassNode) = {
     val newDesc: String = if (isMain) desc else MethodDesc(desc).toModels
     val mv = cw.visitMethod(access, name, newDesc, signature.getOrElse(null), exceptions.toArray)
+    visitAnnotations(mv)
     mv.visitCode()
     body.toByteCode(mv, new MethodEnv(clazz, this))
     mv.visitMaxs(0, 0)
@@ -42,6 +53,7 @@ case class VBCMethodNode(access: Int,
       liftMethodSignature(desc, signature).getOrElse(null),
       exceptions.toArray
     )
+    visitAnnotations(mv)
     mv.visitCode()
     val labelStart = new Label()
     mv.visitLabel(labelStart)
@@ -73,6 +85,21 @@ case class VBCMethodNode(access: Int,
 
     mv.visitMaxs(0, 0)
     mv.visitEnd()
+  }
+
+  def visitAnnotations(mv: MethodVisitor): Unit = {
+    import scala.collection.JavaConverters._
+    if (annotationDefault != null) mv.visitAnnotationDefault().visit("", annotationDefault)  // name not used in the library
+    invisibleAnnotations.foreach(x => x.accept(mv.visitAnnotation(x.desc, false)))
+    visibleAnnotations.foreach(x => x.accept(mv.visitAnnotation(x.desc, true)))
+    invisibleLocalVariableAnnotations.foreach(x =>
+      x.accept(mv.visitLocalVariableAnnotation(x.typeRef, x.typePath, x.start.asScala.toArray.map(_.getLabel), x.end.asScala.toArray.map(_.getLabel), x.index.asScala.toArray.map(_.intValue()), x.desc, false)))
+    visibleLocalVariableAnnotations.foreach(x =>
+      x.accept(mv.visitLocalVariableAnnotation(x.typeRef, x.typePath, x.start.asScala.toArray.map(_.getLabel), x.end.asScala.toArray.map(_.getLabel), x.index.asScala.toArray.map(_.intValue()), x.desc, true)))
+    invisibleParameterAnnotations.zipWithIndex.foreach(x => x._1.foreach(y => y.accept(mv.visitParameterAnnotation(x._2, y.desc, false))))
+    visibleParameterAnnotations.zipWithIndex.foreach(x => x._1.foreach(y => y.accept(mv.visitParameterAnnotation(x._2, y.desc, true))))
+    invisibleTypeAnnotations.foreach(x => mv.visitTypeAnnotation(x.typeRef, x.typePath, x.desc, false))
+    visibleTypeAnnotations.foreach(x => mv.visitTypeAnnotation(x.typeRef, x.typePath, x.desc, true))
   }
 
   lazy val returnsVoid = Type.getMethodType(desc).getReturnType == Type.VOID_TYPE
