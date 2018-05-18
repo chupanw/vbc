@@ -7,7 +7,7 @@ import java.net.URLClassLoader
 import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.utils.MyClassWriter
 import edu.cmu.cs.vbc.vbytecode.VBCClassNode
-import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.{ClassReader, ClassWriter}
 
 class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
@@ -30,8 +30,18 @@ class VBCTestClassLoader(parent: ClassLoader,
     val resource: String = name.replace('.', '/') + ".class"
     val is: InputStream = urlClassLoader.getResourceAsStream(resource)
     val clazz: VBCClassNode = loader.loadClass(is)
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     clazz.toByteCode(cw)
+    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
+  }
+
+  override def loadClassWithoutChanges(name: String): Class[_] = {
+    val resource: String = name.replace('.', '/') + ".class"
+    val is: InputStream = urlClassLoader.getResourceAsStream(resource)
+    if (is == null) throw new ClassNotFoundException(name)
+    val cr = new ClassReader(is)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
+    cr.accept(cw, 0)
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
@@ -51,7 +61,12 @@ class VBCTestClassLoader(parent: ClassLoader,
       thisLevel ::: nested
     }
 
-    go(new File(testClasspath))
+    val raw: List[String] = go(new File(testClasspath))
+    process(raw)
+  }
+
+  def process(l: List[String]): List[String] = {
+    l.filterNot(_.contains('$')).map(_.replaceAll("/", "."))
   }
 
   def getTestMethods(cName: String): List[Method] = {
