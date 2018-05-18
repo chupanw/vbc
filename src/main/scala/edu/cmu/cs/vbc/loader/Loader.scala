@@ -219,7 +219,7 @@ class Loader {
       case LCONST_1 => InstrLCONST(1)
       case FCONST_0 => InstrFCONST_0()
       case FCONST_1 => InstrFCONST_1()
-      case FCONST_2 => UNKNOWN(FCONST_2)
+      case FCONST_2 => InstrFCONST_2()
       case DCONST_0 => InstrDCONST_0()
       case DCONST_1 => InstrDCONST_1()
       case BIPUSH => {
