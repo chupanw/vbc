@@ -153,6 +153,7 @@ trait VBlockAnalysis extends CFGAnalysis {
     //which block is the first for each VBlock group?
     val vblockHead: Map[Int, Block] = (blocks.indices zip blocks).toMap
 
+    var analyzed = Set[Block]()
     var queue: Queue[Block] = Queue()
     queue = queue.enqueue(blocks)
     //analysis:
@@ -161,6 +162,7 @@ trait VBlockAnalysis extends CFGAnalysis {
     while (queue.nonEmpty) {
       val (block, q) = queue.dequeue
       queue = q
+      analyzed = analyzed + block
 
       val pred: Set[Block] = getPredecessors(block)
       val variationalEdgeFromPred = pred.exists(isVariationalJump(_, block))
@@ -179,8 +181,13 @@ trait VBlockAnalysis extends CFGAnalysis {
         // condition 2: all predecessors must come from the same VBlock
         // condition 3: must be in different VBlocks so that they can be merged
         if (thisBlockIdx != 0 && predVBlockIdxs.size == 1 && predVBlockIdxs.head != thisVBlockIdx) {
-          vblockId += (block -> predVBlockIdxs.head)
-          queue = queue.enqueue(getSuccessorsAndExceptionHandlers(block))
+          // condition 4: if sibling blocks are analyzed, siblings should be in the same VBlock
+          val siblingBlocks = getSiblingsBlocks(block)
+          val condition4 = isExceptionHandlerBlock(block) || siblingBlocks.exists(!analyzed.contains(_)) || siblingBlocks.forall(x => vblockId(x) != blocks.indexOf(x))
+          if (condition4) {
+            vblockId += (block -> predVBlockIdxs.head)
+            queue = queue.enqueue(getSuccessorsAndExceptionHandlers(block))
+          }
         }
       }
     }
@@ -188,6 +195,11 @@ trait VBlockAnalysis extends CFGAnalysis {
       yield VBlock(vblockHead(vblockId), blocks.keys.toSet)
     sanityCheck(newVblocks)
     newVblocks
+  }
+
+  def getSiblingsBlocks(b: Block): Set[Block] = {
+    val pred = getPredecessors(b)
+    pred.flatMap(p => getSuccessors(p)).filterNot(_ == b)
   }
 
   /**
