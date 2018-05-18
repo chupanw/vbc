@@ -435,10 +435,10 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
       m.visitCode()
 
       if (liftedCall.owner == Owner.getString && liftedCall.desc.getArgs.exists(_.isArray)) {
-        val postfix = liftedCall.desc.toString.init.init.tail.replace('/', '_').replace("[", "Array_")
+        val mn = MethodName("initVStrings").rename(liftedCall.desc)
         args.indices foreach { (i) => m.visitVarInsn(ALOAD, i) } // arguments
         m.visitVarInsn(ALOAD, args.length)  // fe
-        m.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("initVStrings_" + postfix), MethodDesc(s"(${vclasstype * args.length}$fexprclasstype)$vclasstype"), false)
+        m.visitMethodInsn(INVOKESTATIC, Owner.getVOps, mn, MethodDesc(s"(${vclasstype * args.length}$fexprclasstype)$vclasstype"), false)
       } else {
         m.visitInsn(ACONST_NULL)  // fake invoke object
         callVCreateOne(m, loadCtx = (mv) => mv.visitVarInsn(ALOAD, nArgs))
@@ -665,6 +665,8 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
         mv.visitMethodInsn(INVOKEINTERFACE, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
 
         if (env.getTag(this, env.TAG_NEED_V)) callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
+
+        if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
       }
     }
   }
