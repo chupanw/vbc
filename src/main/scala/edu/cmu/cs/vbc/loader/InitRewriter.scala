@@ -74,17 +74,21 @@ class InitAnalyzer(cn: ClassNode, mn: MethodNode) extends SourceInterpreter {
   val InvokeSpecialOfSameClass: mutable.Set[(Int, Int)] = mutable.Set()
 
   override def naryOperation(insn: AbstractInsnNode, values: util.List[_ <: SourceValue]) = {
-    val methodInsn = insn.asInstanceOf[MethodInsnNode]
-    val methodInsnIndex = mn.instructions.indexOf(insn)
-    if (methodInsn.getOpcode == Opcodes.INVOKESPECIAL && methodInsn.name == "<init>") {
-      val ref = values.get(0)
-      val refSources = ref.insns.toSet.filter(i => i.isInstanceOf[VarInsnNode] && i.getOpcode == Opcodes.ALOAD && i.asInstanceOf[VarInsnNode].`var` == 0)
-      val sourceIndexes = refSources.map(mn.instructions.indexOf(_))
-      if (methodInsn.owner == cn.superName)
-        sourceIndexes.foreach(aloadIdx => InvokeSpecialOfSuperClss.add((aloadIdx, methodInsnIndex)))
-      else if (methodInsn.owner == cn.name)
-        sourceIndexes.foreach(aloadIdx => InvokeSpecialOfSameClass.add((aloadIdx, methodInsnIndex)))
+    if (insn.isInstanceOf[MethodInsnNode]) {
+      val methodInsn = insn.asInstanceOf[MethodInsnNode]
+      val methodInsnIndex = mn.instructions.indexOf(insn)
+      if (methodInsn.getOpcode == Opcodes.INVOKESPECIAL && methodInsn.name == "<init>") {
+        val ref = values.get(0)
+        val refSources = ref.insns.toSet.filter(i => i.isInstanceOf[VarInsnNode] && i.getOpcode == Opcodes.ALOAD && i.asInstanceOf[VarInsnNode].`var` == 0)
+        val sourceIndexes = refSources.map(mn.instructions.indexOf(_))
+        if (methodInsn.owner == cn.superName)
+          sourceIndexes.foreach(aloadIdx => InvokeSpecialOfSuperClss.add((aloadIdx, methodInsnIndex)))
+        else if (methodInsn.owner == cn.name)
+          sourceIndexes.foreach(aloadIdx => InvokeSpecialOfSameClass.add((aloadIdx, methodInsnIndex)))
+      }
+      super.naryOperation(insn, values)
+    } else {
+      super.naryOperation(insn, values)
     }
-    super.naryOperation(insn, values)
   }
 }
