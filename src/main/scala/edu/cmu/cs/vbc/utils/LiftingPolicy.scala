@@ -101,6 +101,9 @@ object LiftingPolicy {
       case (Owner("java/math/BigDecimal"), _, _) => false
       case (Owner("java/math/RoundingMode"), _, _) => false
       case (Owner("java/math/MathContext"), _, _) => false
+      case (Owner("java/lang/String"), _, _) => false
+      case (Owner("org/apache/commons/math3/util/ResizableDoubleArray$ExpansionMode"), _, _) => false
+      case (Owner("org/apache/commons/math3/dfp/DfpField$RoundingMode"), _, _) => false
       case _ => true
     }
   }
