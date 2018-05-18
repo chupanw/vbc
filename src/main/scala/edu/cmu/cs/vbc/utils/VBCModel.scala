@@ -81,7 +81,7 @@ class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLo
     val cn = new ClassNode(ASM5)
     cr.accept(cn, 0)
     transformClass(cn)
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, getClass.getClassLoader)
     cn.accept(cw)
     // debugging
 //    VBCModel.toFile(fqName, cw)
@@ -241,10 +241,33 @@ object VBCModel {
   }
 }
 
-class MyClassWriter(flag: Int) extends ClassWriter(flag) {
+class MyClassWriter(flag: Int, loader: ClassLoader) extends ClassWriter(flag) {
   override protected def getCommonSuperClass(type1: String, type2: String): String = {
     val t1 = if (type1.startsWith(VBCModel.prefix)) type1.substring(VBCModel.prefix.length + 1) else type1
     val t2 = if (type2.startsWith(VBCModel.prefix)) type2.substring(VBCModel.prefix.length + 1) else type2
-    Owner(super.getCommonSuperClass(t1, t2)).toModel
+    Owner(computeCommonSuperClass(t1, t2)).toModel
+  }
+
+  def computeCommonSuperClass(cs1: String, cs2: String): String = {
+    try {
+      var c = Class.forName(cs1.replace('/', '.'), false, loader)
+      val d = Class.forName(cs2.replace('/', '.'), false, loader)
+      if (c.isAssignableFrom(d)) {
+        return cs1
+      }
+      if (d.isAssignableFrom(c)) {
+        return cs2
+      }
+      if (c.isInterface || d.isInterface) {
+        "java/lang/Object"
+      } else {
+        do {
+          c = c.getSuperclass
+        } while (!c.isAssignableFrom(d))
+        c.getName.replace('.', '/')
+      }
+    } catch {
+      case e: Throwable => throw new RuntimeException(e.toString)
+    }
   }
 }

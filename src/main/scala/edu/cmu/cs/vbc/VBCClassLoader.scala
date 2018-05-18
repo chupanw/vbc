@@ -4,6 +4,7 @@ import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.cmu.cs.vbc.loader.Loader
+import edu.cmu.cs.vbc.testutils.TestStat
 import edu.cmu.cs.vbc.utils.{Dotifier, LiftingPolicy, MyClassWriter, VBCModel}
 import edu.cmu.cs.vbc.vbytecode.{Owner, VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.Opcodes._
@@ -50,9 +51,9 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       }
       else if (shouldLift(name))
         findClass(name)
-      else if (name.startsWith("org.apache.commons.math3") || name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
+      else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
         loadClassAndUseModelClasses(name)
-      else if (name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
+      else if (name.startsWith("org.apache.commons.math3") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
         loadClassWithoutChanges(name) // avoid LinkageError
       else
         super.loadClass(name)
@@ -73,7 +74,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val is: InputStream = getResourceAsStream(resource)
     if (is == null) throw new ClassNotFoundException(name)
     val cr = new ClassReader(is)
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     cr.accept(cw, 0)
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
@@ -82,7 +83,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     val resource: String = name.replace('.', '/') + ".class"
     val is: InputStream = getResourceAsStream(resource)
     val clazz: VBCClassNode = loader.loadClass(is)
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     clazz.toByteCode(cw, rewriter)
     if (toFileDebugging)
       toFile(name, cw)
@@ -107,7 +108,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 //    val existing = loadExistingLiftedClass(name)
 //    if (existing.isDefined) return existing.get
     import scala.collection.JavaConversions._
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     val dotifier = new Dotifier()
     val textifier = new Textifier()
     val cv = new TraceClassVisitor(new TraceClassVisitor(cw, textifier, null), dotifier, null)
@@ -135,6 +136,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         writer2.close()
 //        val output = Process("dot -Tpdf -O bug.gv").lineStream
 //        println("Output from dot: " + output)
+        TestStat.printToConsole()
         System.exit(1)
     }
 
