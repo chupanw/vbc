@@ -385,6 +385,10 @@ case class CFG(blocks: List[Block]) {
         v.vinitialize(mv, env, v)
     }
 
+    // initialize context for the first VBlock
+    mv.visitVarInsn(ALOAD, env.getVarIdx(env.ctxParameter))
+    mv.visitVarInsn(ASTORE, env.getVarIdx(env.getVBlockVar(blocks.head)))
+
     if (Config.logTrace) {
       if (env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)

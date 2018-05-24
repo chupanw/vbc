@@ -275,9 +275,9 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
   // allocate a variable for each VBlock, except for the first, which can reuse the parameter slot
   // EBlocks have variables that do not need to be initialized (we cannot jump there directly)
   val vblockVars: Map[VBlock, Variable] =
-  (for ((vblock, vblockidx) <- (vblocks zip vblocks.indices).tail) yield
-    vblock -> freshLocalVar("$blockctx" + vblockidx, LiftUtils.fexprclasstype, LocalVar.initFalse)).toMap +
-    (vblocks.head -> ctxParameter) //TODO should not reuse ctxParameter if we want to access that value later on, e.g., in VInstrRETURN
+  (for ((vblock, vblockidx) <- vblocks zip vblocks.indices) yield
+    vblock -> freshLocalVar("$blockctx" + vblockidx, LiftUtils.fexprclasstype, LocalVar.initFalse)).toMap
+//    (vblocks.head -> ctxParameter) //TODO should not reuse ctxParameter if we want to access that value later on, e.g., in VInstrRETURN
 
   def getVBlockVar(vblock: VBlock): Variable = vblockVars(vblock)
 
