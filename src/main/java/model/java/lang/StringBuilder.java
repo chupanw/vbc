@@ -87,6 +87,16 @@ public class StringBuilder implements Appendable {
         return V.one(ctx, this);
     }
 
+    public V<?> append__D__Lmodel_java_lang_StringBuilder(V<? extends java.lang.Double> vD, FeatureExpr ctx) {
+        vActual = vActual.sflatMap(ctx, (fe, sb) -> {
+            if (vD instanceof One)
+                return V.one(ctx, sb.append(vD.getOne().doubleValue()));
+            else
+                return vD.smap(fe, d -> new java.lang.StringBuilder(sb.toString()).append(d.doubleValue()));
+        });
+        return V.one(ctx, this);
+    }
+
     public V<?> append__J__Lmodel_java_lang_StringBuilder(V<? extends java.lang.Long> vJ, FeatureExpr ctx) {
         vActual = vActual.sflatMap(ctx, (fe, sb) -> {
             if (vJ instanceof One)
