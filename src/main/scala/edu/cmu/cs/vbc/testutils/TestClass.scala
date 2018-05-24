@@ -10,19 +10,32 @@ case class TestClass(c: Class[_]) {
 //  require(checkAnnotations, s"Unsupported annotation in $c")
 
   val className: String = c.getName
-  val before: Option[Method] = getMethodWithAnnotation(classOf[org.junit.Before])
-  val after: Option[Method] = getMethodWithAnnotation(classOf[org.junit.After])
+  val before: Option[Method] = getMethodWithAnnotation(c, classOf[org.junit.Before])
+  val after: Option[Method] = getMethodWithAnnotation(c, classOf[org.junit.After])
 
-  def getMethodWithAnnotation(cc: Class[_ <: Annotation]): Option[Method] = {
-    val x = getAllMethods.filter(_.isAnnotationPresent(cc))
-    if (x.isEmpty)
-      None
+  /**
+    * Find method with specific annotation.
+    *
+    * @note Assuming only one method has that annotation, such as @Before and @After
+    * @param clazz Class to search for
+    * @param annotation Annotation to search for
+    * @return Option[Method]
+    */
+  def getMethodWithAnnotation(clazz: Class[_], annotation: Class[_ <: Annotation]): Option[Method] = {
+    val x = clazz.getMethods.toList.filter(_.isAnnotationPresent(annotation))
+    if (x.isEmpty) {
+      if (clazz.getSuperclass != null)
+        getMethodWithAnnotation(clazz.getSuperclass, annotation)
+      else
+        None
+    }
     else if (x.length == 1)
       Some(x.head)
     else
-      throw new RuntimeException(s"More than one method have the annotation: $cc")
+      throw new RuntimeException(s"More than one method have the annotation: $annotation")
   }
 
+  //todo: also search for superclasses
   def getTestCases: List[Method] = c.getMethods.toList.filter {x =>
     x.isAnnotationPresent(classOf[org.junit.Test])
   }
