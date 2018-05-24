@@ -62,7 +62,7 @@ case class TestClass(c: Class[_]) {
         TestStat.succeed(className)
       } catch {
         case t: Throwable =>
-          verifyExcpetion(t, x)
+          verifyException(t, x)
       }
       after.map(_.invoke(testObject, FeatureExprFactory.True))
     }
@@ -70,7 +70,7 @@ case class TestClass(c: Class[_]) {
 
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial")
 
-  def verifyExcpetion(t: Throwable, m: Method): Unit = {
+  def verifyException(t: Throwable, m: Method): Unit = {
     val annotation = m.getAnnotation(classOf[org.junit.Test])
     assert(annotation != null, "No @Test annotation in method: " + m.getName)
     val expected = annotation.expected()
