@@ -410,6 +410,16 @@ public class VOps {
         return (int) (short) o.intValue();
     }
 
+    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) throws Throwable {
+        assert vT instanceof One : "throwing a choice of exceptions";
+        Throwable t = vT.getOne();
+        if (ctx.equivalentTo(mCtx))
+            throw t;
+        else {
+            throw new RuntimeException("conditional exception under " + ctx + " while method context is " + mCtx, t);
+        }
+    }
+
     public static V<Object> verifyAndThrowException(V<Object> e, FeatureExpr methodCtx) throws Throwable {
         V<Object> simplifiedV = e.select(methodCtx);
         if (simplifiedV.hasThrowable()) {

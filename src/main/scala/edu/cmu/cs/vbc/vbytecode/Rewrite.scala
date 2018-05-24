@@ -69,8 +69,8 @@ object Rewrite {
 
   private def replaceAthrowWithAreturn(m: VBCMethodNode): VBCMethodNode = {
     val rewrittenBlocks = m.body.blocks.map(b =>
-      Block(b.instr.flatMap(i => List(
-        if (i.isATHROW) InstrARETURN() else i)
+      Block(b.instr.flatMap(i =>
+        if (i.isATHROW) List(InstrCheckThrow(), InstrARETURN()) else List(i)
       ), b.exceptionHandlers)
     )
     m.copy(body = CFG(rewrittenBlocks))

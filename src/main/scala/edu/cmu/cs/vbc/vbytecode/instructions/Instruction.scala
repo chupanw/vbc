@@ -232,3 +232,22 @@ case class InstrWrapOne() extends Instruction {
     (frame.push(V_TYPE(false), Set(this)), Set())
   }
 }
+
+
+case class InstrCheckThrow() extends Instruction {
+  import edu.cmu.cs.vbc.utils.LiftUtils._
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {}
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitInsn(DUP)
+    loadCurrentCtx(mv, env, block)
+    loadMethodCtx(mv, env)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype$fexprclasstype)V"), false)
+  }
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    val (v, prev, newFrame) = s.pop()
+    val backtrack =
+      if (!v.isInstanceOf[V_TYPE]) prev
+      else Set[Instruction]()
+    (s, backtrack)
+  }
+}
