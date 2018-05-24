@@ -45,6 +45,8 @@ class VBCTestClassLoader(parent: ClassLoader,
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
+  override def getResourceAsStream(name: String): InputStream = urlClassLoader.getResourceAsStream(name)
+
   /**
     * Find a list of class names under testClasspath
     */
