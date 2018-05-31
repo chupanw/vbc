@@ -150,8 +150,17 @@ trait VBlockAnalysis extends CFGAnalysis {
   def computeVBlocks(): List[VBlock] = {
     //initially every block has its own id
     var vblockId: Map[Block, Int] = (blocks zip blocks.indices).toMap
+    var previousVBlockIDs: Map[Block, Set[Int]] = (blocks zip List.fill(blocks.length)(Set[Int]())).toMap
     //which block is the first for each VBlock group?
     val vblockHead: Map[Int, Block] = (blocks.indices zip blocks).toMap
+
+    def getSmallestExistingVBlockID(b: Block): Int = {
+      if (previousVBlockIDs(b).isEmpty)
+        Int.MaxValue
+      else
+        previousVBlockIDs(b).toList.min
+    }
+    def addToExistingVBlockID(b: Block, id: Int): Unit = previousVBlockIDs += (b -> (previousVBlockIDs(b) + id))
 
     var analyzed = Set[Block]()
     var queue: Queue[Block] = Queue()
@@ -184,8 +193,11 @@ trait VBlockAnalysis extends CFGAnalysis {
           // condition 4: if sibling blocks are analyzed, siblings should be in the same VBlock
           val siblingBlocks = getSiblingsBlocks(block)
           val condition4 = isExceptionHandlerBlock(block) || siblingBlocks.exists(!analyzed.contains(_)) || siblingBlocks.forall(x => vblockId(x) != blocks.indexOf(x))
-          if (condition4) {
-            vblockId += (block -> predVBlockIdxs.head)
+          val newVBlockID = predVBlockIdxs.head
+          val condition5 = getSmallestExistingVBlockID(block) > newVBlockID
+          if (condition4 && condition5) {
+            addToExistingVBlockID(block, newVBlockID)
+            vblockId += (block -> newVBlockID)
             queue = queue.enqueue(getSuccessorsAndExceptionHandlers(block))
           }
         }

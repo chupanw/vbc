@@ -56,6 +56,21 @@ public class VBlockAnalysisTest {
         }
     }
 
+    void testNextPoisson() {
+        try {
+            System.out.println("Hello");
+        } catch (Throwable ex) {
+            // ignored
+        }
+
+        final double mean = 4.0d;
+        final int len = 5;
+        for (int i = 0; i < 100; i++) {
+            System.out.println("World");
+        }
+
+    }
+
     public static void main(String[] args) {
         System.out.println("If you are seeing this, it means this test passed");
     }
