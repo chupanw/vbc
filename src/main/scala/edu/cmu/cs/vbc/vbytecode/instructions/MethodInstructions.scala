@@ -551,9 +551,9 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
         interceptCalls(liftedCall, mv, env.getVarIdx(env.getVBlockVar(block)), env) {
           mv.visitMethodInsn(INVOKEVIRTUAL, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
         }
+        toVArray(liftedCall, mv, env.getBlockVarVIdx(block))
         if (env.getTag(this, env.TAG_NEED_V)) {
           if (shouldTransformReturnType(liftedCall)) {
-            toVArray(liftedCall, mv, env.getBlockVarVIdx(block))
             boxReturnValue(liftedCall.desc, mv)
           }
           callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
