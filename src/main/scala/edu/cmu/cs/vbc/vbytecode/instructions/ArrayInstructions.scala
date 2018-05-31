@@ -64,7 +64,7 @@ trait ArrayStoreInstructions extends Instruction {
       env.setLift(this)
       if (idxType != V_TYPE(false)) return (frame3, idxPrev)
     } else {
-      if (idxType == V_TYPE(false)) env.setTag(this, env.TAG_HAS_VARG)
+      return (frame3, refPrev)
     }
     (frame3, Set())
   }
@@ -179,10 +179,8 @@ trait ArrayLoadInstructions extends Instruction {
     if (refType == V_TYPE(false)) {
       env.setLift(this)
       if (idxType != V_TYPE(false)) return (frame2, idxPrev)
-    } else {
-      if (idxType == V_TYPE(false))
-        env.setTag(this, env.TAG_HAS_VARG)
-    }
+    } else
+      return (frame2, refPrev)
     (frame2.push(V_TYPE(is64Bit), Set(this)), Set())
   }
 
