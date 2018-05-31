@@ -413,6 +413,15 @@ object TypeDesc {
   def getFloat: TypeDesc = TypeDesc("Ljava/lang/Float;")
   // a special type to represent the second slot of double and long
   def getSecondSlotType: TypeDesc = TypeDesc("Ledu/cmu/cs/vbc/SecondSlotOfLongOrDouble;")
+
+  def getSimplifiedDesc(d: String): String = d match {
+    case "I" | "B" | "S" | "C" | "Z" => "I"
+    case "J" => "J"
+    case "F" => "F"
+    case "D" => "D"
+    case ref if ref.startsWith("L") | ref.startsWith("[") => "R"
+    case _ => ???
+  }
 }
 
 trait TypeVerifier {
