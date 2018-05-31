@@ -63,7 +63,8 @@ object TernaryOperatorRewriter {
       val args = MethodDesc(instructions(invokeSpecialIndex).asInstanceOf[MethodInsnNode].desc).getArgs
       val (storeSeq, loadSeq) = (for (a <- args) yield {
         val argIndex = args.indexWhere(_ eq a)
-        createStoreAndLoadInsn(a, oldMaxLocals + argIndex)
+        val n64Bit = args.take(argIndex).count(_.is64Bit)
+        createStoreAndLoadInsn(a, oldMaxLocals + argIndex + n64Bit)
       }) unzip
       val newInstructions = insBeforeSouce ++
         insBetweenSouceAndInvokeSpecial ++
@@ -72,7 +73,7 @@ object TernaryOperatorRewriter {
         loadSeq ++
         insIncludeAndAfterInvokeSpecial
       for (i <- newInstructions) m.instructions.add(i)
-      m.maxLocals = oldMaxLocals + args.length
+      m.maxLocals = oldMaxLocals + args.length + args.count(_.is64Bit)
     }
     (m, ternaryAnalyzer.hasInvokeSpecialWithTernary)
   }
