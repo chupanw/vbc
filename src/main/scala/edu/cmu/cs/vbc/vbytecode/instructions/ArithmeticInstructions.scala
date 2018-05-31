@@ -1286,3 +1286,27 @@ case class InstrFNEG() extends Instruction {
 
   override def doBacktrack(env: VMethodEnv): Unit = env.setTag(this, env.TAG_NEED_V)
 }
+
+
+/** Remainder double
+  *
+  * ..., value1(double), value2(double) -> ..., result(double)
+  */
+case class InstrDREM() extends BinOpNonIntInstruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(DREM)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("drem"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
+    }
+    else {
+      mv.visitInsn(DREM)
+      if (env.getTag(this, env.TAG_NEED_V)) {
+        double2Double(mv)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, DOUBLE_TYPE())
+}

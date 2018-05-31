@@ -313,7 +313,7 @@ class Loader {
       case IREM => InstrIREM()
       case LREM => InstrLREM()
       case FREM => UNKNOWN(FREM)
-      case DREM => UNKNOWN(DREM)
+      case DREM => InstrDREM()
       case INEG => InstrINEG()
       case LNEG => InstrLNEG()
       case FNEG => InstrFNEG()
