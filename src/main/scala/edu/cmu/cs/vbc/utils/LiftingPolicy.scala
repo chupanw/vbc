@@ -104,7 +104,20 @@ object LiftingPolicy {
       case (Owner("java/lang/String"), _, _) => false
       case (Owner("org/apache/commons/math3/util/ResizableDoubleArray$ExpansionMode"), _, _) => false
       case (Owner("org/apache/commons/math3/dfp/DfpField$RoundingMode"), _, _) => false
-      case _ => true
+      case (Owner("org/apache/commons/math3/util/MathArrays$OrderDirection"), _, _) => false
+      case (Owner("org/apache/commons/math3/analysis/solvers/AllowedSolution"), _, _) => false
+      case (Owner("org/apache/commons/math3/analysis/solvers/BaseSecantSolver$Method"), _, _) => false
+      case (Owner("org/apache/commons/math3/stat/ranking/NaNStrategy"), _, _) => false
+      case (Owner("org/apache/commons/math3/stat/ranking/TiesStrategy"), _, _) => false
+      case (Owner("org/apache/commons/math3/stat/clustering/KMeansPlusPlusClusterer$EmptyClusterStrategy"), _, _) => false
+      case (Owner("org/apache/commons/math3/stat/clustering/DBSCANClusterer$PointStatus"), _, _) => false
+      case (Owner("org/apache/commons/math3/util/MathArrays$Position"), _, _) => false
+      case _ =>
+        if (currentConfig.notLiftingClasses.exists(n => owner.name.matches(n)))
+          false
+        else
+          true
+
     }
   }
 
