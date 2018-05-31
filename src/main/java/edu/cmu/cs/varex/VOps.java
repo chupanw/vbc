@@ -657,7 +657,7 @@ public class VOps {
         throw new RuntimeException("Error in calling toString()");
     }
 
-    public static V<?> initVStrings_Array_C(V<V<java.lang.Integer>[]> vA, FeatureExpr ctx) {
+    public static V<?> initVStrings__Array_C__V(V<V<java.lang.Integer>[]> vA, FeatureExpr ctx) {
         return vA.sflatMap(ctx, (fe, a) -> {
             StringBuilder sb = new StringBuilder(ctx);
             for (int i = 0; i < a.length; i++) {
@@ -667,7 +667,7 @@ public class VOps {
         });
     }
 
-    public static V<?> initVStrings_Array_CII(V<V<java.lang.Integer>[]> vA, V<java.lang.Integer> vOffset, V<java.lang.Integer> vCount, FeatureExpr ctx) {
+    public static V<?> initVStrings__Array_C_I_I__V(V<V<java.lang.Integer>[]> vA, V<java.lang.Integer> vOffset, V<java.lang.Integer> vCount, FeatureExpr ctx) {
         return vA.sflatMap(ctx, (fe, a) -> {
             return vOffset.sflatMap(fe, (fe2, offset) -> {
                 return (V) vCount.sflatMap(fe2, (fe3, count) -> {
