@@ -114,7 +114,7 @@ class Loader {
     methodAnalyzer.validate()
     val ordered = methodAnalyzer.blocks.toArray :+ m.instructions.size()
 
-    var varCache: Map[(Int, String), Variable] = Map()
+    var varCache: Map[Int, Variable] = Map()
     val isStatic = (m.access & Opcodes.ACC_STATIC) > 0
     val parameterRange = Type.getArgumentTypes(m.desc).size + // numbers of arguments
         (if (isStatic) 0 else 1) +  // 'this' for nonstatic methods
@@ -122,16 +122,15 @@ class Loader {
 
     // adding "this" explicitly, because it may not be included if it's the only parameter
     if (!isStatic)
-      varCache += ((0, "R") -> new Parameter(0, "this", Owner(owner).getTypeDesc))
+      varCache += (0 -> new Parameter(0, "this", Owner(owner).getTypeDesc))
     if (m.localVariables != null) {
       val localVarList = m.localVariables.toList
       for (i <- 0 until localVarList.size()) {
         val lv = localVarList(i)
-        val simplifiedDesc: String = TypeDesc.getSimplifiedDesc(lv.desc)
         if (lv.index < parameterRange)
-          varCache += ((lv.index, simplifiedDesc) -> new Parameter(lv.index, lv.name, TypeDesc(lv.desc), is64Bit = TypeDesc(lv.desc).is64Bit))
+          varCache += (lv.index -> new Parameter(lv.index, lv.name, TypeDesc(lv.desc), is64Bit = TypeDesc(lv.desc).is64Bit))
         else
-          varCache += ((lv.index, simplifiedDesc) -> new LocalVar(lv.name, lv.desc, is64Bit = TypeDesc(lv.desc).is64Bit, vinitialize = pickLVInit(TypeDesc(lv.desc))))
+          varCache += (lv.index -> new LocalVar(lv.name, lv.desc, is64Bit = TypeDesc(lv.desc).is64Bit, vinitialize = pickLVInit(TypeDesc(lv.desc))))
       }
     }
 
@@ -139,16 +138,8 @@ class Loader {
     // so we need a fallback option and generate them on the fly with name "$unknown"
     // todo: this looks dangerous because local variables might share the same index
     def lookupVariable(idx: Int, opCode: Int): Variable = {
-      val desc = opCode match {
-        case ILOAD | ISTORE | IINC => "I"
-        case LLOAD | LSTORE => "J"
-        case FLOAD | FSTORE => "F"
-        case DLOAD | DSTORE => "D"
-        case ALOAD | ASTORE => "R"
-        case _ => ???
-      }
-      if (varCache contains (idx, desc))
-        varCache((idx, desc))
+      if (varCache contains idx)
+        varCache(idx)
       else {
         val newVar =
           if (idx < parameterRange) {
@@ -167,7 +158,7 @@ class Loader {
               case _ => new LocalVar("$unknown", "V")
             }
           }
-        varCache += ((idx, desc) -> newVar)
+        varCache += (idx -> newVar)
         newVar
       }
     }

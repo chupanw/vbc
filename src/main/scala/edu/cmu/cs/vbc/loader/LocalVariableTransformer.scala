@@ -23,6 +23,10 @@ object LocalVariableTransformer {
     val instructions = m.instructions.toArray
     val lvIndexes = m.localVariables.map(_.index)
 
+    // avoid accidentally update VarInsnNodes that share the same index
+    var lastStoreUpdate = collection.mutable.Map[LV, Int]()
+    m.localVariables.foreach { x => lastStoreUpdate(LV(x.name, x.desc, x.index)) = -1 }
+
     if (instructions.nonEmpty && lvIndexes.distinct.lengthCompare(m.localVariables.size) < 0) {
       // seems more efficient to use mutable here
 
@@ -43,7 +47,7 @@ object LocalVariableTransformer {
           } else {
             assume(lv.start != null, s"start label does not exist for $lv")
             assume(lv.end != null, s"end label does not exist for $lv")
-            update(m, lv.start, lv.end, lv.index, nextIndex, TypeDesc.getSimplifiedDesc(lv.desc))
+            update(m, lv, nextIndex, lastStoreUpdate)
             lv.index = nextIndex
             usedIndex add nextIndex
             processedLV put (x, LV(x.name, x.desc, nextIndex))
@@ -56,7 +60,7 @@ object LocalVariableTransformer {
           if (x != y) {
             assume(lv.start != null, s"start label does not exist for $lv")
             assume(lv.end != null, s"end label does not exist for $lv")
-            update(m, lv.start, lv.end, lv.index, y.index, TypeDesc.getSimplifiedDesc(lv.desc))
+            update(m, lv, y.index, lastStoreUpdate)
             lv.index = y.index
           }
         }
@@ -68,7 +72,11 @@ object LocalVariableTransformer {
   /**
     * Replace old index with new index in a specific region of the method
     */
-  def update(m: MethodNode, start: LabelNode, end: LabelNode, oldI: Int, newI: Int, simplifiedDesc: String): Unit = {
+  def update(m: MethodNode, lv: LocalVariableNode, newI: Int, lastStoreUpdate: collection.mutable.Map[LV, Int]): Unit = {
+    val start: LabelNode = lv.start
+    val end: LabelNode = lv.end
+    val oldI: Int = lv.index
+    val myLV = LV(lv.name, lv.desc, lv.index)
     val region = m.instructions.toArray.dropWhile {
       case x: LabelNode => x.getLabel != start.getLabel
       case _ => true
@@ -81,10 +89,13 @@ object LocalVariableTransformer {
       case _ => true
     }
     val storeIns = beforeRegion.reverse.find {
-      case x: VarInsnNode if isStoreOfType(x.getOpcode, simplifiedDesc) && x.`var` == oldI => true
+      case x: VarInsnNode if isStore(x.getOpcode) && x.`var` == oldI && m.instructions.indexOf(x) > lastStoreUpdate(myLV)  => true
       case _ => false
     }
-    storeIns.foreach(_.asInstanceOf[VarInsnNode].`var` = newI)
+    storeIns.foreach { x =>
+      lastStoreUpdate(myLV) = m.instructions.indexOf(x)
+      x.asInstanceOf[VarInsnNode].`var` = newI
+    }
     for (i <- region) i match {
       case x: VarInsnNode if x.`var` == oldI => x.`var` = newI
       case x: IincInsnNode if x.`var` == oldI => x.`var` = newI
@@ -92,12 +103,8 @@ object LocalVariableTransformer {
     }
   }
 
-  def isStoreOfType(op: Int, simplifiedDesc: String): Boolean = op match {
-    case ASTORE => simplifiedDesc == "R"
-    case ISTORE => simplifiedDesc == "I"
-    case LSTORE => simplifiedDesc == "J"
-    case FSTORE => simplifiedDesc == "F"
-    case DSTORE => simplifiedDesc == "D"
+  def isStore(op: Int): Boolean = op match {
+    case ASTORE | ISTORE | LSTORE | FSTORE | DSTORE => true
     case _ => false
   }
 }
