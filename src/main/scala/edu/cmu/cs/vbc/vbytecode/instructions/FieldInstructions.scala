@@ -58,6 +58,8 @@ case class InstrGETSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
         mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, MethodName("valueOf"), MethodDesc(s"(J)${TypeDesc.getLong}"), false)
       case Type.CHAR =>
         mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+      case Type.DOUBLE =>
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, MethodName("valueOf"), MethodDesc(s"(D)${TypeDesc.getDouble}"), false)
       case Type.OBJECT => // do nothing
       case Type.ARRAY => // do nothing
       case _ => ???
