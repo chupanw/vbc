@@ -71,6 +71,21 @@ public class VBlockAnalysisTest {
 
     }
 
+    /**
+     * From DormandPrince853StepInterpolator#computeInterpolatedStateAndDerivatives
+     */
+    void cornerCase1(Object v) {
+        if (true) {
+
+            if (v == null) {
+                v = new double[7][];
+                for (int k = 0; k < 7; ++k) {
+                    System.out.println("hello");
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         System.out.println("If you are seeing this, it means this test passed");
     }

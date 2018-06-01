@@ -150,26 +150,36 @@ trait VBlockAnalysis extends CFGAnalysis {
   def computeVBlocks(): List[VBlock] = {
     //initially every block has its own id
     var vblockId: Map[Block, Int] = (blocks zip blocks.indices).toMap
-    var previousVBlockIDs: Map[Block, Set[Int]] = (blocks zip List.fill(blocks.length)(Set[Int]())).toMap
     //which block is the first for each VBlock group?
     val vblockHead: Map[Int, Block] = (blocks.indices zip blocks).toMap
 
-    def getSmallestExistingVBlockID(b: Block): Int = {
-      if (previousVBlockIDs(b).isEmpty)
-        Int.MaxValue
-      else
-        previousVBlockIDs(b).toList.min
-    }
-    def addToExistingVBlockID(b: Block, id: Int): Unit = previousVBlockIDs += (b -> (previousVBlockIDs(b) + id))
-
     var analyzed = Set[Block]()
     var queue: Queue[Block] = Queue()
+    var previousBlock: Option[Block] = None
     queue = queue.enqueue(blocks)
+
+    def resetVBlockID(b: Block): Unit = {
+      val id = blocks.indexOf(b)
+      if (vblockId(b) != id) {
+        vblockId += b -> id
+        queue = queue.enqueue(b)
+        getSuccessors(b).foreach(resetVBlockID)
+      }
+    }
+    // avoid analyzing the same block more than once in a row
+    def getNextBlockFromQueue(q: Queue[Block]): (Block, Queue[Block]) = {
+      val (b, restQueue) = q.distinct.dequeue
+      if (restQueue.isEmpty || !previousBlock.contains(b))
+        (b, restQueue)
+      else
+        getNextBlockFromQueue(restQueue.enqueue(b))
+    }
     //analysis:
     //if all predecessors have the same id, and none of the edges is variational,
     //use the same id as parent
     while (queue.nonEmpty) {
-      val (block, q) = queue.dequeue
+      val (block, q) = getNextBlockFromQueue(queue)
+      previousBlock = Some(block)
       queue = q
       analyzed = analyzed + block
 
@@ -192,13 +202,14 @@ trait VBlockAnalysis extends CFGAnalysis {
         if (thisBlockIdx != 0 && predVBlockIdxs.size == 1 && predVBlockIdxs.head != thisVBlockIdx) {
           // condition 4: if sibling blocks are analyzed, siblings should be in the same VBlock
           val siblingBlocks = getSiblingsBlocks(block)
-          val condition4 = isExceptionHandlerBlock(block) || siblingBlocks.exists(!analyzed.contains(_)) || siblingBlocks.forall(x => vblockId(x) != blocks.indexOf(x))
-          val newVBlockID = predVBlockIdxs.head
-          val condition5 = getSmallestExistingVBlockID(block) > newVBlockID
-          if (condition4 && condition5) {
-            addToExistingVBlockID(block, newVBlockID)
+          val siblingInSameVBlock = isExceptionHandlerBlock(block) || siblingBlocks.exists(!analyzed.contains(_)) || siblingBlocks.forall(x => vblockId(x) != blocks.indexOf(x))
+          if (siblingInSameVBlock) {
+            val newVBlockID = predVBlockIdxs.head
             vblockId += (block -> newVBlockID)
             queue = queue.enqueue(getSuccessorsAndExceptionHandlers(block))
+          } else {
+            resetVBlockID(block)
+            siblingBlocks.foreach(resetVBlockID)
           }
         }
       }
