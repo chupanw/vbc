@@ -81,7 +81,7 @@ case class TestClass(c: Class[_]) {
     }
   }
 
-  def isSkipped(x: Method): Boolean = x.getName.contains("testSerial")
+  def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
 
   def verifyException(t: Throwable, m: Method): Unit = {
     val annotation = m.getAnnotation(classOf[org.junit.Test])
