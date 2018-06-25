@@ -141,4 +141,8 @@ test("conditional field assignment") {
   ignore("SortLinkedList-Model") {
     testMain(classOf[SortLinkedList], configFile = Some("util-model.conf"), useModel = true)
   }
+
+  ignore("Array cloning") {
+    testMain(classOf[ArrayCloneExample], configFile = Some("default.conf"))
+  }
 }
