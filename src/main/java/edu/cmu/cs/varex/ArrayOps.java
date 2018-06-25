@@ -90,6 +90,42 @@ public class ArrayOps {
         return initDArray(Integer.valueOf(length), ctx);
     }
 
+    public static V<?> expandDArray(V<Double>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandDArray");
+        return expandDArrayElements(array, ctx, 0, new ArrayList<>());
+    }
+
+    private static V<?> expandDArrayElements(V<Double>[] array, FeatureExpr ctx, Integer index, ArrayList<Double> soFar) {
+        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+        for (int i = 0; i < array.length; i++) {
+            list.add__Ljava_lang_Object__Z(array[i], ctx);
+        }
+        V<Double[]> vList = (V<Double[]>) list.getVOfArrays(Double[].class, ctx);
+        return vList.map(l -> {
+            double[] ll = new double[l.length];
+            for (int i = 0; i < ll.length; i++) {
+                ll[i] = l[i];
+            }
+            return ll;
+        });
+    }
+
+    public static V<?>[] compressDArray(V<double[]> arrays) {
+        V<?> sizes = arrays.map(t -> t.length);
+        Integer size = (Integer) sizes.getOne(); // if results in a choice, exceptions will be thrown.
+        ArrayList<V<?>> array = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            array.add(compressDArrayElement(arrays, i));
+        }
+        V<?>[] result = new V<?>[size];
+        array.toArray(result);
+        return result;
+    }
+
+    private static V<?> compressDArrayElement(V<double[]> arrays, Integer index) {
+        return arrays.map(ts -> ts[index]);
+    }
+
     //////////////////////////////////////////////////
     // short
     //////////////////////////////////////////////////
