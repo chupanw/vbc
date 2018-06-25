@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.cmu.cs.vbc.Config
+import edu.cmu.cs.vbc.GlobalConfig
 import edu.cmu.cs.vbc.analysis.{LoopDector, VBCAnalyzer, VBCFrame}
 import edu.cmu.cs.vbc.utils.{LiftUtils, Statistics}
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -204,7 +204,7 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
 
   // loop detection
   val loopDetector = new LoopDector(this)
-  if (Config.detectComplexLoop) {
+  if (GlobalConfig.detectComplexLoop) {
     loopDetector.go()
     if (loopDetector.hasComplexLoop) {
       logger.warn("Loop detected: " + clazz.name + " " + method.name + method.desc)

@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.Config
+import edu.cmu.cs.vbc.GlobalConfig
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
@@ -34,7 +34,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     mv.visitLabel(env.getBlockLabel(this))
 
     if (isUniqueFirstBlock(env)) {
-      if (Config.logTrace && env.loopDetector.hasComplexLoop) {
+      if (GlobalConfig.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -48,7 +48,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
     if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
       vblockSkipIfCtxContradition(mv, env)
       loadUnbalancedStackVariables(mv, env)
-      if (Config.logTrace && env.loopDetector.hasComplexLoop) {
+      if (GlobalConfig.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -56,7 +56,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       }
     }
 
-    if (Config.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
+    if (GlobalConfig.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
       mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logEnd", "(Ljava/lang/String;)V", false)
     }
@@ -389,7 +389,7 @@ case class CFG(blocks: List[Block]) {
     mv.visitVarInsn(ALOAD, env.getVarIdx(env.ctxParameter))
     mv.visitVarInsn(ASTORE, env.getVarIdx(env.getVBlockVar(blocks.head)))
 
-    if (Config.logTrace) {
+    if (GlobalConfig.logTrace) {
       if (env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
         mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)
