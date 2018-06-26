@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.testutils
 
 import java.io.{File, InputStream}
 import java.lang.reflect.Method
-import java.net.URLClassLoader
+import java.net.{URL, URLClassLoader}
 
 import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.utils.MyClassWriter
@@ -46,6 +46,8 @@ class VBCTestClassLoader(parent: ClassLoader,
   }
 
   override def getResourceAsStream(name: String): InputStream = urlClassLoader.getResourceAsStream(name)
+
+  override def getResource(name: String): URL = urlClassLoader.getResource(name)
 
   /**
     * Find a list of class names under testClasspath
