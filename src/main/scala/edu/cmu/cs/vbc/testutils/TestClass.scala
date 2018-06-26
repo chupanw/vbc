@@ -66,9 +66,10 @@ case class TestClass(c: Class[_]) {
       return
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
-    val testObject = createObject()
+    var testObject = if (before.isEmpty) createObject()
     getTestCases.filter(isSkipped).foreach(_ => TestStat.skip(className))
     for (x <- getTestCases if !isSkipped(x)) {
+      if (before.nonEmpty) testObject = createObject()
       before.map(_.invoke(testObject, FeatureExprFactory.True))
       try {
         x.invoke(testObject, FeatureExprFactory.True)
