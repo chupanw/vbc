@@ -37,6 +37,11 @@ public class NumberFormat extends Format {
         return V.one(ctx, new NumberFormat(V.one(ctx, java.text.NumberFormat.getInstance())));
     }
 
+    public static V<?> getInstance__Ljava_util_Locale__Lmodel_java_text_NumberFormat(V<? extends java.util.Locale> vL, FeatureExpr ctx) {
+        V<? extends java.text.NumberFormat> nfs = vL.smap(ctx, l -> java.text.NumberFormat.getInstance(l));
+        return V.one(ctx, new NumberFormat(nfs));
+    }
+
     public V<?> setMaximumFractionDigits__I__V(V<Integer> vNewValue, FeatureExpr ctx) {
         split(ctx);
         vNewValue.sforeach(ctx, (fe, i) -> vActual.sforeach(fe, l -> l.setMaximumFractionDigits(i)));
@@ -46,6 +51,22 @@ public class NumberFormat extends Format {
     public V<?> setParseIntegerOnly__Z__V(V<Integer> vValue, FeatureExpr ctx) {
         split(ctx);
         vValue.sforeach(ctx, (fe, v) -> vActual.sforeach(fe, l -> l.setParseIntegerOnly(v != 0)));
+        return null;    // void
+    }
+
+    public V<?> setGroupingUsed__Z__V(V<? extends Integer> vNewValue, FeatureExpr ctx) {
+        vNewValue.sforeach(ctx, (fe, v) -> {
+            split(fe);
+            vActual.sforeach(fe, nf -> nf.setGroupingUsed(v.intValue() != 0));
+        });
+        return null;    // void
+    }
+
+    public V<?> setMinimumFractionDigits__I__V(V<? extends Integer> vNewValue, FeatureExpr ctx) {
+        vNewValue.sforeach(ctx, (fe, v) -> {
+            split(fe);
+            vActual.sforeach(fe, nf -> nf.setMinimumFractionDigits(v.intValue()));
+        });
         return null;    // void
     }
 
@@ -97,6 +118,30 @@ public class NumberFormat extends Format {
                         return (V) vPos.sflatMap(fe2, (fe3, pos) -> {
                             return (V) pos.raw().sflatMap(fe3, (fe4, rawPos) -> {
                                 return (V) vActual.smap(fe4, nf -> nf.format(n.longValue(), rawToAppendTo, rawPos));
+                            });
+                        });
+                    });
+                });
+            });
+            return V.one(ctx, new StringBuffer(ret));
+        }
+    }
+
+    public V format__D_Lmodel_java_lang_StringBuffer_Lmodel_java_text_FieldPosition__Lmodel_java_lang_StringBuffer(
+            V<? extends java.lang.Double> vNumber,
+            V<? extends StringBuffer> vToAppendTo,
+            V<? extends FieldPosition> vPos,
+            FeatureExpr ctx
+    ) {
+        if (vActual == null) {
+            throw new RuntimeException("Should be overridden by subclasses");
+        } else {
+            V ret = vNumber.sflatMap(ctx, (fe, n) -> {
+                return vToAppendTo.sflatMap(fe, (fe1, toAppendTo) -> {
+                    return (V) toAppendTo.raw().sflatMap(fe1, (fe2, rawToAppendTo) -> {
+                        return (V) vPos.sflatMap(fe2, (fe3, pos) -> {
+                            return (V) pos.raw().sflatMap(fe3, (fe4, rawPos) -> {
+                                return (V) vActual.smap(fe4, nf -> nf.format(n.doubleValue(), rawToAppendTo, rawPos));
                             });
                         });
                     });
