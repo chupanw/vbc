@@ -21,6 +21,59 @@ public class ArrayOps {
     private static HashMap<FeatureExpr, HashMap<V[], V>> cached = new HashMap<>();
 
     //////////////////////////////////////////////////
+    // float
+    //////////////////////////////////////////////////
+
+    public static V<Float>[] initFArray(Integer length, FeatureExpr ctx) {
+        V<?>[] array = new V<?>[length];
+        ArrayList<V<Float>> arrayList = new ArrayList<>();
+        for (int i = 0; i < length; i++) {
+            arrayList.add(i, V.one(ctx, 0.0f));
+        }
+        return arrayList.toArray((V<Float>[])array);
+    }
+
+    public static V<Float>[] initFArray(int length, FeatureExpr ctx) {
+        return initFArray(Integer.valueOf(length), ctx);
+    }
+
+    public static V<?> expandFArray(V<Float>[] array, FeatureExpr ctx) {
+        System.err.println("[WARNING] Using expandFArray");
+        return expandFArrayElements(array, ctx, 0, new ArrayList<>());
+    }
+
+    private static V<?> expandFArrayElements(V<Float>[] array, FeatureExpr ctx, Integer index, ArrayList<Float> soFar) {
+        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+        for (int i = 0; i < array.length; i++) {
+            list.add__Ljava_lang_Object__Z(array[i], ctx);
+        }
+        V<Float[]> vList = (V<Float[]>) list.getVOfArrays(Float[].class, ctx);
+        return vList.map(l -> {
+            float[] ff = new float[l.length];
+            for (int i = 0; i < ff.length; i++) {
+                ff[i] = l[i];
+            }
+            return ff;
+        });
+    }
+
+    public static V<?>[] compressFArray(V<float[]> arrays) {
+        V<?> sizes = arrays.map(t -> t.length);
+        Integer size = (Integer) sizes.getOne(); // if results in a choice, exceptions will be thrown.
+        ArrayList<V<?>> array = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            array.add(compressFArrayElement(arrays, i));
+        }
+        V<?>[] result = new V<?>[size];
+        array.toArray(result);
+        return result;
+    }
+
+    private static V<?> compressFArrayElement(V<float[]> arrays, Integer index) {
+        return arrays.map(ts -> ts[index]);
+    }
+
+    //////////////////////////////////////////////////
     // long
     //////////////////////////////////////////////////
 
