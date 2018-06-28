@@ -25,7 +25,7 @@ public class FieldPosition {
     // Lifted methods
     //////////////////////////////////////////////////
 
-    public FieldPosition(V<Integer> vI, FeatureExpr ctx) {
+    public FieldPosition(V<Integer> vI, FeatureExpr ctx, int dummy) {
         vActual = vI.smap(ctx, (fe, i) -> new java.text.FieldPosition(i));
     }
 

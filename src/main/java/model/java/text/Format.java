@@ -13,7 +13,7 @@ public abstract class Format {
         return format__Ljava_lang_Object_Lmodel_java_lang_StringBuffer_Lmodel_java_text_FieldPosition__Lmodel_java_lang_StringBuffer(
                 vObject,
                 V.one(ctx, new StringBuffer(ctx)),
-                V.one(ctx, new FieldPosition(V.one(ctx, 0), ctx)),
+                V.one(ctx, new FieldPosition(V.one(ctx, 0), ctx, 0)),
                 ctx
         ).sflatMap(ctx, (fe, x) -> (V<? extends String>) x.toString____Ljava_lang_String(fe));
     }
