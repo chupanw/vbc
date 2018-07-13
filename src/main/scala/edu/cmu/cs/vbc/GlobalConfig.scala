@@ -6,4 +6,5 @@ package edu.cmu.cs.vbc
 object GlobalConfig {
   val logTrace = false
   val detectComplexLoop = false
+  val printContext = true
 }
