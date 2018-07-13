@@ -153,6 +153,8 @@ public interface V<T> {
 
     void foreach(@Nonnull BiConsumer<FeatureExpr, T> fun);
 
+    void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable;
+
     default void sforeach(@Nonnull FeatureExpr ctx, @Nonnull Consumer<T> fun) {
         assert ctx != null;
         assert fun != null;

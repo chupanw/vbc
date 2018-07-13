@@ -57,6 +57,10 @@ public class VEmpty<T> implements V<T>, Serializable {
     }
 
     @Override
+    public void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable {
+    }
+
+    @Override
     public FeatureExpr when(Predicate<T> condition, boolean filterNull) {
         return FeatureExprFactory.False();
     }

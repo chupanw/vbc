@@ -73,6 +73,12 @@ public class One<T> implements V<T>, Serializable {
     }
 
     @Override
+    public void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable {
+        assert fun != null;
+        fun.accept(configSpace, value);
+    }
+
+    @Override
     public FeatureExpr when(@Nonnull Predicate<T> condition, boolean filterNull) {
         assert condition != null;
         if (filterNull && value == null) return FeatureExprFactory.False();

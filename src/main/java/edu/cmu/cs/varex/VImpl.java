@@ -165,6 +165,13 @@ class VImpl<T> implements V<T>, Serializable {
             fun.accept(e.getValue(), e.getKey());
     }
 
+    @Override
+    public void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable {
+        assert fun != null;
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet())
+            fun.accept(e.getValue(), e.getKey());
+    }
+
 
     @Override
     public FeatureExpr when(@Nonnull Predicate<T> condition, boolean filterNull) {
