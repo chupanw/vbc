@@ -2,7 +2,8 @@ package edu.cmu.cs.vbc
 
 import java.lang.reflect.{Method, Modifier}
 
-import de.fosd.typechef.featureexpr.FeatureExprFactory
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc.utils.Statistics
 
 /**
@@ -22,7 +23,7 @@ object Launcher extends App {
 }
 
 
-object VBCLauncher {
+object VBCLauncher extends RelaunchExceptionHandler {
   def launch(classname: String, liftBytecode: Boolean = true, configFile: String, args: Array[String] = new Array[String](0)) {
     val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, liftBytecode, configFile = Some(configFile))
     Thread.currentThread().setContextClassLoader(loader)
@@ -34,12 +35,20 @@ object VBCLauncher {
 
   def invokeMain(cls: Class[_], args: Array[String]): Unit = {
     try {
-      val mtd: Method = cls.getMethod("main", classOf[Array[String]])
+      val mtd: Method = cls.getMethod("main__Array_Ljava_lang_String__V", classOf[V[_]], classOf[FeatureExpr])
       val modifiers = mtd.getModifiers
       if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers))
-        mtd.invoke(null, args)
+        executeOnce(None, mtd, Array(processArgs(args)), FeatureExprFactory.True)
     } catch {
       case e: NoSuchMethodException => println("No main method found in $classname, aborting...")
     }
+  }
+
+  /**
+    * Transform String[] to V<V<String>[]>
+    */
+  def processArgs(args: Array[String]): V[Array[V[String]]] = {
+    val vargs: Array[V[String]] = args.map(V.one(FeatureExprFactory.True, _))
+    V.one(FeatureExprFactory.True, vargs)
   }
 }
