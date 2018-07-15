@@ -1,6 +1,8 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import edu.cmu.cs.vbc.GlobalConfig;
+import edu.cmu.cs.vbc.VException;
 import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
@@ -374,28 +376,40 @@ public class VOps {
     // Special println that prints configuration as well
     //////////////////////////////////////////////////
     public static void println(PrintStream out, String s, FeatureExpr ctx) {
-//        out.println(s + " [" + ctx + "]");
-        out.println(s);
+        if (GlobalConfig.printContext())
+            out.println(s + " [" + ctx + "]");
+        else
+            out.println(s);
     }
     public static void println(PrintStream out, int i, FeatureExpr ctx) {
-//        out.println(i + " [" + ctx + "]");
-        out.println(i);
+        if (GlobalConfig.printContext())
+            out.println(i + " [" + ctx + "]");
+        else
+            out.println(i);
     }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
-//        out.println(o + " [" + ctx + "]");
-        out.println(o);
+        if (GlobalConfig.printContext())
+            out.println(o + " [" + ctx + "]");
+        else
+            out.println(o);
     }
     public static void println(PrintStream out, char c, FeatureExpr ctx) {
-//        out.println(c + " [" + ctx + "]");
-        out.println(c);
+        if (GlobalConfig.printContext())
+            out.println(c + " [" + ctx + "]");
+        else
+            out.println(c);
     }
     public static void println(PrintStream out, boolean b, FeatureExpr ctx) {
-//        out.println(b + " [" + ctx + "]");
-        out.println(b);
+        if (GlobalConfig.printContext())
+            out.println(b + " [" + ctx + "]");
+        else
+            out.println(b);
     }
     public static void println(PrintStream out, FeatureExpr ctx) {
-//        out.println(" [" + ctx + "]");
-        out.println();
+        if (GlobalConfig.printContext())
+            out.println(" [" + ctx + "]");
+        else
+            out.println();
     }
 
     //////////////////////////////////////////////////
