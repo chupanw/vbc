@@ -34,9 +34,11 @@ class Loader {
     if (cl.fields == null) Nil else cl.fields.map(adaptField).toList,
     if (cl.methods == null) Nil else cl.methods.map(
       m => adaptMethod(cl.name,
-        TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
-          InitRewriter.extractInitSeq(
-              transformSwitches(LocalVariableTransformer.transform(m)), cl
+        TryCatchBlock.wrapMethodBody(
+          TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
+            InitRewriter.extractInitSeq(
+                transformSwitches(LocalVariableTransformer.transform(m)), cl
+            )
           )
         )
       )
