@@ -352,7 +352,7 @@ case class VBCClassNode(
       MethodDesc("()V"),
       None,
       List.empty,
-      CFG(List(Block(instrs, Nil)))
+      CFG(List(Block(instrs, Nil, Nil)))
     )
     rewriter(Rewrite.rewriteV(vbcMtd, this), this).toVByteCode(cv, this)
 

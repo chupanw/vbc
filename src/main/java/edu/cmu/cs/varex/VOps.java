@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Stack;
 
 /**
@@ -428,16 +429,67 @@ public class VOps {
         return (int) (short) o.intValue();
     }
 
-    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) throws Throwable {
-        assert vT instanceof One : "throwing a choice of exceptions";
-        Throwable t = vT.getOne();
-        if (ctx.equivalentTo(mCtx))
-            throw t;
-        else {
-            throw new RuntimeException("conditional exception under " + ctx + " while method context is " + mCtx, t);
+    /**
+     * Called as part of lifting ATHROW to throw exceptions under method contexts.
+     */
+    public static Throwable extractThrowable(V<? extends Throwable> vT, FeatureExpr ctx) {
+        V<? extends Throwable> selected = vT.select(ctx);
+        if (selected instanceof One) {
+            return selected.getOne();
+        } else {
+            throw new RuntimeException("trying to throw a choice of exceptions: " + selected);
         }
     }
 
+    /**
+     * Used in original catch blocks to extract real exceptions from VExceptions and handle them,
+     * in case exceptions are handled within the same method or in outer methods.
+     */
+    public static V<? extends Throwable> extractVExceptionIfHandled(V<? extends Throwable> vT, String handledExceptions, FeatureExpr ctx) throws Throwable{
+        String[] exps = handledExceptions.split(";");
+        HashSet<String> expSet = new HashSet<>();
+        for (int i = 0; i < exps.length; i++)
+            expSet.add(exps[i]);
+        FeatureExpr ctxOfVException = vT.select(ctx).when(x -> {return x instanceof VException;}, false);
+        if (ctxOfVException.isContradiction())
+            return vT;
+        V<? extends Throwable> selected = vT.select(ctx.and(ctxOfVException));
+        assert selected instanceof One : "Should have only one VException";
+        VException ve = (VException) selected.getOne();
+        if (expSet.contains(ve.e().getClass().getName().replace('.', '/'))) {
+            return V.one(ctxOfVException, ve.e());
+        } else {
+            throw ve;
+        }
+    }
+
+    /**
+     * Used in our try-catch to detect conditional exceptions.
+     *
+     * If a conditional exception is detected, we wrap it into a VException with its context and throw it.
+     */
+    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) throws Throwable {
+        V<? extends Throwable> selected = vT.select(ctx);
+        if (ctx.equivalentTo(mCtx) && selected instanceof One) {
+            throw selected.getOne();
+        } else {
+            selected.foreachExp((fe, x) -> {
+                if (x instanceof VException)
+                    throw x;
+                else {
+                    // in case the user program catches Throwable
+                    // System.err.println("[WARNING] VException being thrown under a smaller context of " + mCtx + ": " + fe);
+                    throw new VException(x, fe);
+                }
+            });
+        }
+    }
+
+    /**
+     * Not really used anymore.
+     *
+     * We keep this method in case we want to disable handling conditional exceptions later.
+     */
     public static V<Object> verifyAndThrowException(V<Object> e, FeatureExpr methodCtx) throws Throwable {
         V<Object> simplifiedV = e.select(methodCtx);
         if (simplifiedV.hasThrowable()) {

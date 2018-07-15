@@ -52,7 +52,7 @@ trait DiffLaunchTestInfrastructure {
         //        case InstrIRETURN() => List(vbc.TraceInstr_S("IRETURN"), instr)
         case instr => List(instr)
       }
-      ).flatten, block.exceptionHandlers
+      ).flatten, block.exceptionHandlers, block.exceptions
     )
 
   def prepareBenchmark(method: VBCMethodNode, clazz: VBCClassNode): VBCMethodNode = instrumentCustomInit(avoidOutput(method, clazz))
@@ -67,7 +67,7 @@ trait DiffLaunchTestInfrastructure {
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(I)V"), _) => List(InstrPOP(), InstrPOP())
         case instr => List(instr)
       }
-      ).flatten, block.exceptionHandlers
+      ).flatten, block.exceptionHandlers, block.exceptions
     )
 
   def instrumentCustomInit(method: VBCMethodNode): VBCMethodNode = method.copy(body = CFG(method.body.blocks.map(instrumentCustomInit)))
@@ -78,7 +78,7 @@ trait DiffLaunchTestInfrastructure {
         //replace initialization of conditional fields
         case InstrINIT_CONDITIONAL_FIELDS() => vbc.TraceInstr_ConfigInit()
         case instr => instr
-      }), block.exceptionHandlers
+      }), block.exceptionHandlers, block.exceptions
     )
 
 

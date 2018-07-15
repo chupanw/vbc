@@ -120,12 +120,17 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
   def getBlockException(instrIdx: Int): List[VBCHandler] = {
     val handlers = getHandlers(instrIdx)
     if (handlers == null) Nil
-    else
-      handlers.toList.map(h =>
+    else {
+      val hs: List[VBCHandler] = handlers.toList.map(h =>
         VBCHandler(h.`type`,
           instructionIdxToBlockIdx(instructions.indexOf(h.handler)),
           if (h.visibleTypeAnnotations == null) Nil else h.visibleTypeAnnotations.toList,
           if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.toList))
+      assume(hs.last.exceptionType == "java/lang/Throwable")
+      val withCopy: List[VBCHandler] = hs.init.flatMap(x => List(x, VBCHandler("edu/cmu/cs/vbc/VException", x.handlerBlockIdx, x.visibleTypeAnnotations, x.invisibleTypeAnnotations)))
+      // assuming the last one is the one we added to catch all exceptions
+      withCopy ::: hs.last :: Nil
+    }
   }
 }
 

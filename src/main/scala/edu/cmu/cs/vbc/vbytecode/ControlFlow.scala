@@ -13,10 +13,18 @@ import org.objectweb.asm.{Label, MethodVisitor}
   */
 
 object Block {
-  def apply(instrs: Instruction*): Block = Block(instrs, Nil)
+  def apply(instrs: Instruction*): Block = Block(instrs, Nil, Nil)
 }
 
-case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
+/**
+  * Basic block
+  *
+  * @param instr  Instructions in this basic block
+  * @param exceptionHandlers  Exception handlers of this block
+  * @param exceptions If this block was intended to handle exceptions (e.g., catch block), this field stores all
+  *                   exceptions this block can handle. Otherwise Nil.
+  */
+case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], exceptions: List[String]) {
   var dominators: Set[Block] = Set()
 
   import LiftUtils._
@@ -56,6 +64,8 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
       }
     }
 
+    checkVException(mv, env)
+
     if (GlobalConfig.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
       mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logEnd", "(Ljava/lang/String;)V", false)
@@ -78,6 +88,15 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler]) {
 
     mv.visitLabel(env.getBlockEndLabel(this))
 //    writeExceptions(mv, env)
+  }
+
+  def checkVException(mv: MethodVisitor, env: VMethodEnv): Unit = {
+    // get exception types handled by this block, excluding VException and the Throwable we added
+    if (exceptions.nonEmpty) {
+      mv.visitLdcInsn(exceptions.mkString(";"))
+      loadCurrentCtx(mv, env, this)
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("extractVExceptionIfHandled"), MethodDesc(s"(${vclasstype}Ljava/lang/String;$fexprclasstype)$vclasstype"), false)
+    }
   }
 
 

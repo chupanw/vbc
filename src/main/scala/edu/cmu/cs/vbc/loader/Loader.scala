@@ -169,7 +169,7 @@ class Loader {
       val instrList = for (instrIdx <- start until end;
                            if m.instructions.get(instrIdx).getOpcode >= 0 || m.instructions.get(instrIdx).isInstanceOf[LineNumberNode])
         yield adaptBytecodeInstruction(m.instructions.get(instrIdx), methodAnalyzer.label2BlockIdx.apply, lookupVariable)
-      Block(instrList, methodAnalyzer.getBlockException(start))
+      Block(instrList, methodAnalyzer.getBlockException(start), Nil)
     }
 
 

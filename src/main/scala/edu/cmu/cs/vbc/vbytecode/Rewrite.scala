@@ -24,7 +24,9 @@ object Rewrite {
           addFakeHanlderBlocks(
             appendGOTO(
               ensureUniqueReturnInstr(
-                replaceAthrowWithAreturn(m)
+                replaceAthrowWithAreturn(
+                  recordHandledExceptions(m)
+                )
               )
             )
           ),
@@ -43,14 +45,14 @@ object Rewrite {
     idCount += 1
     val newBlocks = m.body.blocks.map(b =>
       if (b == m.body.blocks.head)
-        Block(InstrStartTimer(id) +: b.instr, b.exceptionHandlers)
+        Block(InstrStartTimer(id) +: b.instr, b.exceptionHandlers, b.exceptions)
       else if (b == m.body.blocks.last)
         Block(b.instr.flatMap(i =>
           if (i.isReturnInstr)
             List(InstrStopTimer(id), i)
           else
             List(i)
-        ), b.exceptionHandlers)
+        ), b.exceptionHandlers, b.exceptions)
       else
         b
     )
@@ -102,7 +104,7 @@ object Rewrite {
     var newReturnBlockInstr = List(returnInstr)
     if (!returnInstr.isRETURN)
       newReturnBlockInstr ::= InstrALOAD(returnVariable)
-    val newReturnBlock = Block(newReturnBlockInstr, Nil)
+    val newReturnBlock = Block(newReturnBlockInstr, Nil, Nil)
     val newReturnBlockIdx = method.body.blocks.size
 
     def getStoreInstr(retInstr: Instruction): Instruction = retInstr match {
@@ -123,7 +125,7 @@ object Rewrite {
         }
         else
           List(instr)
-      ), block.exceptionHandlers))
+      ), block.exceptionHandlers, block.exceptions))
 
     method.copy(body =
       CFG(
@@ -146,7 +148,7 @@ object Rewrite {
   private def initializeConditionalFields(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
     if (m.isInit) {
       val firstBlockInstructions = m.body.blocks.head.instr
-      val newBlocks = Block(InstrINIT_CONDITIONAL_FIELDS() +: firstBlockInstructions, Nil) +: m.body.blocks.drop(1)
+      val newBlocks = Block(InstrINIT_CONDITIONAL_FIELDS() +: firstBlockInstructions, m.body.blocks.head.exceptionHandlers, m.body.blocks.head.exceptions) +: m.body.blocks.drop(1)
       m.copy(body = CFG(newBlocks))
     } else m
 
@@ -185,5 +187,18 @@ object Rewrite {
     val newBlocks: List[Block] = pairs.unzip._1
     val fakeBlocks: List[Block] = pairs.unzip._2.flatten
     m.copy(body = new CFG(newBlocks ::: fakeBlocks))
+  }
+
+  private def recordHandledExceptions(m: VBCMethodNode): VBCMethodNode = {
+    import scala.collection.mutable.ArrayBuffer
+    val eb: Array[ArrayBuffer[String]] = Array.fill(m.body.blocks.size)(ArrayBuffer())
+    for (b <- m.body.blocks if b.exceptionHandlers.nonEmpty) {
+      val hs = b.exceptionHandlers
+      assume(hs.last.exceptionType == "java/lang/Throwable", "last exception type should be Throwable")
+      val fhs = b.exceptionHandlers.init.filter(_.exceptionType != "edu/cmu/cs/vbc/VException")
+      fhs foreach {x => eb(x.handlerBlockIdx) += x.exceptionType}
+    }
+    val newBlocks = m.body.blocks.zipWithIndex.map(x => Block(x._1.instr, x._1.exceptionHandlers, eb(x._2).toList.distinct))
+    m.copy(body = CFG(newBlocks))
   }
 }
