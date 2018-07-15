@@ -100,10 +100,20 @@ case class InstrARETURN() extends ReturnInstruction {
 case class InstrATHROW() extends Instruction {
   override def isATHROW: Boolean = true
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(ATHROW)
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
-    throw new RuntimeException("ATHROW should not appear in lifted bytecode")
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) =
-    throw new RuntimeException("ATHROW should not appear in lifted bytecode")
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    import edu.cmu.cs.vbc.utils.LiftUtils._
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("extractThrowable"), MethodDesc(s"($vclasstype$fexprclasstype)Ljava/lang/Throwable;"), false)
+    mv.visitInsn(ATHROW)
+  }
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
+    env.setLift(this)
+    val (v, prev, newFrame) = s.pop()
+    val backtrack =
+      if (!v.isInstanceOf[V_TYPE]) prev
+      else Set[Instruction]()
+    (newFrame, backtrack)
+  }
 }
 
 

@@ -59,8 +59,8 @@ object Rewrite {
 
   private def appendGOTO(m: VBCMethodNode): VBCMethodNode = {
     val rewrittenBlocks = m.body.blocks.map(b =>
-      if (b != m.body.blocks.last && b.instr.nonEmpty && !b.instr.last.isJumpInstr) {
-        Block(b.instr :+ InstrGOTO(m.body.blocks.indexOf(b) + 1), b.exceptionHandlers)
+      if (b != m.body.blocks.last && b.instr.nonEmpty && !b.instr.last.isJumpInstr && !b.instr.last.isATHROW) {
+        Block(b.instr :+ InstrGOTO(m.body.blocks.indexOf(b) + 1), b.exceptionHandlers, b.exceptions)
       } else
         b
     )
@@ -69,9 +69,11 @@ object Rewrite {
 
   private def replaceAthrowWithAreturn(m: VBCMethodNode): VBCMethodNode = {
     val rewrittenBlocks = m.body.blocks.map(b =>
-      Block(b.instr.flatMap(i =>
-        if (i.isATHROW) List(InstrCheckThrow(), InstrARETURN()) else List(i)
-      ), b.exceptionHandlers)
+      if (b == m.body.blocks.last) {
+        Block(b.instr.flatMap(i =>
+          if (i.isATHROW) List(InstrCheckThrow(), InstrARETURN()) else List(i)
+        ), b.exceptionHandlers, b.exceptions)
+      } else b
     )
     m.copy(body = CFG(rewrittenBlocks))
   }

@@ -114,7 +114,7 @@ class VBCAnalyzer(env: VMethodEnv) {
               updateFrameForInstr(env.getBlockStart(uncond.get), frame)
             else
               updateFrameForInstr(insn + 1, frame)
-          case i if !i.isReturnInstr =>
+          case i if !i.isReturnInstr && !i.isATHROW =>
             updateFrameForInstr(insn + 1, frame)
           case _ =>
         }
