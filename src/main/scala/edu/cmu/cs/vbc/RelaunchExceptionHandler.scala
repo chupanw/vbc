@@ -17,9 +17,9 @@ trait RelaunchExceptionHandler {
         invokeExp.getCause match {
           case t: VException =>
             if (!t.ctx.equivalentTo(context)) {
-              System.err.println(t)
+              System.out.println(t)
               val altCtx = context.and(t.ctx.not())
-              System.err.println(s"[INFO] Re-executing under $altCtx")
+              System.out.println(s"[INFO] Re-executing under $altCtx")
               executeOnce(o, x, args, altCtx)
             }
           case t =>
