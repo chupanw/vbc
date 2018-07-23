@@ -1,6 +1,7 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import edu.cmu.cs.vbc.GlobalConfig;
 import edu.cmu.cs.vbc.VException;
 import model.java.lang.StringBuilder;
@@ -461,6 +462,13 @@ public class VOps {
         } else {
             throw ve;
         }
+    }
+
+    public static FeatureExpr extractCtxFromVException(Throwable t) {
+        if (t instanceof VException)
+            return ((VException) t).ctx();
+        else
+            return FeatureExprFactory.True();
     }
 
     /**

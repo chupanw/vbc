@@ -175,7 +175,7 @@ object Rewrite {
             h.visibleTypeAnnotations,
             h.invisibleTypeAnnotations
           )
-          val fakeBlock = Block(InstrWrapOne(), InstrGOTO(h.handlerBlockIdx))
+          val fakeBlock = Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(h.handlerBlockIdx))
           currentIdx = currentIdx + 1
           (fakeHandler, fakeBlock)
         }

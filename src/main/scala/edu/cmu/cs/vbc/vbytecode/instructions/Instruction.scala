@@ -233,6 +233,21 @@ case class InstrWrapOne() extends Instruction {
   }
 }
 
+case class InstrUpdateCtxFromVException() extends Instruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {}
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    import LiftUtils._
+    mv.visitInsn(DUP)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("extractCtxFromVException"), MethodDesc(s"(Ljava/lang/Throwable;)$fexprclasstype"), false)
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKEINTERFACE, Owner(s"$fexprclassname"), MethodName("and"), MethodDesc(s"($fexprclasstype)$fexprclasstype"), true)
+    mv.visitVarInsn(ASTORE, env.getBlockVarVIdx(block))
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = (s, Set())
+}
+
 
 case class InstrCheckThrow() extends Instruction {
   import edu.cmu.cs.vbc.utils.LiftUtils._
