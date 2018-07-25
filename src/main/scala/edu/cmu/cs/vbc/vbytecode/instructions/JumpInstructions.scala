@@ -180,8 +180,10 @@ case class InstrIF_ICMPEQ(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIEQ", "(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenIEQ", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPEQ, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -272,8 +274,10 @@ case class InstrIF_ICMPNE(targetBlockIdx: Int) extends JumpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenINE", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenINE", genSign(vclasstype, vclasstype, fexprclasstype, fexprclasstype), false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPNE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }
@@ -371,8 +375,10 @@ case class InstrIF_ICMPLE(targetBlockIdx: Int) extends JumpInstruction {
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStack2(s, env)
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this))
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILE", genSign(vclasstype, vclasstype, fexprclasstype), false)
+    if (env.shouldLiftInstr(this)) {
+      loadCurrentCtx(mv, env, block)
+      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "whenILE", genSign(vclasstype, vclasstype, fexprclasstype, fexprclasstype), false)
+    }
     else
       mv.visitJumpInsn(IF_ICMPLE, env.getBlockLabel(env.getBlock(targetBlockIdx)))
   }

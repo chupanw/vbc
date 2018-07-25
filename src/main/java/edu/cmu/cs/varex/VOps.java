@@ -88,8 +88,8 @@ public class VOps {
         return a.when(v -> v == null, false);
     }
 
-    public static FeatureExpr whenIEQ(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenIEQ(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenEQ(sub);
     }
 
@@ -103,13 +103,13 @@ public class VOps {
         return whenLT(sub);
     }
 
-    public static FeatureExpr whenILE(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenILE(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenLE(sub);
     }
 
-    public static FeatureExpr whenINE(V<? extends Integer> a, V<? extends Integer> b) {
-        V<? extends Integer> sub = compareInt(a, b);
+    public static FeatureExpr whenINE(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        V<? extends Integer> sub = compareInt(a.select(ctx), b.select(ctx));
         return whenNE(sub);
     }
 

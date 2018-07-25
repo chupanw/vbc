@@ -26,6 +26,6 @@ class VOpsTest extends FunSuite {
   test("whenIEQ") {
     val v1 = getChoice("A", 2, 3)
     val v2 = getChoice("B", 3, 4)
-    assert(VOps.whenIEQ(v1, v2) == getConfig("A").not().and(getConfig("B")))
+    assert(VOps.whenIEQ(v1, v2, FeatureExprFactory.True) == getConfig("A").not().and(getConfig("B")))
   }
 }
