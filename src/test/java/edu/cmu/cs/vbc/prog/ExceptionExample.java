@@ -14,6 +14,17 @@ public class ExceptionExample {
     boolean B = false;
     @VConditional
     boolean C = false;
+    @VConditional
+    boolean numZero = false;
+
+    int num;
+
+    private ExceptionExample() {
+        if (numZero)
+            num = 0;
+        else
+            num = 10;
+    }
 
     /**
      * Due to re-execution under smaller contexts, methods in the beginning
@@ -39,7 +50,8 @@ public class ExceptionExample {
 //        example.shouldNotCatchSameMethod();
 //        example.shouldNotCatchInMethod();
 //        example.shouldCatchSameMethodWithFinally();
-        example.shouldCatchInMethodWithFinally();
+//        example.shouldCatchInMethodWithFinally();
+        example.exceptionWithField();
     }
 
     // in fact we are returning a One(null) to indicate no exception
@@ -71,6 +83,18 @@ public class ExceptionExample {
             implicitThrow();
         System.out.println("no exception");
         return 1;
+    }
+
+    public void exceptionWithField() {
+        try {
+            if (A)
+                throw new RuntimeException("exception under A");
+            else {
+                implicitThrow2();
+            }
+        } catch (ArithmeticException e) {
+            System.out.println("ArithmeticException caught under A");
+        }
     }
 
     private void shouldCatchSameMethod() {
@@ -237,6 +261,12 @@ public class ExceptionExample {
             return a / 0;
         else
             return a / 2;
+    }
+    private int implicitThrow2() {
+        if (C)
+            return 1 / num;
+        else
+            return 1 + num;
     }
     private void conditionallyThrow() {
         if (A) {
