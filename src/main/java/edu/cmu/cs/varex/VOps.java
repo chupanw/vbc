@@ -478,19 +478,12 @@ public class VOps {
      */
     public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) throws Throwable {
         V<? extends Throwable> selected = vT.select(ctx);
-        if (ctx.equivalentTo(mCtx) && selected instanceof One) {
-            throw selected.getOne();
-        } else {
-            selected.foreachExp((fe, x) -> {
-                if (x instanceof VException)
-                    throw x;
-                else {
-                    // in case the user program catches Throwable
-                    // System.err.println("[WARNING] VException being thrown under a smaller context of " + mCtx + ": " + fe);
-                    throw new VException(x, fe);
-                }
-            });
-        }
+        selected.foreachExp((fe, x) -> {
+            if (x instanceof VException)
+                throw x;
+            else
+                throw new VException(x, fe);
+        });
     }
 
     /**
