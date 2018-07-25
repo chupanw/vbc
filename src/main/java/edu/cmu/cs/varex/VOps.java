@@ -22,10 +22,12 @@ import java.util.Stack;
  */
 public class VOps {
 
+    // no runtime exception
     public static V<? extends Integer> IADD(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() + bb.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> IINC(V<? extends Integer> a, int increment, FeatureExpr ctx) {
         return a.smap(ctx, aa -> aa.intValue() + increment);
     }
@@ -139,23 +141,35 @@ public class VOps {
         });
     }
 
+    // no runtime exception
     public static V<? extends Integer> ISUB(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() - bb.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Float> FSUB(V<? extends Float> a, V<? extends Float> b, FeatureExpr ctx) {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.floatValue() - bb.floatValue()));
     }
 
 
+    // no runtime exception
     public static V<? extends Integer> IMUL(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() * bb.intValue()));
     }
 
-    public static V<? extends Integer> IDIV(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
-        return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() / bb.intValue()));
+    public static V<? extends Integer> IDIV(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) throws VException {
+        FEWrapper w = new FEWrapper(ctx);
+        try {
+            return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, (fe2, bb) -> {
+                w.update(fe2);
+                return aa.intValue() / bb.intValue();
+            }));
+        } catch (Throwable t) {
+            throw new VException(t, w.get());
+        }
     }
 
+    // no runtime exception
     public static V<? extends Integer> i2c(V<? extends Integer> a, FeatureExpr ctx) {
         return a.smap((v -> {
             int i = v.intValue();
@@ -182,78 +196,113 @@ public class VOps {
         return compare.when(c -> c, true);
     }
 
+    // no runtime exception
     public static V<? extends Integer> iushr(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1 >>> v2));
     }
 
-    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
-        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.intValue() % v2.intValue()));
+    // arithmetic exception
+    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) throws VException {
+        FEWrapper w = new FEWrapper(ctx);
+        try {
+            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+                w.update(fe2);
+                return v1.intValue() % v2.intValue();
+            }));
+        } catch (Throwable t) {
+            throw new VException(t, w.get());
+        }
     }
 
+    // no runtime exception
     public static V<? extends Double> drem(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() % v2.doubleValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> ior(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.intValue() | v2.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> iand(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.intValue() & v2.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> ixor(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1 ^ v2));
     }
 
-    public static V<? extends Long> ldiv(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
-        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() / v2.longValue()));
+    // arithmetic exception
+    public static V<? extends Long> ldiv(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) throws VException {
+        FEWrapper w = new FEWrapper(ctx);
+        try {
+            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+                w.update(fe2);
+                return v1.longValue() / v2.longValue();
+            }));
+        } catch (Throwable t) {
+            throw new VException(t, w.get());
+        }
     }
 
+    // no runtime exception
     public static V<? extends Integer> l2i(V<? extends Long> value1, FeatureExpr ctx) {
         return value1.smap(ctx, x -> (int) x.longValue());
     }
 
+    // no runtime exception
     public static V<? extends Integer> i2b(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, x -> (int) (byte) x.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Integer> i2s(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, x -> (int) (short) x.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Long> i2l(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, x -> (long) x.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Long> ladd(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() + v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> land(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() & v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lushr(V<? extends Long> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() >>> v2.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lsub(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() - v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> ineg(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, v -> -v.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Float> fneg(V<? extends Float> value1, FeatureExpr ctx) {
         return value1.smap(ctx, v -> -v.floatValue());
     }
 
+    // no runtime exception
     public static V<? extends Double> dmul(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() * v2.doubleValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> dcmpl(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> {
             if (v1.isNaN() || v2.isNaN()) return -1;
@@ -263,42 +312,52 @@ public class VOps {
         }));
     }
 
+    // no runtime exception
     public static V<? extends Long> lmul(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() * v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lor(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() | v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lshl(V<? extends Long> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() << v2.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lxor(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() ^ v2.longValue()));
     }
 
+    // no runtime exception
     public static V<? extends Double> l2d(V<? extends Long> value1, FeatureExpr ctx) {
         return value1.smap(ctx, l -> (double) l.longValue());
     }
 
+    // no runtime exception
     public static V<? extends Double> i2d(V<? extends Integer> value1, FeatureExpr ctx) {
         return value1.smap(ctx, i -> (double) i.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Float> d2f(V<? extends Double> value1, FeatureExpr ctx) {
         return value1.smap(ctx, d -> (float) d.doubleValue());
     }
 
+    // no runtime exception
     public static V<? extends Float> l2f(V<? extends Long> value1, FeatureExpr ctx) {
         return value1.smap(ctx, l -> (float) l.longValue());
     }
 
+    // no runtime exception
     public static V<? extends Double> f2d(V<? extends Float> value1, FeatureExpr ctx) {
         return value1.smap(ctx, f -> (double) f.floatValue());
     }
 
+    // no runtime exception
     public static V<? extends Integer> dcmpg(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> {
             if (v1.isNaN() || v2.isNaN()) return 1;
@@ -308,22 +367,27 @@ public class VOps {
         }));
     }
 
+    // no runtime exception
     public static V<? extends Double> ddiv(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() / v2.doubleValue()));
     }
 
+    // no runtime exception
     public static V<? extends Float> i2f(V<? extends Integer> value, FeatureExpr ctx) {
         return value.smap(ctx, i -> (float) i.intValue());
     }
 
+    // no runtime exception
     public static V<? extends Float> fdiv(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.floatValue() / v2.floatValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> f2i(V<? extends Float> value, FeatureExpr ctx) {
         return value.smap(ctx, f -> (int) f.floatValue());
     }
 
+    // no runtime exception
     public static V<? extends Integer> fcmpg(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> {
             if (v1.isNaN() || v2.isNaN()) return 1;
@@ -333,6 +397,7 @@ public class VOps {
         }));
     }
 
+    // no runtime exception
     public static V<? extends Integer> fcmpl(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> {
             if (v1.isNaN() || v2.isNaN()) return -1;
@@ -342,34 +407,50 @@ public class VOps {
         }));
     }
 
+    // no runtime exception
     public static V<? extends Float> fmul(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.floatValue() * v2.floatValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> d2l(V<? extends Double> value, FeatureExpr ctx) {
         return value.smap(ctx, v -> (long) v.doubleValue());
     }
 
+    // no runtime exception
     public static V<? extends Double> dadd(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() + v2.doubleValue()));
     }
 
-    public static V<? extends Long> lrem(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
-        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() % v2.longValue()));
+    // arithmetic exception
+    public static V<? extends Long> lrem(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) throws VException {
+        FEWrapper w = new FEWrapper(ctx);
+        try {
+            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+                w.update(fe2);
+                return v1.longValue() % v2.longValue();
+            }));
+        } catch (Throwable t) {
+            throw new VException(t, w.get());
+        }
     }
 
+    // no runtime exception
     public static V<? extends Float> fadd(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.floatValue() + v2.floatValue()));
     }
 
+    // no runtime exception
     public static V<? extends Long> lshr(V<? extends Long> value1, V<? extends Integer> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.longValue() >> v2.intValue()));
     }
 
+    // no runtime exception
     public static V<? extends Double> dsub(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() - v2.doubleValue()));
     }
 
+    // no runtime exception
     public static V<? extends Integer> d2i(V<? extends Double> value1, FeatureExpr ctx) {
         return value1.smap(ctx, x -> (int) x.doubleValue());
     }
@@ -803,5 +884,18 @@ public class VOps {
     public static long nSimpleInvocations = 0;
     public static void logSimple() {
         nSimpleInvocations += 1;
+    }
+}
+
+class FEWrapper {
+    private FeatureExpr fe;
+    FEWrapper(FeatureExpr init) {
+        fe = init;
+    }
+    void update(FeatureExpr e) {
+        fe = e;
+    }
+    FeatureExpr get() {
+        return fe;
     }
 }
