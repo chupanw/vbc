@@ -1,9 +1,10 @@
 package edu.cmu.cs.vbc.testutils
 
 import java.lang.annotation.Annotation
-import java.lang.reflect.{Method, Modifier}
+import java.lang.reflect.{InvocationTargetException, Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import edu.cmu.cs.vbc.{VERuntime, VException}
 
 case class TestClass(c: Class[_]) {
 
@@ -66,34 +67,56 @@ case class TestClass(c: Class[_]) {
       return
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
-    var testObject = if (before.isEmpty) createObject()
     getTestCases.filter(isSkipped).foreach(_ => TestStat.skip(className))
     for (x <- getTestCases if !isSkipped(x)) {
-      if (before.nonEmpty) testObject = createObject()
-      before.map(_.invoke(testObject, FeatureExprFactory.True))
-      try {
-        x.invoke(testObject, FeatureExprFactory.True)
-        TestStat.succeed(className)
-      } catch {
-        case t: Throwable =>
-          verifyException(t, x)
-      }
-      after.map(_.invoke(testObject, FeatureExprFactory.True))
+//      executeOneTest(x, FeatureExprFactory.True)
+      executeOnce(x, FeatureExprFactory.True)
     }
+  }
+
+  def executeOnce(x: Method, context: FeatureExpr): Unit = {
+    System.out.println(s"[INFO] Executing ${x.getName} under $context")
+    VERuntime.init()
+    val testObject = createObject()
+    before.map(_.invoke(testObject, context))
+    try {
+      x.invoke(testObject, context)
+      if (VERuntime.hasVException)
+        executeOnce(x, context.and(VERuntime.exceptionCtx.not()))
+      TestStat.succeed(className)
+    } catch {
+      case invokeExp: InvocationTargetException => {
+        invokeExp.getCause match {
+          case t: VException =>
+            if (!verifyException(t.e, x))
+              System.out.println(t)
+            if (!t.ctx.equivalentTo(context)) {
+              val altCtx = context.and(t.ctx.not())
+              executeOnce(x, altCtx)
+            }
+          case t =>
+            if (!verifyException(t, x))
+              throw new RuntimeException("Not a VException", t)
+        }
+      }
+      case e =>
+        throw new RuntimeException(s"Expecting InvocationTargetException, but found $e")
+    }
+    after.map(_.invoke(testObject, context))
   }
 
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
 
-  def verifyException(t: Throwable, m: Method): Unit = {
+  def verifyException(t: Throwable, m: Method): Boolean = {
     val annotation = m.getAnnotation(classOf[org.junit.Test])
     assert(annotation != null, "No @Test annotation in method: " + m.getName)
     val expected = annotation.expected()
-    if (!expected.isInstance(t.getCause)) {
+    if (!expected.isInstance(t)) {
       TestStat.fail(className)
-      println(s"Expecting [$expected] but found [${t.getCause}] while executing [${m.getName}]")
-      t.printStackTrace()
+      false
     } else {
       TestStat.succeed(className)
+      true
     }
   }
 
