@@ -6,14 +6,25 @@ import org.objectweb.asm.tree.{InsnNode, LabelNode, MethodNode, TryCatchBlockNod
 object TryCatchBlock {
 
   def wrapMethodBody(m: MethodNode): MethodNode = {
-    if (m.name == "<init>") return m
-    val startL: LabelNode = m.instructions.getFirst match {
-      case n: LabelNode => n
-      case _ =>
-        val s = new LabelNode(new Label("methodStart"))
-        m.instructions.insert(s)
-        s
-    }
+    if (m.instructions.size() == 0) return m
+    val startL: LabelNode =
+      if (m.name == "<init>") {
+        val instructions = m.instructions.toArray
+        val initLabel: LabelNode =
+          instructions.find(
+            x => x.isInstanceOf[LabelNode] && x.asInstanceOf[LabelNode].getLabel.toString.endsWith("EndOfInitSeq")
+          ).get.asInstanceOf[LabelNode]
+        initLabel
+      }
+      else {
+        m.instructions.getFirst match {
+          case n: LabelNode => n
+          case _ =>
+            val s = new LabelNode(new Label("methodStart"))
+            m.instructions.insert(s)
+            s
+        }
+      }
     val endL: LabelNode = m.instructions.getLast match {
       case n: LabelNode => n
       case _ =>

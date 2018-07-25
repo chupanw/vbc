@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.loader
 
 import java.util
 
-import org.objectweb.asm.Opcodes
+import org.objectweb.asm.{Label, Opcodes}
 import org.objectweb.asm.tree._
 import org.objectweb.asm.tree.analysis.{Analyzer, SourceInterpreter, SourceValue}
 
@@ -61,7 +61,8 @@ object InitRewriter {
       }
     val (prefix, rest) = instructions.splitAt(aload0Idx) // prefix not including ALOAD0
     val (initSeq, postfix) = rest.splitAt(invokeSpecialIdx + 1 - aload0Idx) // postfix not including invokespecial
-    (initSeq ++ prefix ++ postfix) foreach {i => m.instructions.add(i)}
+    val initSeqWithLabel: Array[AbstractInsnNode] = initSeq :+ new LabelNode(new Label("EndOfInitSeq"))
+    (initSeqWithLabel ++ prefix ++ postfix) foreach {i => m.instructions.add(i)}
     m
   }
 }
