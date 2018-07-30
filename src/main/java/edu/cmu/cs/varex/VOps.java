@@ -3,6 +3,7 @@ package edu.cmu.cs.varex;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import edu.cmu.cs.vbc.GlobalConfig;
+import edu.cmu.cs.vbc.VERuntime;
 import edu.cmu.cs.vbc.VException;
 import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
@@ -470,6 +471,12 @@ public class VOps {
         else
             out.println(i);
     }
+    public static void println(PrintStream out, double d, FeatureExpr ctx) {
+        if (GlobalConfig.printContext())
+            out.println(d + " [" + ctx + "]");
+        else
+            out.println(d);
+    }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(o + " [" + ctx + "]");
@@ -527,7 +534,7 @@ public class VOps {
      * Used in original catch blocks to extract real exceptions from VExceptions and handle them,
      * in case exceptions are handled within the same method or in outer methods.
      */
-    public static V<? extends Throwable> extractVExceptionIfHandled(V<? extends Throwable> vT, String handledExceptions, FeatureExpr ctx) throws Throwable{
+    public static V<? extends Throwable> extractVExceptionIfHandled(V<? extends Throwable> vT, String handledExceptions, FeatureExpr ctx) throws Throwable {
         String[] exps = handledExceptions.split(";");
         HashSet<String> expSet = new HashSet<>();
         for (int i = 0; i < exps.length; i++)
@@ -538,11 +545,18 @@ public class VOps {
         V<? extends Throwable> selected = vT.select(ctx.and(ctxOfVException));
         assert selected instanceof One : "Should have only one VException";
         VException ve = (VException) selected.getOne();
-        if (expSet.contains(ve.e().getClass().getName().replace('.', '/'))) {
-            return V.one(ctxOfVException, ve.e());
-        } else {
-            throw ve;
+        for (String s : expSet) {
+            try {
+                Class c = Class.forName(s.replace('/', '.'), false, VERuntime.classloader().get());
+                if (c.isInstance(ve.e())) {
+                    return V.one(ctxOfVException, ve.e());
+                }
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                throw e;
+            }
         }
+        throw ve;
     }
 
     public static FeatureExpr extractCtxFromVException(Throwable t) {

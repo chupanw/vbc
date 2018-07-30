@@ -26,4 +26,6 @@ object VERuntime {
     hasVException = true
     exceptionCtx = exceptionCtx.and(fe)
   }
+
+  var classloader: Option[ClassLoader] = None
 }
