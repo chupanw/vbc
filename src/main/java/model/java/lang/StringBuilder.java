@@ -107,6 +107,16 @@ public class StringBuilder implements Appendable {
         return V.one(ctx, this);
     }
 
+    public V<?> append__F__Lmodel_java_lang_StringBuilder(V<? extends java.lang.Float> vF, FeatureExpr ctx) {
+        vActual = vActual.sflatMap(ctx, (fe, sb) -> {
+            if (vF instanceof One)
+                return V.one(ctx, sb.append(vF.getOne().floatValue()));
+            else
+                return vF.smap(fe, f -> new java.lang.StringBuilder(sb.toString()).append(f.floatValue()));
+        });
+        return V.one(ctx, this);
+    }
+
     public V<?> setLength__I__V(V<? extends java.lang.Integer> vNewLength, FeatureExpr ctx) {
         vNewLength.sforeach(ctx, (fe, newLength) -> {
             split(fe);
