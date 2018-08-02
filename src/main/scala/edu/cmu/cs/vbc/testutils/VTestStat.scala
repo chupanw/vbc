@@ -37,7 +37,7 @@ case class VTestStatClass(c: String) {
        |[Failed]
        |${failedMethods.toList.sortWith((x, y) => x._1.compareTo(y._1) < 0).unzip._2.mkString("\t", "\n\t", "")}
        |${if (succeededMethods.nonEmpty) "[Succeed]" else ""}
-       |${succeededMethods.mkString("\t", "\n\t", "")}
+       |${succeededMethods.filter(x => !failedMethods.contains(x)).mkString("\t", "\n\t", "")}
        |${if (skippedMethods.nonEmpty) "[Skipped]" else ""}
        |${skippedMethods.mkString("\t", "\n\t", "")}
      """.stripMargin
@@ -48,5 +48,5 @@ case class VTestStatMethod(m: String) {
 
   def logFailingContext(fe: FeatureExpr): Unit = failingCtx = failingCtx or fe
 
-  override def toString: String = m + "  <-  " + (if (failingCtx.isSatisfiable()) failingCtx else "")
+  override def toString: String = m + "  pass if  " + failingCtx.not()
 }
