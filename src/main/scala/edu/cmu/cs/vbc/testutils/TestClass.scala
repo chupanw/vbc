@@ -76,7 +76,7 @@ case class TestClass(c: Class[_]) {
 
   def executeOnce(x: Method, context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
-    System.out.println(s"[INFO] Executing ${x.getName} under $context")
+    System.out.println(s"[INFO] Executing ${className}.${x.getName} under $context")
     VERuntime.init()
     val testObject = createObject()
     before.map(_.invoke(testObject, context))
