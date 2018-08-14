@@ -9,6 +9,7 @@ object GlobalConfig {
   val logTrace = false
   val detectComplexLoop = false
   val printContext = true
+  val printExpandArrayWarnings = false
 }
 
 

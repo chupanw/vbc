@@ -1,6 +1,7 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import edu.cmu.cs.vbc.GlobalConfig;
 import edu.cmu.cs.vbc.vbytecode.TypeDesc;
 
 import java.lang.reflect.Array;
@@ -38,7 +39,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandFArray(V<Float>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandFArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandFArray");
         return expandFArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -91,7 +93,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandJArray(V<Long>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandJArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandJArray");
         return expandJArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -144,7 +147,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandDArray(V<Double>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandDArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandDArray");
         return expandDArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -192,7 +196,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandSArray(V<Integer>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandSArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandSArray");
         return expandSArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -254,7 +259,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandBArray(V<Integer>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandBArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandBArray");
         return expandBArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -317,7 +323,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandIArray(V<Integer>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandIArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandIArray");
         return expandIArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -446,7 +453,8 @@ public class ArrayOps {
     }
 
     public static V<?> expandCArray(V<Integer>[] array, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandCArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandCArray");
         return expandCArrayElements(array, ctx, 0, new ArrayList<>());
     }
 
@@ -525,7 +533,8 @@ public class ArrayOps {
      * in one function call, e.g., System.arrayCopy
      */
     public static <T> V<T[]> expandArray(V<T>[] array, Class c, FeatureExpr ctx) {
-        System.err.println("[WARNING] Using expandArray");
+        if (GlobalConfig.printExpandArrayWarnings())
+            System.err.println("[WARNING] Using expandArray");
         // todo: this will probably cause problems for Jetty
         V existing = getExisting(array, ctx);
         if (existing != null)
