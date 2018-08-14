@@ -163,7 +163,7 @@ trait VBlockAnalysis extends CFGAnalysis {
       if (vblockId(b) != id) {
         vblockId += b -> id
         queue = queue.enqueue(b)
-        getSuccessors(b).foreach(resetVBlockID)
+        getSuccessorsAndExceptionHandlers(b).foreach(resetVBlockID)
       }
     }
     // avoid analyzing the same block more than once in a row
