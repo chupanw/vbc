@@ -41,7 +41,6 @@ object TestLauncher extends App {
 
 //    "org.apache.commons.math3.linear.CholeskyDecompositionTest"  // Array casting, [V to [[D
 //    "org.apache.commons.math3.analysis.interpolation.TricubicSplineInterpolatorTest" // Array casting, needs to expand multi-dimensional arrays
-//    "org.apache.commons.math3.analysis.interpolation.TricubicSplineInterpolatingFunctionTest",  // Array casting, needs to expand multi-dimensional arrays
 //    "org.apache.commons.math3.distribution.fitting.MultivariateNormalMixtureExpectationMaximizationTest",
 //    "org.apache.commons.math3.stat.FrequencyTest"
 //    "org.apache.commons.math3.stat.CertifiedDataTest"
@@ -85,8 +84,6 @@ object TestLauncher extends App {
 //    "org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatisticsTest"
 //    "org.apache.commons.math3.stat.data.LotteryTest"
 //    "org.apache.commons.math3.stat.data.LewTest"
-
-//    "org.apache.commons.math3.stat.regression.GLSMultipleLinearRegressionTest"  // frame merge error
 
 //    "org.apache.commons.math3.genetics.GeneticAlgorithmTestBinary"  // internal class extends Comparable
 //    "org.apache.commons.math3.genetics.ElitisticListPopulationTest"
