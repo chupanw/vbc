@@ -579,12 +579,54 @@ public class ArrayOps {
     /**
      * Helper function for {@link #expandArray(V[], Class, FeatureExpr)}
      */
-    private static <T> V<?> expandArrayElements(V<T>[] array, Class c, FeatureExpr ctx) {
-        model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
-        for (int i = 0; i < array.length; i++) {
-            list.add__Ljava_lang_Object__Z(array[i], ctx);
+    private static V<?> expandArrayElements(V[] array, Class c, FeatureExpr ctx) {
+        if (c.getName().startsWith("[[")) {
+            model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+            for (int i = 0; i < array.length; i++) {
+                V e = array[i].sflatMap(ctx, (fe, x) -> {
+                    try {
+                        return expandArrayElements((V[])x, Class.forName(c.getName().substring(1)), (FeatureExpr) fe);
+                    } catch (ClassNotFoundException e1) {
+                        e1.printStackTrace();
+                        throw new RuntimeException("Wrong in array expansion: " + c.getName().substring(1));
+                    }
+                });
+                list.add__Ljava_lang_Object__Z(e, ctx);
+            }
+            return list.getVOfArrays(c, ctx);
         }
-        return list.getVOfArrays(c, ctx);
+        // we need the following checking because the primitive type might be hidden from multi-dimensional arrays
+        else if (c.getName().equals("[D")) {
+            return expandDArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[I")) {
+            return expandIArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[S")) {
+            return expandSArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[Z")) {
+            return expandIArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[C")) {
+            return expandCArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[F")) {
+            return expandFArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[J")) {
+            return expandJArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else if (c.getName().equals("[B")) {
+            return expandBArrayElements(array, ctx, 0, new ArrayList<>());
+        }
+        else {
+            model.java.util.ArrayList list = new model.java.util.ArrayList(ctx);
+            for (int i = 0; i < array.length; i++) {
+                list.add__Ljava_lang_Object__Z(array[i], ctx);
+            }
+            return list.getVOfArrays(c, ctx);
+        }
     }
 
     /**
