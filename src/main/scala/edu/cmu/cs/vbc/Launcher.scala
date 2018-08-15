@@ -26,6 +26,7 @@ object Launcher extends App {
 object VBCLauncher extends RelaunchExceptionHandler {
   def launch(classname: String, liftBytecode: Boolean = true, configFile: String, args: Array[String] = new Array[String](0)) {
     val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, liftBytecode, configFile = Some(configFile))
+    VERuntime.classloader = Some(loader)
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
     invokeMain(cls, args)
