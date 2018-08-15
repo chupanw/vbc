@@ -62,10 +62,6 @@ case class TestClass(c: Class[_]) {
       VTestStat.skipClass(className)
       return
     }
-    if (skipClass(className)) {
-      VTestStat.skipClass(className)
-      return
-    }
     require(checkAnnotations, s"Unsupported annotation in $c")
     getTestCases.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     for (x <- getTestCases if !isSkipped(x)) {
@@ -135,16 +131,5 @@ case class TestClass(c: Class[_]) {
         x.getAnnotation(classOf[org.junit.Before]) != null ||
         x.getAnnotation(classOf[org.junit.After]) != null
     }
-  }
-
-  def skipClass(c: String): Boolean = c match {
-    case "org.apache.commons.math3.analysis.integration.gauss.HermiteParametricTest" => true
-    case "org.apache.commons.math3.analysis.integration.gauss.LegendreParametricTest" => true
-    case "org.apache.commons.math3.analysis.integration.gauss.LegendreHighPrecisionParametricTest" => true
-    case "org.apache.commons.math3.RetryRunnerTest" => true // @Retry
-    case "org.apache.commons.math3.fitting.GaussianFitterTest" => true  // (same) vblock problem
-    case "org.apache.commons.math3.util.FastMathStrictComparisonTest" => true
-    case "org.apache.commons.math3.util.FastMathTestPerformance" => true  //@BeforeClass
-    case _ => false
   }
 }
