@@ -161,27 +161,56 @@ object Rewrite {
     *
     * Note that we add all fake blocks to the end of method, so that we do not need to change indexes of existing
     * jump instructions
+    *
+    * If there are multiple catch phrases, we have multiple handler for VExceptions, and thus the first VException
+    * handler will mask the rest. To avoid this behavior, we need to combine all VException handlers and jump to
+    * actual handlers depending on the inner exception types.
     */
-  private def addFakeHanlderBlocks(m: VBCMethodNode): VBCMethodNode = {
+  def addFakeHanlderBlocks(m: VBCMethodNode): VBCMethodNode = {
     var currentIdx: Int = m.body.blocks.size
     val pairs: List[(Block, List[Block])] = m.body.blocks.map(b => {
       if (b.exceptionHandlers.isEmpty) (b, Nil)
       else {
         // replace exceptionHandlers in current block to point to new fake blocks
-        val fakePairs: List[(VBCHandler, Block)] = b.exceptionHandlers.toList.map { h =>
-          val fakeHandler = new VBCHandler(
-            h.exceptionType,
-            currentIdx,
-            h.visibleTypeAnnotations,
-            h.invisibleTypeAnnotations
-          )
-          val fakeBlock = Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(h.handlerBlockIdx))
-          currentIdx = currentIdx + 1
-          (fakeHandler, fakeBlock)
+        val fakePairs: List[(VBCHandler, List[Block])] = b.exceptionHandlers.toList.map { h =>
+          if (h.exceptionType != "edu/cmu/cs/vbc/VException") {
+            val fakeHandler = new VBCHandler(
+              h.exceptionType,
+              currentIdx,
+              h.visibleTypeAnnotations,
+              h.invisibleTypeAnnotations
+            )
+            // shouldJumpBack is true because fake handler blocks are always behind actual handler blocks
+            val fakeBlock = Block(List(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(h.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true)
+            currentIdx = currentIdx + 1
+            (fakeHandler, List(fakeBlock))
+          } else {
+            // Replace placebo handler with jumps to actual handler
+            // First, we generate a block to update context and wrap VException into V.
+            // Then, if there are $n$ exception handlers in the original code, we generate $n-1$ blocks ending with IFNE
+            //  to jump to actual handler.
+            // Finally, we generate a block with a GOTO that jumps to the last exception handler, because actual handler
+            //  can handle unexpected exceptions (i.e., throw it again and catch by our outer try-catch).
+            val handler = VBCHandler("edu/cmu/cs/vbc/VException", currentIdx, Nil, Nil)
+            val firstBlock = Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(currentIdx + 1))
+            val originHandlers = b.exceptionHandlers.toList
+            val hIdx = originHandlers.indexOf(h)
+            // leave one actual handler for the last GOTO
+            val jumpBlocks: List[Block] = originHandlers.take(hIdx - 1).map(x => {
+              Block(List(
+                InstrDUP(),
+                InstrLDC(x.exceptionType),
+                InstrINVOKESTATIC(Owner.getVOps, MethodName("isTypeOf"), MethodDesc("(Ledu/cmu/cs/vbc/VException;Ljava/lang/String;)Z"), itf = false),
+                InstrIFNE(x.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true
+              )
+            }) ::: Block(List(InstrGOTO(originHandlers(hIdx - 1).handlerBlockIdx)), Nil, Nil, shouldJumpBack = true) :: Nil
+            currentIdx += hIdx + 1
+            (handler, firstBlock :: jumpBlocks)
+          }
         }
         val (fakeExceptionHandlers, fakeBlocks) = fakePairs.unzip
         val newBlock: Block = b.copy(exceptionHandlers = fakeExceptionHandlers)
-        (newBlock, fakeBlocks)
+        (newBlock, fakeBlocks.flatten)
       }
     })
     val newBlocks: List[Block] = pairs.unzip._1

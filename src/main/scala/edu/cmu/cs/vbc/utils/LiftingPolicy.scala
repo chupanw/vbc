@@ -50,6 +50,7 @@ object LiftingPolicy {
       // e.g., model.java.util.URLClassLoader, we need it because we want to lift classes loaded from urls.
       false
     }
+    else if (owner == Owner.getVOps) false
     else true
   }
 
@@ -168,6 +169,8 @@ object LiftingPolicy {
         LiftedCall(owner, name, desc, isLifting = true)
       case ("java/lang/Object", "toString", "()Ljava/lang/String;") =>
         LiftedCall(owner, name, desc, isLifting = true)
+      case ("edu/cmu/cs/varex/VOps", _, _) =>
+        LiftedCall(owner, name, desc, isLifting = false)
       case _ => LiftedCall(owner.toModel, name, desc.toModels, isLifting = false)
     }
   }

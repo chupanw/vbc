@@ -23,8 +23,11 @@ object Block {
   * @param exceptionHandlers  Exception handlers of this block
   * @param exceptions If this block was intended to handle exceptions (e.g., catch block), this field stores all
   *                   exceptions this block can handle. Otherwise Nil.
+  * @param shouldJumpBack Indicate the need to jump back at the end of a block. This is useful in exception handling
+  *                       because exceptions might cause control flow to skip to the end of the method directly, whereas
+  *                       our VBlock scheduling try not to skip any VBlocks. This filed is only used in [[Rewrite.addFakeHanlderBlocks()]].
   */
-case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], exceptions: List[String]) {
+case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], exceptions: List[String], shouldJumpBack: Boolean = false) {
   var dominators: Set[Block] = Set()
 
   import LiftUtils._
@@ -277,7 +280,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
       }
 
       //- if backward jump, jump there (target condition is satisfiable, because this block's condition is and it's propagated)
-      if (env.isVBlockBefore(targetBlock, env.getVBlock(this))) {
+      if (shouldJumpBack || env.isVBlockBefore(targetBlock, env.getVBlock(this))) {
         mv.visitJumpInsn(GOTO, env.getVBlockLabel(targetBlock))
       } else if (Some(targetBlock) == env.getNextBlock(this)) {
         //forward jump to next block is leaving this block; then the next block must be the next vblock. do nothing.
@@ -310,7 +313,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
       storeFExpr(mv, env, elseBlockConditionVar)
 
 
-      val needToJumpBack = env.isVBlockBefore(thenBlock, env.getVBlock(this)) || env.isSameVBlock(thenBlock, env.getVBlock(this))
+      val needToJumpBack = env.isVBlockBefore(thenBlock, env.getVBlock(this)) || env.isSameVBlock(thenBlock, env.getVBlock(this)) || shouldJumpBack
       //- update then-block's condition to "then-successor.condition or (thisblock.condition and A)"
       loadFExpr(mv, env, thisVBlockConditionVar)
       callFExprAnd(mv)

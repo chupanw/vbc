@@ -559,6 +559,10 @@ public class VOps {
         throw ve;
     }
 
+    public static boolean isTypeOf(VException ve, String t) {
+        return ve.e().getClass().getName().replace(".", "/").equals(t);
+    }
+
     public static FeatureExpr extractCtxFromVException(Throwable t) {
         if (t instanceof VException)
             return ((VException) t).ctx();

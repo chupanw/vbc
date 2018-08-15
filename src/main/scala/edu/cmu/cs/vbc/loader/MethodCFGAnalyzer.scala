@@ -127,9 +127,13 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
           if (h.visibleTypeAnnotations == null) Nil else h.visibleTypeAnnotations.toList,
           if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.toList))
       assume(hs.last.exceptionType == "java/lang/Throwable")
-      val withCopy: List[VBCHandler] = hs.init.flatMap(x => List(x, VBCHandler("edu/cmu/cs/vbc/VException", x.handlerBlockIdx, x.visibleTypeAnnotations, x.invisibleTypeAnnotations)))
+      val vExp = VBCHandler("edu/cmu/cs/vbc/VException", -1, Nil, Nil)  // this will get translated in Rewrite.addFakeHandlerBlocks()
       // assuming the last one is the one we added to catch all exceptions
-      withCopy ::: hs.last :: Nil
+      // null is possible if using synchronization or finally
+      if (hs.size > 1 && !hs.exists(x => x.exceptionType == null))
+        hs.init ::: vExp :: hs.last :: Nil
+      else
+        hs
     }
   }
 }
