@@ -559,8 +559,9 @@ public class VOps {
         throw ve;
     }
 
-    public static boolean isTypeOf(VException ve, String t) {
-        return ve.e().getClass().getName().replace(".", "/").equals(t);
+    public static boolean isTypeOf(VException ve, String t) throws ClassNotFoundException {
+        Class c = Class.forName(t.replace('/', '.'), false, VERuntime.classloader().get());
+        return c.isInstance(ve.e());
     }
 
     public static FeatureExpr extractCtxFromVException(Throwable t) {
