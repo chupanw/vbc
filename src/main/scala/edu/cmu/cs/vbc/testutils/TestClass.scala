@@ -4,15 +4,24 @@ import java.lang.annotation.Annotation
 import java.lang.reflect.{InvocationTargetException, Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc.{VERuntime, VException}
 
-case class TestClass(c: Class[_]) {
+case class TestClass(c: Class[_], isJUnit3: Boolean) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
 
   val className: String = c.getName
-  val before: Option[Method] = getMethodWithAnnotation(c, classOf[org.junit.Before])
-  val after: Option[Method] = getMethodWithAnnotation(c, classOf[org.junit.After])
+  val before: Option[Method] =
+    if (isJUnit3)
+      getMethodWithName(c, "setUp____V")
+    else
+      getMethodWithAnnotation(c, classOf[org.junit.Before])
+  val after: Option[Method] =
+    if (isJUnit3)
+      getMethodWithName(c, "tearDown____V")
+    else
+      getMethodWithAnnotation(c, classOf[org.junit.After])
 
   /**
     * Find method with specific annotation.
@@ -36,16 +45,37 @@ case class TestClass(c: Class[_]) {
       throw new RuntimeException(s"More than one method have the annotation: $annotation")
   }
 
-  //todo: also search for superclasses
-  def getTestCases: List[Method] = c.getMethods.toList.filter {x =>
-    x.isAnnotationPresent(classOf[org.junit.Test])
+  def getMethodWithName(clazz: Class[_], name: String): Option[Method] = {
+    val x = clazz.getDeclaredMethods.toList.filter(x => x.getName == name)
+    if (x.isEmpty) {
+      if (clazz.getSuperclass != null)
+        getMethodWithName(clazz.getSuperclass, name)
+      else
+        None
+    }
+    else if (x.length == 1) {
+      x.head.setAccessible(true)
+      Some(x.head)
+    }
+    else
+      throw new RuntimeException(s"More than one method have the name: $name")
   }
+
+  //todo: also search for superclasses
+  def getTestCases: List[Method] =
+    if (isJUnit3)
+      c.getMethods.toList.filter(x => x.getName.startsWith("test"))
+    else
+      c.getMethods.toList.filter{x => x.isAnnotationPresent(classOf[org.junit.Test]) }
 
   def getAllMethods: List[Method] = c.getMethods.toList
 
   def createObject(): Any = {
     try {
-      c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+      if (isJUnit3)
+        c.getConstructor(classOf[V[_]], classOf[FeatureExpr], classOf[String]).newInstance(V.one(FeatureExprFactory.True, "VE"), FeatureExprFactory.True, null)
+      else
+        c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
     } catch {
       case t: Throwable =>
         System.err.println(s"Error creating test object for $c")
@@ -112,13 +142,19 @@ case class TestClass(c: Class[_]) {
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
 
   def verifyException(t: Throwable, m: Method, ctx: FeatureExpr): Boolean = {
-    val annotation = m.getAnnotation(classOf[org.junit.Test])
-    assert(annotation != null, "No @Test annotation in method: " + m.getName)
-    val expected = annotation.expected()
-    if (!expected.isInstance(t)) {
+    if (isJUnit3) {
       VTestStat.fail(className, m.getName, ctx)
       false
-    } else true
+    }
+    else {
+      val annotation = m.getAnnotation(classOf[org.junit.Test])
+      assert(annotation != null, "No @Test annotation in method: " + m.getName)
+      val expected = annotation.expected()
+      if (!expected.isInstance(t)) {
+        VTestStat.fail(className, m.getName, ctx)
+        false
+      } else true
+    }
   }
 
   /**
