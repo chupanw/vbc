@@ -9,6 +9,7 @@ public class NumberFormat extends Format {
     private V<? extends java.text.NumberFormat> vActual;
 
     private NumberFormat(V<? extends java.text.NumberFormat> v) {
+        super(v.getConfigSpace());
         vActual = v;
     }
 
@@ -23,6 +24,7 @@ public class NumberFormat extends Format {
 
     public NumberFormat(FeatureExpr ctx) {
         // empty originally
+        super(ctx);
     }
 
     public static V<?> getNumberInstance__Ljava_util_Locale__Lmodel_java_text_NumberFormat(

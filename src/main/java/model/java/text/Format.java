@@ -18,6 +18,8 @@ public abstract class Format {
         ).sflatMap(ctx, (fe, x) -> (V<? extends String>) x.toString____Ljava_lang_String(fe));
     }
 
+    public Format(FeatureExpr ctx){}
+
     public abstract V<? extends StringBuffer> format__Ljava_lang_Object_Lmodel_java_lang_StringBuffer_Lmodel_java_text_FieldPosition__Lmodel_java_lang_StringBuffer(
             V<?> vObject,
             V<? extends StringBuffer> vToAppendTo,
