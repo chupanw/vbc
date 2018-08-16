@@ -53,7 +53,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         findClass(name)
       else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
         loadClassAndUseModelClasses(name)
-      else if (name.startsWith("org.apache.commons.math3") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
+      else if (name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
         loadClassWithoutChanges(name) // avoid LinkageError
       else
         super.loadClass(name)

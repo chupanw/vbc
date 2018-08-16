@@ -34,7 +34,7 @@ object LiftingPolicy {
   def shouldLiftClass(owner: Owner): Boolean = {
     if (currentConfig.jdkLiftingClasses.exists(n => owner.name.matches("model.*" + n))) return true
     if (currentConfig.libraryLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
-    else if ((owner.name.startsWith("org/apache/commons/math3/") || owner.name.startsWith("edu/cmu/cs/vbc/prog/")) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
+    else if ((owner.name.startsWith("org/apache/commons/math/") || owner.name.startsWith("edu/cmu/cs/vbc/prog/")) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
     else false
   }
 
