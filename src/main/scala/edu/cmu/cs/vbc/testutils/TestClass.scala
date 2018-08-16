@@ -78,8 +78,10 @@ case class TestClass(c: Class[_]) {
     before.map(_.invoke(testObject, context))
     try {
       x.invoke(testObject, context)
-      if (VERuntime.hasVException)
-        executeOnce(x, context.and(VERuntime.exceptionCtx.not()))
+      if (VERuntime.hasVException) {
+        val expCtx = VERuntime.exceptionCtx.clone()
+        expCtx.foreach(fe => executeOnce(x, context.and(fe.not())))
+      }
       VTestStat.succeed(className, x.getName)
     } catch {
       case invokeExp: InvocationTargetException => {
@@ -91,8 +93,10 @@ case class TestClass(c: Class[_]) {
               val altCtx = context.and(t.ctx.not())
               executeOnce(x, altCtx)
             }
-            else if (VERuntime.hasVException)
-              executeOnce(x, context.and(VERuntime.exceptionCtx.not()))
+            else if (VERuntime.hasVException) {
+              val expCtx = VERuntime.exceptionCtx.clone()
+              expCtx.foreach(fe => executeOnce(x, context.and(fe.not())))
+            }
             VTestStat.succeed(className, x.getName)
           case t =>
             if (!verifyException(t, x, FeatureExprFactory.True))

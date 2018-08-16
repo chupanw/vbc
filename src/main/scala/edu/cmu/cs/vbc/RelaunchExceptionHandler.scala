@@ -14,8 +14,10 @@ trait RelaunchExceptionHandler {
         x.invoke(o.get, context)
       else
         x.invoke(null, args :+ context:_*)
-      if (VERuntime.hasVException)
-        executeOnce(o, x, args, context.and(VERuntime.exceptionCtx.not()))
+      if (VERuntime.hasVException) {
+        val expCtx = VERuntime.exceptionCtx.clone()
+        expCtx.foreach(fe => executeOnce(o, x, args, context.and(fe.not())))
+      }
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
