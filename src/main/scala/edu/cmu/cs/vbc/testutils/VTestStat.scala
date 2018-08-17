@@ -21,6 +21,7 @@ object VTestStat {
     println("*          Test Report          *")
     println("*********************************")
     classes.toList.sortWith((x, y) => x._1.compare(y._1) < 0).unzip._2.foreach(println)
+    skippedClasses foreach println
   }
 
   def toMarkdown(version: String, removePrefix: String): Unit = {

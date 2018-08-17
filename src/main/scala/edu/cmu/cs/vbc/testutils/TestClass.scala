@@ -7,9 +7,17 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc.{VERuntime, VException}
 
-case class TestClass(c: Class[_], isJUnit3: Boolean) {
+case class TestClass(c: Class[_]) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
+
+  val isJUnit3 = isSubclassOfTestCase(c)
+
+  def isSubclassOfTestCase(c: Class[_]): Boolean = {
+    if (c.getName == "java.lang.Object") false
+    else if (c.getSuperclass.getName == "junit.framework.TestCase") true
+    else isSubclassOfTestCase(c.getSuperclass)
+  }
 
   val className: String = c.getName
   val before: Option[Method] =
@@ -87,7 +95,7 @@ case class TestClass(c: Class[_], isJUnit3: Boolean) {
 
   // todo: rewrite the filtering part
   def runTests(): Unit = {
-    if (getTestCases.isEmpty) return
+    if (getTestCases.isEmpty) {VTestStat.skipClass(className); return}
     if (isAbstract) {
       VTestStat.skipClass(className)
       return

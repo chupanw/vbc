@@ -11,14 +11,12 @@ import scala.io.Source._
   */
 object TestLauncher extends App {
 
-  assume(args.length == 3, s"Wrong number of arguments: ${args.length}")
+  assume(args.length == 2, s"Wrong number of arguments: ${args.length}")
 
   assume(args(0).endsWith("/"), s"Not a folder: $repository")
   val repository = args(0)
   val version = args(1)
   val relevantTests = fromFile(args(0) + "RelevantTests/" + version + ".txt")
-  assume(args(2) == "true" || args(2) == "false", "3rd argument should be either true or false")
-  val isJUnit3: Boolean = args(2) == "true"
 
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
 
@@ -114,7 +112,7 @@ object TestLauncher extends App {
 //  )
 
     tests.foreach {x =>
-      val testClass = TestClass(testLoader.loadClass(x), isJUnit3)
+      val testClass = TestClass(testLoader.loadClass(x))
       testClass.runTests()
     }
 
