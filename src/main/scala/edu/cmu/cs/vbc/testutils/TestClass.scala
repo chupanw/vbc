@@ -80,8 +80,14 @@ case class TestClass(c: Class[_]) {
 
   def createObject(): Any = {
     try {
-      if (isJUnit3)
-        c.getConstructor(classOf[V[_]], classOf[FeatureExpr], classOf[String]).newInstance(V.one(FeatureExprFactory.True, "VE"), FeatureExprFactory.True, null)
+      if (isJUnit3) {
+        try {
+          c.getConstructor(classOf[V[_]], classOf[FeatureExpr], classOf[String]).newInstance(V.one(FeatureExprFactory.True, "VE"), FeatureExprFactory.True, null)
+        } catch {
+          case _: NoSuchMethodException =>
+            c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+        }
+      }
       else
         c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
     } catch {
