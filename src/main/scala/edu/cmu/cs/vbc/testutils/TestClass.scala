@@ -1,17 +1,24 @@
 package edu.cmu.cs.vbc.testutils
 
 import java.lang.annotation.Annotation
-import java.lang.reflect.{InvocationTargetException, Method, Modifier}
+import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.varex.V
+import edu.cmu.cs.varex.{One, V}
 import edu.cmu.cs.vbc.{VERuntime, VException}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.{Parameter, Parameters}
 
 case class TestClass(c: Class[_]) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
 
-  val isJUnit3 = isSubclassOfTestCase(c)
+  val isJUnit3: Boolean = isSubclassOfTestCase(c)
+  val isParameterized: Boolean = isParameterizedTest(c)
+
+  def isParameterizedTest(c: Class[_]): Boolean =
+    c.isAnnotationPresent(classOf[RunWith]) && c.getAnnotation(classOf[RunWith]).value() == classOf[Parameterized]
 
   def isSubclassOfTestCase(c: Class[_]): Boolean = {
     if (c.getName == "java.lang.Object") false
@@ -76,25 +83,56 @@ case class TestClass(c: Class[_]) {
     else
       c.getMethods.toList.filter{x => x.isAnnotationPresent(classOf[org.junit.Test]) }
 
+  // only public
   def getAllMethods: List[Method] = c.getMethods.toList
+  // only public
+  def getAllFields: List[Field] = c.getFields.toList
 
-  def createObject(): Any = {
+  def createObject(params: Option[Array[V[_]]]): Any = {
     try {
-      if (isJUnit3) {
-        try {
-          c.getConstructor(classOf[V[_]], classOf[FeatureExpr], classOf[String]).newInstance(V.one(FeatureExprFactory.True, "VE"), FeatureExprFactory.True, null)
-        } catch {
-          case _: NoSuchMethodException =>
-            c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
-        }
-      }
-      else
-        c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+      if (params.nonEmpty) createParameterizedObject(params.get)
+      else if (isJUnit3) createJUnit3Object()
+      else createJUnit4Object()
     } catch {
       case t: Throwable =>
         System.err.println(s"Error creating test object for $c")
         t.printStackTrace()
     }
+  }
+
+  def createJUnit3Object(): Any = {
+    try {
+      c.getConstructor(classOf[V[_]], classOf[FeatureExpr], classOf[String]).newInstance(V.one(FeatureExprFactory.True, "VE"), FeatureExprFactory.True, null)
+    } catch {
+      case _: NoSuchMethodException =>
+        c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+    }
+  }
+
+  def createJUnit4Object(): Any = {
+    c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+  }
+
+  def createParameterizedObject(parameters: Array[V[_]]): Any = {
+    val all = c.getConstructors
+    val nParameters = parameters.length * 2 + 1 // dummy values + FE
+    val filtered = all.filter(x => x.getParameterCount == nParameters)
+    assert(filtered.length == 1, "Wrong number of constructors matching the same number of parameters")
+    val dummies = filtered.head.getParameterTypes.drop(parameters.length + 1).map(x => getDummyValue(x.getName))
+    val allParams = parameters.toList ::: FeatureExprFactory.True :: dummies.toList
+    filtered.head.newInstance(allParams:_*)
+  }
+
+  def getDummyValue(t: String): Object = t match {
+    case "int" => Integer.valueOf(0)
+    case "short" => java.lang.Short.valueOf("0")
+    case "boolean" => java.lang.Boolean.valueOf(false)
+    case "byte" => java.lang.Byte.valueOf("0")
+    case "char" => java.lang.Character.valueOf(0)
+    case "long" => java.lang.Long.valueOf(0)
+    case "double" => java.lang.Double.valueOf(0.0)
+    case "float" => java.lang.Float.valueOf(0.0F)
+    case _ => null
   }
 
   def isAbstract: Boolean = Modifier.isAbstract(c.getModifiers)
@@ -108,23 +146,27 @@ case class TestClass(c: Class[_]) {
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
     getTestCases.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
-    for (x <- getTestCases if !isSkipped(x)) {
-//      executeOneTest(x, FeatureExprFactory.True)
-      executeOnce(x, FeatureExprFactory.True)
-    }
+    if (!isParameterized)
+      for (x <- getTestCases if !isSkipped(x)) executeOnce(None, x, FeatureExprFactory.True)
+    else
+      for (
+        x <- getParameters;
+        y <- getTestCases if !isSkipped(y)
+      ) executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True)
+
   }
 
-  def executeOnce(x: Method, context: FeatureExpr): Unit = {
+  def executeOnce(params: Option[Array[V[_]]], x: Method, context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${className}.${x.getName} under $context")
     VERuntime.init()
-    val testObject = createObject()
+    val testObject = createObject(params)
     before.map(_.invoke(testObject, context))
     try {
       x.invoke(testObject, context)
       if (VERuntime.hasVException) {
         val expCtx = VERuntime.exceptionCtx.clone()
-        expCtx.foreach(fe => executeOnce(x, context.and(fe.not())))
+        expCtx.foreach(fe => executeOnce(params, x, context.and(fe.not())))
       }
       VTestStat.succeed(className, x.getName)
     } catch {
@@ -135,11 +177,11 @@ case class TestClass(c: Class[_]) {
               System.out.println(t)
             if (!t.ctx.equivalentTo(context)) {
               val altCtx = context.and(t.ctx.not())
-              executeOnce(x, altCtx)
+              executeOnce(params, x, altCtx)
             }
             else if (VERuntime.hasVException) {
               val expCtx = VERuntime.exceptionCtx.clone()
-              expCtx.foreach(fe => executeOnce(x, context.and(fe.not())))
+              expCtx.foreach(fe => executeOnce(params, x, context.and(fe.not())))
             }
             VTestStat.succeed(className, x.getName)
           case t =>
@@ -183,7 +225,28 @@ case class TestClass(c: Class[_]) {
       x.getAnnotations.length == 0 ||
         x.getAnnotation(classOf[org.junit.Test]) != null ||
         x.getAnnotation(classOf[org.junit.Before]) != null ||
-        x.getAnnotation(classOf[org.junit.After]) != null
+        x.getAnnotation(classOf[org.junit.After]) != null ||
+        x.getAnnotation(classOf[Parameters]) != null
+    }
+  }
+
+  def existParameterField: Boolean = getAllFields.exists(f => f.isAnnotationPresent(classOf[Parameter]))
+  def existParametersMethod: Boolean = getAllMethods.exists(m => m.isAnnotationPresent(classOf[Parameters]))
+  def getParameters: Array[_] = {
+    val m = getMethodWithAnnotation(c, classOf[Parameters])
+    assert(m.nonEmpty, "No method with @Parameters annotation")
+    val ps = m.get.invoke(null, FeatureExprFactory.True)
+    assert(ps.isInstanceOf[One[_]], s"return value of @Parameters method is not One: $ps")
+    val ret = ps.asInstanceOf[One[_]].getOne
+    ret.getClass.getName match {
+      case "model.java.util.ArrayList" | "model.java.util.Collection" =>
+        val mToArray = ret.getClass.getMethod("toArray____Array_Ljava_lang_Object", classOf[FeatureExpr])
+        val VOfArrayOfVOfVArray = mToArray.invoke(ret, FeatureExprFactory.True)
+        assert(VOfArrayOfVOfVArray.isInstanceOf[One[_]], "return value of toArray____Array_Ljava_lang_Object is not One")
+        val arrayOfVOfVArray = VOfArrayOfVOfVArray.asInstanceOf[One[_]].getOne.asInstanceOf[Array[V[_]]]
+        arrayOfVOfVArray.map(x => x.getOne)
+      case noSupport =>
+        throw new RuntimeException(s"Unsupported return type of @Parameters: $noSupport")
     }
   }
 }
