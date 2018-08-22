@@ -39,8 +39,8 @@ object VTestStat {
 
 case class VTestStatClass(c: String) {
   private var failedMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
-  private var skippedMethods: mutable.ListBuffer[String] = mutable.ListBuffer.empty
-  private var succeededMethods: mutable.ListBuffer[String] = mutable.ListBuffer.empty
+  private var skippedMethods: mutable.Set[String] = mutable.Set()
+  private var succeededMethods: mutable.Set[String] = mutable.Set()
 
   def skipMethod(m: String): Unit = skippedMethods += m
   def succeedMethod(m: String): Unit = succeededMethods += m
