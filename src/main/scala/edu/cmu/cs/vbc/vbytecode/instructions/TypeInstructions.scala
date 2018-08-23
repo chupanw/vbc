@@ -76,13 +76,15 @@ case class InstrCHECKCAST(clsName: Owner) extends Instruction {
       InvokeDynamicUtils.invoke(VCall.smap, mv, env, loadCurrentCtx(_, env, block), "checkcast", "Ljava/lang/Object;()Ljava/lang/Object;") {
         (visitor: MethodVisitor) => {
           visitor.visitVarInsn(ALOAD, 1)  // ref
-          visitor.visitTypeInsn(CHECKCAST, toVArray(clsName).toModel)
+          if (clsName != Owner("model/java/lang/Comparable"))
+            visitor.visitTypeInsn(CHECKCAST, toVArray(clsName).toModel)
           visitor.visitInsn(ARETURN)
         }
       }
     }
     else {
-      mv.visitTypeInsn(CHECKCAST, toVArray(clsName).toModel)
+      if (clsName != Owner("model/java/lang/Comparable"))
+        mv.visitTypeInsn(CHECKCAST, toVArray(clsName).toModel)
     }
   }
 

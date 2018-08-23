@@ -904,6 +904,34 @@ public class VOps {
     public static void logSimple() {
         nSimpleInvocations += 1;
     }
+
+    public static final java.util.List<Class> unliftedCompareToList = java.util.Arrays.asList(
+            Long.class,
+            Integer.class,
+            Short.class,
+            Byte.class,
+            Boolean.class,
+            Character.class,
+            Double.class,
+            Float.class,
+            String.class
+    );
+    public static V<?> compareTo(V<?> a, V<?> b, FeatureExpr ctx) {
+        return a.sflatMap(ctx, (fe, aa) -> {
+            if (unliftedCompareToList.contains((aa.getClass()))) {
+                return b.smap(fe, bb -> ((Comparable) aa).compareTo((Comparable) bb));
+            } else {
+                try {
+                    Method m = aa.getClass().getMethod("compareTo__Ljava_lang_Object__I", V.class, FeatureExpr.class);
+                    m.setAccessible(true);
+                    return (V) m.invoke(aa, b, fe);
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("Error in compareTo");
+                }
+            }
+        });
+    }
 }
 
 class FEWrapper {

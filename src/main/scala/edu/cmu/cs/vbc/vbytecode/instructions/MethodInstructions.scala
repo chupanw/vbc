@@ -650,7 +650,12 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this)) {
-      invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
+      val lifted = liftCall(owner, name, desc)
+      if (lifted.owner == Owner("model/java/lang/Comparable") && lifted.name == MethodName("compareTo__Ljava_lang_Object__I")) {
+        loadCurrentCtx(mv, env, block)
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, name, MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
+      } else
+        invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     }
     else {
       val hasVArgs = env.getTag(this, env.TAG_HAS_VARG)
