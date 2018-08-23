@@ -70,6 +70,8 @@ case class VBCFrame(localVar: Map[Variable, FrameEntry], stack: List[FrameEntry]
       case (a: INT_TYPE, b: REF_TYPE) => (V_TYPE(false), mergedInstrs)  // possible if the same LV is used for different types
       case (a: REF_TYPE, b: INT_TYPE) => (V_TYPE(false), mergedInstrs)  // in normal cases this is not possible, but our return block could cause this to happen
       case (a: INT_TYPE, b: CHAR_TYPE) => (INT_TYPE(), mergedInstrs)  // happened in java.util.Currency
+      case (a: DOUBLE_TYPE, b: INT_TYPE) => (INT_TYPE(), v2._2) // LV is used as int and double interchangeably in EigenDecompositionTest.createOrthogonalMatrix
+      case (a: INT_TYPE, b: DOUBLE_TYPE) => (DOUBLE_TYPE(), v2._2) // LV is used as int and double interchangeably in EigenDecompositionTest.createOrthogonalMatrix
       case _ => {
         if (v1._1 == v2._1) (v1._1, mergedInstrs)
         else throw new RuntimeException("Type mismatch, old: " + v1._1 + " new: " + v2._1)
