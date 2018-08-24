@@ -174,6 +174,65 @@ case class InstrDUP2_X1() extends StackInstructions {
   }
 }
 
+/**
+  * Duplicate the top one or two operand stack values and insert two, three, or four values down.
+  *
+  * Duplicate the top two slots, and insert four slots down.
+  *
+  * The middle two slots cannot form a category 2 value.
+  *
+  * Form 1: a b c d =>  c d a b c d (DUP2_X2)
+  * Form 2: a b C   =>  C a b C     (DUP_X2)
+  * Form 3: A b c   =>  b c A b c   (DUP2_X1)
+  * Form 4: A B     =>  B A B       (DUP_X1)
+  */
+case class InstrDUP2_X2() extends StackInstructions {
+  var form: Int = -1
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {
+    mv.visitInsn(DUP2_X2)
+  }
+
+  /**
+    * Lifting means the last two slots form a long value
+    */
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitInsn(form match {
+      case 1 => DUP2_X2
+      case 2 => DUP_X2
+      case 3 => DUP2_X1
+      case 4 => DUP_X1
+    })
+  }
+
+  // To simplify lifting, we require all values to have type V
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    // we need at least two values from the operand stack
+    val (v1, prev1, frame1) = s.pop(); if (!v1.isInstanceOf[V_TYPE]) return (s, prev1)
+    val (v2, prev2, frame2) = frame1.pop(); if (!v2.isInstanceOf[V_TYPE]) return (s, prev2)
+    if (v1 == V_TYPE(true) && v2 == V_TYPE(true)) {
+      form = 4
+      (frame2.push(v1, prev1).push(v2, prev2).push(v1, prev1), Set())
+    } else if (v1 == V_TYPE(true) && v2 == V_TYPE(false)) {
+      form = 2
+      val (v3, prev3, frame3) = frame2.pop(); if (!v3.isInstanceOf[V_TYPE]) return (s, prev3)
+      assert(v3 == V_TYPE(false), "Wrong Form 2 of DUP2_X2")
+      (frame3.push(v1, prev1).push(v3, prev3).push(v2, prev2).push(v1, prev1), Set())
+    } else {
+      val (v3, prev3, frame3) = frame2.pop(); if (!v3.isInstanceOf[V_TYPE]) return (s, prev3)
+      if (v3 == V_TYPE(true)) {
+        form = 3
+        (frame3.push(v2, prev2).push(v1, prev1).push(v3, prev3).push(v2, prev2).push(v1, prev1), Set())
+      } else {
+        val (v4, prev4, frame4) = frame3.pop(); if (v4 != V_TYPE(false)) return (s, prev4)
+        form = 1
+        (frame4.push(v2, prev2).push(v1, prev1).push(v4, prev4).push(v3, prev3).push(v2, prev2).push(v1, prev1), Set())
+      }
+    }
+  }
+
+  override def doBacktrack(env: VMethodEnv): Unit = {} // do nothing
+}
+
 
 /**
   * POP instruction
