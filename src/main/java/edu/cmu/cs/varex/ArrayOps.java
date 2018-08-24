@@ -541,7 +541,7 @@ public class ArrayOps {
             return existing;
         V result;
         if (array.length == 0) {
-            result = V.one(ctx, Array.newInstance(c, 0));
+            result = V.one(ctx, Array.newInstance(c.getComponentType(), 0));
         }
         else {
             result = expandArrayElements(array, c, ctx);
