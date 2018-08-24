@@ -10,6 +10,20 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
 
+/**
+  * JUnit 4 support:
+  *   Test
+  *   Ignore
+  *   RunWith(Parameterized.class)
+  *   Parameters
+  *   Before
+  *   After
+  *
+  * JUnit 3 support:
+  *   methods starting with test
+  *   setUp
+  *   tearDown
+  */
 case class TestClass(c: Class[_]) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
@@ -80,8 +94,10 @@ case class TestClass(c: Class[_]) {
   def getTestCases: List[Method] =
     if (isJUnit3)
       c.getMethods.toList.filter(x => x.getName.startsWith("test"))
-    else
-      c.getMethods.toList.filter{x => x.isAnnotationPresent(classOf[org.junit.Test]) }
+    else {
+      val allTests = c.getMethods.toList.filter{x => x.isAnnotationPresent(classOf[org.junit.Test])}
+      allTests.filterNot(x => x.isAnnotationPresent(classOf[org.junit.Ignore]))
+    }
 
   // only public
   def getAllMethods: List[Method] = c.getMethods.toList
