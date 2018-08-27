@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc
 
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import de.fosd.typechef.featureexpr.FeatureExpr
 
 import scala.collection.mutable
 
@@ -20,7 +20,7 @@ object GlobalConfig {
   */
 object VERuntime {
   var hasVException: Boolean = false
-  var exceptionCtx: mutable.Stack[FeatureExpr] = mutable.Stack()
+  var exceptionCtx: mutable.Set[FeatureExpr] = mutable.Set()
   def init(): Unit = {
     hasVException = false
     exceptionCtx.clear
@@ -28,7 +28,7 @@ object VERuntime {
   def logVException(fe: FeatureExpr): Unit = {
     hasVException = true
     if (!fe.isTautology())
-      exceptionCtx.push(fe)
+      exceptionCtx.add(fe)
   }
 
   var classloader: Option[ClassLoader] = None
