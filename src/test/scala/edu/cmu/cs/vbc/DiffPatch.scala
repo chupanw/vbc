@@ -16,10 +16,15 @@ object DiffPatch extends App {
 
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
 
+  require(args.length == 2, s"Wrong number of arguments: ${args.length}")
+
+  val repo = args(0)
+  val versionStr = args(1)
+
   testVersion(
-    repository = "/Users/chupanw/Projects/Data/PatchStudy/Math-git/",
-    version = "Math-14f",
-    vResultsPath = "Math-14f.md"
+    repository = repo,
+    version = versionStr,
+    vResultsPath = versionStr + ".md"
   )
 
   /**
@@ -133,8 +138,14 @@ class NormalTestClass(c: Class[_], loader: TestClassLoader, vr: VResult) {
     val combos: List[(List[Field], List[Field])] = loader.explode(loader.patches.toList)
     for (p <- combos) {
 //      System.out.println(s"[INFO] Executing ${x.getName} under ${p._1.map(_.getName)}")
-      p._1.foreach(x => x.setBoolean(null, true))
-      p._2.foreach(x => x.setBoolean(null, false))
+      p._1.foreach(x => {
+        x.setAccessible(true)
+        x.setBoolean(null, true)
+      })
+      p._2.foreach(x => {
+        x.setAccessible(true)
+        x.setBoolean(null, false)
+      })
       val testObject = createObject()
       before.map(_.invoke(testObject))
       try {
