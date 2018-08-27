@@ -232,7 +232,7 @@ case class TestClass(c: Class[_]) {
   /**
     * Ensure we support all JUnit annotations in this test class
     *
-    * We support the following annotations: @Test, @Before, @After
+    * We support the following annotations: @Test, @Before, @After, @Ignore,
     *
     * @return true if only using supported annotations
     */
@@ -242,6 +242,7 @@ case class TestClass(c: Class[_]) {
         x.getAnnotation(classOf[org.junit.Test]) != null ||
         x.getAnnotation(classOf[org.junit.Before]) != null ||
         x.getAnnotation(classOf[org.junit.After]) != null ||
+        x.getAnnotation(classOf[org.junit.Ignore]) != null ||
         x.getAnnotation(classOf[Parameters]) != null
     }
   }
@@ -255,8 +256,9 @@ case class TestClass(c: Class[_]) {
     assert(ps.isInstanceOf[One[_]], s"return value of @Parameters method is not One: $ps")
     val ret = ps.asInstanceOf[One[_]].getOne
     ret.getClass.getName match {
-      case "model.java.util.ArrayList" | "model.java.util.Collection" =>
+      case "model.java.util.ArrayList" | "model.java.util.Collection" | "model.java.util.Arrays$ArrayList" =>
         val mToArray = ret.getClass.getMethod("toArray____Array_Ljava_lang_Object", classOf[FeatureExpr])
+        mToArray.setAccessible(true)
         val VOfArrayOfVOfVArray = mToArray.invoke(ret, FeatureExprFactory.True)
         assert(VOfArrayOfVOfVArray.isInstanceOf[One[_]], "return value of toArray____Array_Ljava_lang_Object is not One")
         val arrayOfVOfVArray = VOfArrayOfVOfVArray.asInstanceOf[One[_]].getOne.asInstanceOf[Array[V[_]]]
