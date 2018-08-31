@@ -148,16 +148,12 @@ trait MethodInstruction extends Instruction {
 
   def boxReturnValue(desc: MethodDesc, mv: MethodVisitor): Unit = {
     desc.getReturnTypeSort match {
-      case Type.INT =>
-        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
-      case Type.BOOLEAN =>
+      case Type.INT | Type.BOOLEAN | Type.BYTE | Type.CHAR | Type.SHORT =>
         mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
       case Type.LONG =>
         mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, MethodName("valueOf"), MethodDesc(s"(J)${TypeDesc.getLong}"), false)
       case Type.DOUBLE =>
         mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, MethodName("valueOf"), MethodDesc(s"(D)${TypeDesc.getDouble}"), false)
-      case Type.CHAR =>
-        mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
       case Type.FLOAT =>
         mv.visitMethodInsn(INVOKESTATIC, Owner.getFloat, MethodName("valueOf"), MethodDesc(s"(F)${TypeDesc.getFloat}"), false)
       case Type.OBJECT => // do nothing
