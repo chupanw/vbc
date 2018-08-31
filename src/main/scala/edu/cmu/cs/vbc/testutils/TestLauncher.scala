@@ -40,7 +40,6 @@ object TestLauncher extends App {
 //    "org.apache.commons.math3.analysis.integration.gauss.BaseRuleFactoryTest" // concurrency
 
 //    "org.apache.commons.math3.linear.CholeskyDecompositionTest"  // Array casting, [V to [[D
-//    "org.apache.commons.math3.analysis.interpolation.TricubicSplineInterpolatorTest" // Array casting, needs to expand multi-dimensional arrays
 //    "org.apache.commons.math3.distribution.fitting.MultivariateNormalMixtureExpectationMaximizationTest",
 //    "org.apache.commons.math3.stat.FrequencyTest"
 //    "org.apache.commons.math3.stat.CertifiedDataTest"
@@ -57,7 +56,6 @@ object TestLauncher extends App {
 //    "org.apache.commons.math3.random.RandomDataGeneratorTest" // DecimalFormat
 
 //    "org.apache.commons.math3.util.FastMathTest"  // too slow
-//    "org.apache.commons.math3.optimization.fitting.PolynomialFitterTest", // too slow
 //    "org.apache.commons.math3.dfp.DfpTest" // too slow + conflicting model class
 //    "org.apache.commons.math3.optim.linear.SimplexSolverTest",  // too large
 //    "org.apache.commons.math3.special.BetaTest" // method code too large
@@ -67,34 +65,23 @@ object TestLauncher extends App {
 
 //    "org.apache.commons.math3.optimization.linear.SimplexSolverTest"  // no such field
 
-//    "org.apache.commons.math3.linear.EigenDecompositionTest" // VBCAnalyzer
 //    "org.apache.commons.math3.linear.EigenSolverTest" // VBCAnalyzer
 //    "org.apache.commons.math3.linear.SingularValueDecompositionTest" // VBCAnalyzer
 
-//    "org.apache.commons.math3.linear.SparseRealVectorTest"  // assertion error
 //    "org.apache.commons.math3.linear.RealMatrixFormatTest"  // assertion error, StringBuffer
 //    "org.apache.commons.math3.linear.UnmodifiableOpenMapRealVectorTest",  // error creating test object
-//    "org.apache.commons.math3.linear.UnmodifiableArrayRealVectorTest",  // error creating test object
 //    "org.apache.commons.math3.random.RandomAdaptorTest" // assertion error
 //    "org.apache.commons.math3.random.Well19937cTest"
-
-//    "org.apache.commons.math3.stat.inference.WilcoxonSignedRankTestTest", // DUPX2
 
 //    "org.apache.commons.math3.stat.descriptive.DescriptiveStatisticsTest" // reflection related
 //    "org.apache.commons.math3.stat.descriptive.SynchronizedDescriptiveStatisticsTest"
 //    "org.apache.commons.math3.stat.data.LotteryTest"
 //    "org.apache.commons.math3.stat.data.LewTest"
 
-//    "org.apache.commons.math3.genetics.GeneticAlgorithmTestBinary"  // internal class extends Comparable
-//    "org.apache.commons.math3.genetics.ElitisticListPopulationTest"
-//    "org.apache.commons.math3.geometry.euclidean.threed.PolyhedronsSetTest" // comparable
-//    "org.apache.commons.math3.geometry.euclidean.twod.PolygonsSetTest"
-
 //    "org.apache.commons.math3.genetics.UniformCrossoverTest", // @BeforeClass
 
 //    "org.apache.commons.math3.random.SynchronizedRandomGeneratorTest",  // unknown yet
     // WIP
-//    "org.apache.commons.math3.genetics.GeneticAlgorithmTestPermutations"
 //    "org.apache.commons.math3.genetics.FitnessCachingTest"
 //    "org.apache.commons.math3.genetics.DummyBinaryChromosome"
 //    "org.apache.commons.math3.genetics.CycleCrossoverTest",
@@ -108,6 +95,16 @@ object TestLauncher extends App {
 
     // problematic
 //    "org.apache.commons.math3.util.CombinatoricsUtilsTest"
+
+    // skipping
+
+//  "org.apache.commons.math3.analysis.integration.gauss.HermiteParametricTest"
+//  "org.apache.commons.math3.analysis.integration.gauss.LegendreParametricTest"
+//  "org.apache.commons.math3.analysis.integration.gauss.LegendreHighPrecisionParametricTest"
+//  "org.apache.commons.math3.RetryRunnerTest"// @Retry
+//  "org.apache.commons.math3.fitting.GaussianFitterTest"// (same) vblock problem
+//  "org.apache.commons.math3.util.FastMathStrictComparisonTest"
+//  "org.apache.commons.math3.util.FastMathTestPerformance"//@BeforeClass
 
 //  )
 
