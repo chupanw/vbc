@@ -526,7 +526,7 @@ public class VOps {
         if (selected instanceof One) {
             return selected.getOne();
         } else {
-            throw new RuntimeException("trying to throw a choice of exceptions: " + selected);
+            return new RuntimeException("Choice of exceptions: " + selected);
         }
     }
 

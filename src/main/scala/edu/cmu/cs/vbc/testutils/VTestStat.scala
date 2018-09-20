@@ -22,6 +22,8 @@ object VTestStat {
     println("*********************************")
     classes.toList.sortWith((x, y) => x._1.compare(y._1) < 0).unzip._2.foreach(println)
     skippedClasses foreach println
+    val overallPassingCond = classes.values.map(_.getOverallPassingCondition).foldLeft(FeatureExprFactory.True)(_.and(_))
+    println("To pass all tests: " + overallPassingCond)
   }
 
   def toMarkdown(version: String, removePrefix: String): Unit = {
@@ -45,10 +47,11 @@ case class VTestStatClass(c: String) {
   def skipMethod(m: String): Unit = skippedMethods += m
   def succeedMethod(m: String): Unit = succeededMethods += m
   def fail(m: String, ctx: FeatureExpr): Unit = failedMethods.getOrElseUpdate(m, VTestStatMethod(m)) logFailingContext ctx
+  def getOverallPassingCondition: FeatureExpr = failedMethods.values.map(_.getFailingContext.not()).foldLeft(FeatureExprFactory.True)(_.and(_))
 
   override def toString: String =
     s"""
-       |$c
+       |$c pass if $getOverallPassingCondition
        |[Failed]
        |${failedMethods.toList.sortWith((x, y) => x._1.compareTo(y._1) < 0).unzip._2.mkString("\t", "\n\t", "")}
        |${if (succeededMethods.nonEmpty) "[Succeeded]" else ""}
@@ -70,6 +73,7 @@ case class VTestStatMethod(m: String) {
   private var failingCtx: FeatureExpr = FeatureExprFactory.False
 
   def logFailingContext(fe: FeatureExpr): Unit = failingCtx = failingCtx or fe
+  def getFailingContext: FeatureExpr = failingCtx
 
   override def toString: String = m + "  pass if  " + failingCtx.not()
 
