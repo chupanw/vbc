@@ -10,7 +10,7 @@ import scala.collection.mutable
 object GlobalConfig {
   val logTrace = false
   val detectComplexLoop = false
-  val printContext = true
+  val printContext = false
   val printExpandArrayWarnings = false
 }
 
