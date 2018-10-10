@@ -40,6 +40,6 @@ trait RelaunchExceptionHandler {
 case class VException(e: Throwable, ctx: FeatureExpr) extends Throwable {
   VERuntime.logVException(ctx)
 
-  override def toString: String = s"[VException $ctx]: " + e.toString + "\n" + getTracesAsString
+  override def toString: String = s"[VException ${if (GlobalConfig.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
   def getTracesAsString: String = e.getStackTrace.toList mkString("[VException]\t", "\n[VException]\t", "\n")
 }

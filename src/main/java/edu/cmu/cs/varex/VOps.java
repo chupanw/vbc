@@ -526,7 +526,10 @@ public class VOps {
         if (selected instanceof One) {
             return selected.getOne();
         } else {
-            return new RuntimeException("Choice of exceptions: " + selected);
+            if (GlobalConfig.printContext())
+                return new RuntimeException("Choice of exceptions: " + selected);
+            else
+                return new RuntimeException("Choice of exceptions, hidden");
         }
     }
 
