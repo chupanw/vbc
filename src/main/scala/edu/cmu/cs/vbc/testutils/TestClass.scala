@@ -5,7 +5,7 @@ import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.{One, V}
-import edu.cmu.cs.vbc.{VERuntime, VException}
+import edu.cmu.cs.vbc.{GlobalConfig, VERuntime, VException}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
@@ -174,7 +174,7 @@ case class TestClass(c: Class[_]) {
 
   def executeOnce(params: Option[Array[V[_]]], x: Method, context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
-    System.out.println(s"[INFO] Executing ${className}.${x.getName} under $context")
+    System.out.println(s"[INFO] Executing ${className}.${x.getName} under ${if (GlobalConfig.printContext) context else "[hidden context]"}")
     VERuntime.init()
     val testObject = createObject(params)
     before.map(_.invoke(testObject, context))
