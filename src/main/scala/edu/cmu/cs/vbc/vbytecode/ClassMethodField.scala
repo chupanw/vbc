@@ -219,7 +219,9 @@ object LocalVar {
     mv.visitVarInsn(ASTORE, env.getVarIdx(v))
   }
   def initOneNull(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
-    mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/One", "getOneNull", "()Ledu/cmu/cs/varex/V;", false)
+    mv.visitVarInsn(ALOAD, env.getVarIdx(env.ctxParameter))
+    mv.visitInsn(ACONST_NULL)
+    mv.visitMethodInsn(INVOKESTATIC, vclassname, "one", MethodDesc(s"(${fexprclasstype}Ljava/lang/Object;)$vclasstype"), false)
     storeV(mv, env, v)
   }
   def initIntZero(mv: MethodVisitor, env: VMethodEnv, v: LocalVar) = {
