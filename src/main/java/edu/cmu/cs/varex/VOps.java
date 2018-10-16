@@ -463,37 +463,37 @@ public class VOps {
         if (GlobalConfig.printContext())
             out.println(s + " [" + ctx + "]");
         else
-            out.println(s + "[hidden context]");
+            out.println(s + " [hidden context]");
     }
     public static void println(PrintStream out, int i, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(i + " [" + ctx + "]");
         else
-            out.println(i + "[hidden context]");
+            out.println(i + " [hidden context]");
     }
     public static void println(PrintStream out, double d, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(d + " [" + ctx + "]");
         else
-            out.println(d + "[hidden context]");
+            out.println(d + " [hidden context]");
     }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(o + " [" + ctx + "]");
         else
-            out.println(o + "[hidden context]");
+            out.println(o + " [hidden context]");
     }
     public static void println(PrintStream out, char c, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(c + " [" + ctx + "]");
         else
-            out.println(c + "[hidden context]");
+            out.println(c + " [hidden context]");
     }
     public static void println(PrintStream out, boolean b, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(b + " [" + ctx + "]");
         else
-            out.println(b + "[hidden context]");
+            out.println(b + " [hidden context]");
     }
     public static void println(PrintStream out, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
