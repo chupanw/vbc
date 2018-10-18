@@ -114,5 +114,5 @@ object TestLauncher extends App {
     }
 
   VTestStat.printToConsole()
-  VTestStat.toMarkdown(version, "org.apache.commons.math3.")
+//  VTestStat.toMarkdown(version, "org.apache.commons.math3.")
 }
