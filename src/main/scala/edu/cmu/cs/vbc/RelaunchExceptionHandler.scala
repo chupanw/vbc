@@ -22,8 +22,8 @@ trait RelaunchExceptionHandler {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
+            System.out.println(t)
             if (!t.ctx.equivalentTo(context)) {
-              System.out.println(t)
               val altCtx = context.and(t.ctx.not())
               executeOnce(o, x, args, altCtx)
             }
@@ -37,7 +37,7 @@ trait RelaunchExceptionHandler {
   }
 }
 
-case class VException(e: Throwable, ctx: FeatureExpr) extends Throwable {
+case class VException(e: Throwable, ctx: FeatureExpr) extends RuntimeException {
   VERuntime.logVException(ctx)
 
   override def toString: String = s"[VException ${if (GlobalConfig.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
