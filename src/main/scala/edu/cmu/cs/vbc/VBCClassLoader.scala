@@ -28,7 +28,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                      rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                      toFileDebugging: Boolean = true,
                      configFile: Option[String] = None,
-                     useModel: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     useModel: Boolean = true) extends ClassLoader(parentClassLoader) with LazyLogging {
 
   val loader = new Loader()
   if (configFile.isDefined) {
