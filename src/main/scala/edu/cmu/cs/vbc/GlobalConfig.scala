@@ -12,6 +12,17 @@ object GlobalConfig {
   val detectComplexLoop = false
   val printContext = false
   val printExpandArrayWarnings = false
+  /**
+    * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
+    *
+    * For example,
+    *   degree(A & B) = 2
+    *   degree(A & !B) = 1,
+    *   degree (A | B)  = 1,
+    *   degree((A & B) | (C & D)) = 2
+    *   degree((A & B) | C) = 1
+    */
+  val maxInteractionDegree = 5
 }
 
 

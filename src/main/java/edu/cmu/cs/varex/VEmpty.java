@@ -96,6 +96,11 @@ public class VEmpty<T> implements V<T>, Serializable {
     }
 
     @Override
+    public V<T> restrictInteractionDegree() {
+        return this;
+    }
+
+    @Override
     public int hashCode() {
         return 17;
     }

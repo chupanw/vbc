@@ -155,4 +155,12 @@ public class One<T> implements V<T>, Serializable {
     public static V<?> getOneNull() {
         return oneNull;
     }
+
+    @Override
+    public V<T> restrictInteractionDegree() {
+        if (V.isDegreeTooHigh(configSpace))
+            return VEmpty.instance();
+        else
+            return this;
+    }
 }

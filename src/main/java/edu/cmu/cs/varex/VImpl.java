@@ -42,6 +42,18 @@ class VImpl<T> implements V<T>, Serializable {
         assert checkInvariant() : "invariants violated";
     }
 
+
+    @Override
+    public V<T> restrictInteractionDegree() {
+        Map<T, FeatureExpr> results = new HashMap<>();
+        for (Map.Entry<T, FeatureExpr> entry : values.entrySet()) {
+            if (entry.getValue().isSatisfiable() && !V.isDegreeTooHigh(entry.getValue())) {
+                results.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return createV(results);
+    }
+
     //invariant: nonempty, all FeatureExpr together yield true
     private final Map<T, FeatureExpr> values;
 
@@ -126,7 +138,9 @@ class VImpl<T> implements V<T>, Serializable {
     private static <U> void addVToMap(Map<U, FeatureExpr> result, FeatureExpr ctx, @Nonnull V<? extends U> u) {
         assert u != null;
         assert (u instanceof One) || (u instanceof VImpl) : "unexpected V value: " + u;
-        if (u instanceof One)
+        if (u instanceof VEmpty)
+            return;
+        else if (u instanceof One)
             put(result, ((One<U>) u).value, VCache.and(ctx, ((One<U>) u).configSpace));
         else
             for (HashMap.Entry<U, FeatureExpr> ee : ((VImpl<U>) u).values.entrySet()) {
