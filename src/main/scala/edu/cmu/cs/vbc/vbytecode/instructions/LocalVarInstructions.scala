@@ -46,7 +46,7 @@ abstract class StoreInstruction(val v: Variable) extends Instruction {
         loadV(mv, env, v)
       }
       callVCreateChoice(mv)
-      mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
+//      mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
       storeV(mv, env, v)
     }
     else {

@@ -119,7 +119,7 @@ class VImpl<T> implements V<T>, Serializable {
             assert u != null;
             addVToMap(result, e.getValue(), u);
         }
-        return createV(result);
+        return createV(result).restrictInteractionDegree();
     }
 
     @Override
@@ -131,7 +131,7 @@ class VImpl<T> implements V<T>, Serializable {
             assert u != null;
             addVToMap(result, e.getValue(), u);
         }
-        return createV(result);
+        return createV(result).restrictInteractionDegree();
     }
 
 

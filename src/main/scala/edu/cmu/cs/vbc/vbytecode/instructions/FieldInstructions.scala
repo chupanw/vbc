@@ -108,7 +108,7 @@ case class InstrPUTSTATIC(owner: Owner, name: FieldName, desc: TypeDesc) extends
         mv.visitInsn(SWAP)
         mv.visitFieldInsn(GETSTATIC, owner, name, vclasstype)
         callVCreateChoice(mv)
-        mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
+//        mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
         mv.visitFieldInsn(PUTSTATIC, owner, name, "Ledu/cmu/cs/varex/V;")
       }
       else
@@ -229,7 +229,7 @@ case class InstrPUTFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         //        mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/Object;)V", false)
 
         // finally put the new variational value (`this` is not variational here)
-        mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
+//        mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "restrictInteractionDegree", s"()$vclasstype", true)
         mv.visitFieldInsn(PUTFIELD, owner, name, "Ledu/cmu/cs/varex/V;") // stack: ...
 
       }
