@@ -145,14 +145,23 @@ case class VTestStatMethod(m: String) {
   def getPassingContextExcludingHighD: FeatureExpr = restrictStartingContext(failingCtx.not())
   def getPassingContext: FeatureExpr = failingCtx.not()
 
+  def oneSolution(fe: FeatureExpr): String = {
+    val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
+    if (hasLDSolution)
+      s" pass if, for example : ${V.getOneLowDegreeSolution(fe)}\n"
+    else
+      s" cannot pass with ${GlobalConfig.maxInteractionDegree} mutations\n"
+  }
+
   /**
     * In case there are too many mutations, we only output if there exists solutions that are
     * low-degree interactions
     */
   def print2Console(): Unit= {
     val x = failingCtx.not()
-    val msg = (if (x.isContradiction() || V.isDegreeTooHigh(x)) s" has no " else " has ") + s"solutions with degree lower than ${GlobalConfig.maxInteractionDegree}"
+//    val msg = (if (x.isContradiction() || V.isDegreeTooHigh(x)) s" has no " else " has ") + s"solutions with degree lower than ${GlobalConfig.maxInteractionDegree}"
 //    val msg = " pass if " + failingCtx.not()
+    val msg = oneSolution(failingCtx.not())
     println("\t" + m + msg)
   }
 
