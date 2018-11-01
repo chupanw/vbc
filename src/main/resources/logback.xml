@@ -6,6 +6,21 @@
         </encoder>
     </appender>
 
+    <timestamp key="bySecond" datePattern="yyyyMMdd@HHmmss"/>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>genprog-${bySecond}.log</file>
+        <append>true</append>
+        <immediateFlush>true</immediateFlush>
+        <encoder>
+            <pattern>%msg %n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="genprog" additivity="false">
+        <level>INFO</level>
+        <appender-ref ref="FILE"/>
+    </logger>
+
     <root level="ERROR">
         <appender-ref ref="STDOUT"/>
     </root>

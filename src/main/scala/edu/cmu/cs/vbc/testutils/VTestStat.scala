@@ -6,27 +6,42 @@ import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, SingleFeatureExpr}
 import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc.GlobalConfig
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
 object VTestStat {
   private val skippedClasses = mutable.ListBuffer[String]()
   private val classes = mutable.HashMap[String, VTestStatClass]()
+  private val genprogLogger = LoggerFactory.getLogger("genprog")
+  var hasOverallSolution: Boolean = false
 
   def skipClass(c: String): Unit = skippedClasses += c
   def skip(c: String, m: String): Unit = classes.getOrElseUpdate(c, VTestStatClass(c)).skipMethod(m)
   def succeed(c: String, m: String): Unit = classes.getOrElseUpdate(c, VTestStatClass(c)).succeedMethod(m)
   def fail(c: String, m: String, ctx: FeatureExpr): Unit = classes.getOrElseUpdate(c, VTestStatClass(c)).fail(m, ctx)
 
+  def clear(): Unit = {
+    skippedClasses.clear()
+    classes.clear()
+    hasOverallSolution = false
+  }
+
+  def printlnAndLog(s: String): Unit = {
+    println(s)
+    genprogLogger.info(s)
+  }
+
   def printToConsole(): Unit = {
-    println()
-    println("*********************************")
-    println("*          Test Report          *")
-    println("*********************************")
+    printlnAndLog("")
+    printlnAndLog("*********************************")
+    printlnAndLog("*          Test Report          *")
+    printlnAndLog("*********************************")
     classes.toList.sortWith((x, y) => x._1.compare(y._1) < 0).unzip._2.foreach(_.print2Console())
-    skippedClasses foreach println
+    skippedClasses foreach printlnAndLog
     val overallPassingCond = classes.values.map(_.getOverallPassingCondition).foldLeft(FeatureExprFactory.True)(_.and(_))
-    printOneSolution(overallPassingCond)
+//    printOneSolution(overallPassingCond)
+    printAllSolutions(overallPassingCond)
   }
 
   def toMarkdown(version: String, removePrefix: String): Unit = {
@@ -50,13 +65,23 @@ object VTestStat {
   def printOneSolution(fe: FeatureExpr): Unit = {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     if (hasLDSolution)
-      println(s"All test cases can pass if, for example, : ${V.getOneLowDegreeSolution(fe)}")
+      printlnAndLog(s"All test cases can pass if, for example, : ${V.getOneLowDegreeSolution(fe)}")
     else
-      println(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
+      printlnAndLog(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
+  }
+
+  def printAllSolutions(fe: FeatureExpr): Unit = {
+    val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
+    hasOverallSolution = hasLDSolution
+    if (hasLDSolution)
+      printlnAndLog(s"All test cases can pass if: ${V.getAllLowDegreeSolutions(fe)}")
+    else
+      printlnAndLog(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
   }
 }
 
 case class VTestStatClass(c: String) {
+  import VTestStat.printlnAndLog
   private var failedMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
   private var skippedMethods: mutable.Set[String] = mutable.Set()
   private var succeededMethods: mutable.Set[String] = mutable.Set()
@@ -83,9 +108,9 @@ case class VTestStatClass(c: String) {
   def printOneSolution(fe: FeatureExpr): Unit = {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     if (hasLDSolution)
-      println(s"$c can be fixed if, for example : ${V.getOneLowDegreeSolution(fe)}\n")
+      printlnAndLog(s"$c can be fixed if, for example : ${V.getOneLowDegreeSolution(fe)}\n")
     else
-      println(s"$c cannot be fixed with ${GlobalConfig.maxInteractionDegree} mutations\n")
+      printlnAndLog(s"$c cannot be fixed with ${GlobalConfig.maxInteractionDegree} mutations\n")
   }
 
   /**
@@ -96,16 +121,16 @@ case class VTestStatClass(c: String) {
     *   For all test cases, get one lower-degree solution
     */
   def print2Console (): Unit = {
-    println(c)
-    println("[Failed]")
+    printlnAndLog(c)
+    printlnAndLog("[Failed]")
     failedMethods.toList.sortWith((x, y) => x._1.compareTo(y._1) < 0).unzip._2.foreach(_.print2Console)
     if (succeededMethods.exists(x => !failedMethods.contains(x))) {
-      println("[Succeeded]")
-      println(succeededMethods.filter(x => !failedMethods.contains(x)).mkString("\t", "\n\t", ""))
+      printlnAndLog("[Succeeded]")
+      printlnAndLog(succeededMethods.filter(x => !failedMethods.contains(x)).mkString("\t", "\n\t", ""))
     }
     if (skippedMethods.nonEmpty) {
-      println("[Skipped]")
-      println(skippedMethods.mkString("\t", "\n\t", ""))
+      printlnAndLog("[Skipped]")
+      printlnAndLog(skippedMethods.mkString("\t", "\n\t", ""))
     }
     printOneSolution(getOverallPassingCondition())
   }
@@ -158,11 +183,12 @@ case class VTestStatMethod(m: String) {
     * low-degree interactions
     */
   def print2Console(): Unit= {
+    import VTestStat.printlnAndLog
     val x = failingCtx.not()
 //    val msg = (if (x.isContradiction() || V.isDegreeTooHigh(x)) s" has no " else " has ") + s"solutions with degree lower than ${GlobalConfig.maxInteractionDegree}"
 //    val msg = " pass if " + failingCtx.not()
     val msg = oneSolution(failingCtx.not())
-    println("\t" + m + msg)
+    printlnAndLog("\t" + m + msg)
   }
 
   /**

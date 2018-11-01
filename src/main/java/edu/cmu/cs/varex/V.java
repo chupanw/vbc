@@ -301,4 +301,26 @@ public interface V<T> {
         }
         return enabled.toString();
     }
+
+    static String getAllLowDegreeSolutions(FeatureExpr fe) {
+        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+        List<String> enabled = new LinkedList<>();
+        StringBuilder sb = new StringBuilder();
+        for (Object sat : sats) {
+            enabled.clear();
+            int current = 0;
+            byte[] bytes = (byte[]) sat;
+            for (int i = 0; i < bytes.length; i++) {
+                if (bytes[i] > 0) current++;
+            }
+            if (current <= GlobalConfig.maxInteractionDegree()) {
+                for (int i = 0; i < bytes.length; i++) {
+                    if (bytes[i] > 0) enabled.add(FExprBuilder.lookupFeatureName(i));
+                }
+                if (sb.toString().equals("")) sb.append(enabled.toString());
+                else sb.append(" or " + enabled.toString());
+            }
+        }
+        return sb.toString();
+    }
 }
