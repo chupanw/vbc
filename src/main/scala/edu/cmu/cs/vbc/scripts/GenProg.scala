@@ -1,0 +1,139 @@
+package edu.cmu.cs.vbc.scripts
+
+import java.io.{File, FileWriter}
+
+import edu.cmu.cs.varex.VCache
+import edu.cmu.cs.vbc.VBCClassLoader
+import edu.cmu.cs.vbc.testutils.{TestLauncher, VTestStat}
+import org.slf4j.LoggerFactory
+
+/**
+  * Automate the process of using VarexC to find GenProg patches
+  *
+  * To setup a project
+  *   1. Record project name and main class name in the programs field
+  *   2. Create pos.tests and neg.tests for the project
+  *   3. Create the RelevantTest file for VarexC
+  *   4. Copy varexc.jar and modify the build file
+  */
+object GenProg extends App {
+
+  val tmpConfigPath = "/tmp/tmp.config"
+  val maxAttempts: Int = 10
+  /**
+    * Tuples of project path (e.g., median/0cea42f9/003/) and name of the main class
+    */
+  val programs: List[(String, String)] = List(
+//    ("median/0cea42f9/003/", "introclassJava.median_0cea42f9_003")  // fixed
+//    ("median/0cdfa335/003/", "introclassJava.median_0cdfa335_003")  // fixed
+//    ("median/15cb07a7/003/", "introclassJava.median_15cb07a7_003")  // filtered, no positive tests
+//    ("median/1b31fa5c/000/", "introclassJava.median_1b31fa5c_000")  // fixed by GenProg
+//    ("median/1bf73a9c/000/", "introclassJava.median_1bf73a9c_000"), // filtered, no positive tests
+//    ("median/1bf73a9c/003/", "introclassJava.median_1bf73a9c_003")  // fixed by GenProg
+//    ("median/1c2bb3a4/000/", "introclassJava.median_1c2bb3a4_000")  // todo try harder
+//    ("median/2c155667/000/", "introclassJava.median_2c155667_000")  // todo try harder
+//    ("median/30074a0e/000/", "introclassJava.median_30074a0e_000"), // filtered, no positive tests
+    ("median/317aa705/000/", "introclassJava.median_317aa705_000"),
+    ("median/317aa705/002/", "introclassJava.median_317aa705_002"),
+    ("median/317aa705/003/", "introclassJava.median_317aa705_003")
+//    ("median/36d8008b/000/", "introclassJava.median_36d8008b_000"),
+//    ("median/3b2376ab/003/", "introclassJava.median_3b2376ab_003"),
+//    ("median/3b2376ab/006/", "introclassJava.median_3b2376ab_006"),
+//    ("median/3cf6d33a/007/", "introclassJava.median_3cf6d33a_007"),
+//    ("median/48b82975/000/", "introclassJava.median_48b82975_000"),
+//    ("median/68eb0bb0/000/", "introclassJava.median_68eb0bb0_000"),
+//    ("median/6aaeaf2f/000/", "introclassJava.median_6aaeaf2f_000"),
+//    ("median/6e464f2b/003/", "introclassJava.median_6e464f2b_003")
+  )
+  val logger = LoggerFactory.getLogger("genprog")
+
+  programs.foreach(pair => go(pair._1, pair._2, 0))
+
+
+  def go(project: String, mainClass: String, i: Int): Unit = {
+    val seed = System.currentTimeMillis()
+    logger.info("Cleaning up...")
+    cleanUp()
+    logger.info(s"Project: $project")
+    logger.info(s"Attempt: $i")
+    logger.info(s"Seed: $seed")
+    logger.info("Generating config file for GenProg")
+    generateGenProgConfigFile(project, mainClass, seed)
+    logger.info("Running GenProg...")
+    runGenProg()
+    logger.info("Running VarexC")
+    val succeeded = runVarexC(project)
+    if (!succeeded && i < maxAttempts) go(project, mainClass, i + 1)
+  }
+
+  def cleanUp(): Unit = {
+    VTestStat.clear()
+    VCache.clearAll()
+    VBCClassLoader.clearCache()
+  }
+
+  def runGenProg(): Unit = {
+    import scala.sys.process._
+    val baseDir = "/Users/chupanw/Projects/genprog4java"
+    val serCache = new File("testcache.ser")
+    assert(!serCache.exists() || serCache.delete() == true)
+    val jar = baseDir + "/target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
+    val jvmOps = "-ea -Dlog4j.configuration=/Users/chupanw/Projects/genprog4java/src/log4j.properties"
+    assert(s"java $jvmOps -jar $jar $tmpConfigPath".! == 0)
+  }
+
+  def runVarexC(project: String): Boolean = {
+    import scala.sys.process._
+    def getLastVariant(path: String): File = {
+      val dir = new File(path)
+      dir.listFiles().filter(
+        x => x.isDirectory && x.getName.startsWith("variant")
+      ).sortWith((x, y) => x.getName.substring("variant".length).toInt < y.getName.substring("variant".length).toInt).last
+    }
+    // copy source files to the working directory
+    val variantsPath = s"/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}tmp/"
+    val destProject = s"/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/${project}"
+    val mergedDir = getLastVariant(variantsPath).getAbsolutePath
+    s"cp -r $mergedDir/introclassJava ${destProject}src/main/java/".!
+    s"cp -r $mergedDir/varexc ${destProject}src/main/java/".!
+    try {
+      Process(Seq("mvn", "test"), new File(destProject)).lineStream.foreach(println)
+    } catch {
+      case x: RuntimeException if x.getMessage.contains("Nonzero exit code") => // we expect maven test to fail
+    }
+    val args = destProject.splitAt(destProject.init.lastIndexOf('/'))
+    TestLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
+    VTestStat.hasOverallSolution
+  }
+
+  def generateGenProgConfigFile(project: String, mainClass: String, seed: Long): Unit = {
+    val template =
+      s"""
+        |javaVM = /usr/bin/java
+        |popsize = 150
+        |seed = $seed
+        |classTestFolder = target/test-classes
+        |workingDir = /Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/$project
+        |outputDir = /Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}tmp
+        |cleanUpVariants = true
+        |libs=/Users/chupanw/Projects/genprog4java/lib/hamcrest-core-1.3.jar:/Users/chupanw/Projects/genprog4java/lib/junit-4.12.jar:/Users/chupanw/Projects/genprog4java/lib/junittestrunner.jar:/Users/chupanw/Projects/genprog4java/lib/varexc.jar
+        |sanity = yes
+        |sourceDir = src/main/java
+        |positiveTests = /Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}pos.tests
+        |negativeTests = /Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}neg.tests
+        |jacocoPath = /Users/chupanw/Projects/Data/PatchStudy/genprog4java/lib/jacocoagent.jar
+        |testClassPath=/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}target/test-classes/
+        |testGranularity = method
+        |targetClassName = $mainClass
+        |sourceVersion=1.8
+        |generations=1
+        |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
+        |regenPaths = true
+      """.stripMargin
+
+    val writer = new FileWriter(new File(tmpConfigPath))
+    writer.write(template)
+    writer.close()
+  }
+}
+
