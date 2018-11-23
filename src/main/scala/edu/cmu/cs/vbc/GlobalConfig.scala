@@ -22,7 +22,7 @@ object GlobalConfig {
     *   degree((A & B) | (C & D)) = 2
     *   degree((A & B) | C) = 1
     */
-  val maxInteractionDegree = 5
+  val maxInteractionDegree = 1000
 }
 
 

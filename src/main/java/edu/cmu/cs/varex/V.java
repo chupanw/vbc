@@ -264,18 +264,19 @@ public interface V<T> {
     V<T> restrictInteractionDegree();
 
     static boolean isDegreeTooHigh(FeatureExpr fe) {
-        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-        if (sats.size() == 0) throw new RuntimeException("Not satisfiable: " + fe);
-        for (Object sat : sats) {
-            int current = 0;
-            byte[] bytes = (byte[]) sat;
-            for (int i = 0; i < bytes.length; i++) {
-                if (bytes[i] > 0) current++;
-            }
-            if (current <= GlobalConfig.maxInteractionDegree())
-                return false;
-        }
-        return true;
+        return false;
+//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+//        if (sats.size() == 0) throw new RuntimeException("Not satisfiable: " + fe);
+//        for (Object sat : sats) {
+//            int current = 0;
+//            byte[] bytes = (byte[]) sat;
+//            for (int i = 0; i < bytes.length; i++) {
+//                if (bytes[i] > 0) current++;
+//            }
+//            if (current <= GlobalConfig.maxInteractionDegree())
+//                return false;
+//        }
+//        return true;
     }
 
     /**

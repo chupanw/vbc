@@ -20,6 +20,8 @@ public class VCache {
 
     /**
      * An attempt to clear bdd cache in the bdd library between test cases
+     *
+     * TODO: try to clear the bddnodes array as well, that's the memory bottleneck
      */
     public static void clearAll() {
         for (BDD bdd : isSatCache.keySet()) {
