@@ -35,7 +35,7 @@ object GenProg extends App {
 //    ("median/30074a0e/000/", "introclassJava.median_30074a0e_000"), // filtered, no positive tests
 //    ("median/317aa705/000/", "introclassJava.median_317aa705_000"), // todo scalability, too many ors
     ("median/317aa705/002/", "introclassJava.median_317aa705_002"),
-    ("median/317aa705/003/", "introclassJava.median_317aa705_003")
+    ("median/317aa705/003/", "introclassJava.median_317aa705_003"),
 //    ("median/36d8008b/000/", "introclassJava.median_36d8008b_000"),
 //    ("median/3b2376ab/003/", "introclassJava.median_3b2376ab_003"),
 //    ("median/3b2376ab/006/", "introclassJava.median_3b2376ab_006"),

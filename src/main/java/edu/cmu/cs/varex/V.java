@@ -264,18 +264,20 @@ public interface V<T> {
     V<T> restrictInteractionDegree();
 
     static boolean isDegreeTooHigh(FeatureExpr fe) {
-        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-        if (sats.size() == 0) throw new RuntimeException("Not satisfiable: " + fe);
-        for (Object sat : sats) {
-            int current = 0;
-            byte[] bytes = (byte[]) sat;
-            for (int i = 0; i < bytes.length; i++) {
-                if (bytes[i] > 0) current++;
-            }
-            if (current <= GlobalConfig.maxInteractionDegree())
-                return false;
-        }
-        return true;
+//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+//        if (sats.size() == 0) throw new RuntimeException("Not satisfiable: " + fe);
+//        for (Object sat : sats) {
+//            int current = 0;
+//            byte[] bytes = (byte[]) sat;
+//            for (int i = 0; i < bytes.length; i++) {
+//                if (bytes[i] > 0) current++;
+//            }
+//            if (current <= GlobalConfig.maxInteractionDegree())
+//                return false;
+//        }
+//        return true;
+//        return !((BDDFeatureExpr) fe).bdd().minsat(GlobalConfig.maxInteractionDegree());
+        return false;
     }
 
     /**
@@ -284,7 +286,8 @@ public interface V<T> {
      * Ideally we should get the minimal solution from BDD directly
      */
     static String getOneLowDegreeSolution(FeatureExpr fe) {
-        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
         List<String> enabled = new LinkedList<>();
         for (Object sat : sats) {
             int current = 0;
@@ -303,7 +306,8 @@ public interface V<T> {
     }
 
     static String getAllLowDegreeSolutions(FeatureExpr fe) {
-        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
         List<String> enabled = new LinkedList<>();
         StringBuilder sb = new StringBuilder();
         for (Object sat : sats) {
