@@ -22,21 +22,6 @@ public class VCache {
      * An attempt to clear bdd cache in the bdd library between test cases
      */
     public static void clearAll() {
-        for (BDD bdd : isSatCache.keySet()) {
-            try {
-                if (bdd.nodeCount() > 2) bdd.free();
-            } catch (BDDException ignored) {}
-        }
-        for (BDD bdd : notCache.keySet()) {
-            try {
-                if (bdd.nodeCount() > 2) bdd.free();
-            } catch (BDDException ignored) {}
-        }
-        for (BDD bdd : andCache.keySet()) {
-            try {
-                if (bdd.nodeCount() > 2) bdd.free();
-            } catch (BDDException ignored) {}
-        }
         isSatCache.clear();
         andCache.clear();
         notCache.clear();
