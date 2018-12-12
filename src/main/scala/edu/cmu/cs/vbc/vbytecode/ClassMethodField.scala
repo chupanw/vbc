@@ -568,7 +568,7 @@ case class VBCFieldNode(
   }
 
   def hasConditionalAnnotation() =
-    (visibleAnnotations ++ invisibleAnnotations).exists(_.desc == "Ledu/cmu/cs/varex/annotation/VConditional;")
+    (visibleAnnotations ++ invisibleAnnotations).exists(x => x.desc == "Ledu/cmu/cs/varex/annotation/VConditional;" || x.desc == "Lgov/nasa/jpf/annotation/Conditional;")
 
   def isStatic: Boolean = (access & ACC_STATIC) != 0
 
