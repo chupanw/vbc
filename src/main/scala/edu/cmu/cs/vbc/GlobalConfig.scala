@@ -12,6 +12,8 @@ object GlobalConfig {
   val detectComplexLoop = false
   val printContext = false
   val printExpandArrayWarnings = false
+  val printTestResults = false
+  val writeBDDs = true
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
     *

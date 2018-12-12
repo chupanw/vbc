@@ -1,7 +1,8 @@
 package edu.cmu.cs.vbc.testutils
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.vbc.VERuntime
+import edu.cmu.cs.vbc.{GlobalConfig, VERuntime}
+
 import scala.io.Source._
 
 /**
@@ -113,6 +114,6 @@ object TestLauncher extends App {
       testClass.runTests()
     }
 
-  VTestStat.printToConsole()
+  if (GlobalConfig.printTestResults) VTestStat.printToConsole()
 //  VTestStat.toMarkdown(version, "org.apache.commons.math3.")
 }

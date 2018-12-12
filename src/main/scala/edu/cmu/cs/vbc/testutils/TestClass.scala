@@ -1,14 +1,18 @@
 package edu.cmu.cs.vbc.testutils
 
+import java.io.{BufferedWriter, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 
+import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, FExprBuilder}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.{One, V}
 import edu.cmu.cs.vbc.{GlobalConfig, VERuntime, VException}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
+
+import scala.collection.mutable
 
 /**
   * JUnit 4 support:
@@ -163,16 +167,24 @@ case class TestClass(c: Class[_]) {
     require(checkAnnotations, s"Unsupported annotation in $c")
     getTestCases.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     if (!isParameterized)
-      for (x <- getTestCases if !isSkipped(x)) executeOnce(None, x, FeatureExprFactory.True)
+      for (x <- getTestCases if !isSkipped(x)) {
+        val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
+        executeOnce(None, x, FeatureExprFactory.True, failingConditions)
+        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, x.getName)
+      }
     else
       for (
         x <- getParameters;
         y <- getTestCases if !isSkipped(y)
-      ) executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True)
+      ) {
+        val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
+        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, failingConditions)
+        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, y.getName)
+      }
 
   }
 
-  def executeOnce(params: Option[Array[V[_]]], x: Method, context: FeatureExpr): Unit = {
+  def executeOnce(params: Option[Array[V[_]]], x: Method, context: FeatureExpr, accFailingCtx: mutable.ArrayBuffer[FeatureExpr]): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${className}.${x.getName} under ${if (GlobalConfig.printContext) context else "[hidden context]"}")
     VERuntime.init()
@@ -182,7 +194,10 @@ case class TestClass(c: Class[_]) {
       x.invoke(testObject, context)
       if (VERuntime.hasVException) {
         val expCtx = VERuntime.exceptionCtx.clone()
-        expCtx.foreach(fe => executeOnce(params, x, context.and(fe.not())))
+        expCtx.foreach(fe => {
+          accFailingCtx += fe
+          executeOnce(params, x, context.and(fe.not()), accFailingCtx)
+        })
       }
       VTestStat.succeed(className, x.getName)
     } catch {
@@ -193,11 +208,15 @@ case class TestClass(c: Class[_]) {
               System.out.println(t)
             if (!t.ctx.equivalentTo(context)) {
               val altCtx = context.and(t.ctx.not())
-              executeOnce(params, x, altCtx)
+              accFailingCtx += t.ctx
+              executeOnce(params, x, altCtx, accFailingCtx)
             }
             else if (VERuntime.hasVException) {
               val expCtx = VERuntime.exceptionCtx.clone()
-              expCtx.foreach(fe => executeOnce(params, x, context.and(fe.not())))
+              expCtx.foreach(fe => {
+                accFailingCtx += fe
+                executeOnce(params, x, context.and(fe.not()), accFailingCtx)
+              })
             }
             VTestStat.succeed(className, x.getName)
           case t =>
@@ -265,6 +284,17 @@ case class TestClass(c: Class[_]) {
         arrayOfVOfVArray.map(x => x.getOne)
       case noSupport =>
         throw new RuntimeException(s"Unsupported return type of @Parameters: $noSupport")
+    }
+  }
+
+  def writeBDD(failingCond: FeatureExpr, cName: String, mName: String): Unit = {
+    if (GlobalConfig.writeBDDs) {
+      val originMethodName = mName.substring(0, mName.indexOf('_'))
+      val fileName = "test." + cName + "." + originMethodName + ".txt"
+
+      val bddFactory = FExprBuilder.bddFactory
+      val writer = new FileWriter(fileName)
+      bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd);
     }
   }
 }
