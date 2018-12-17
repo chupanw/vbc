@@ -189,8 +189,8 @@ case class TestClass(c: Class[_]) {
     System.out.println(s"[INFO] Executing ${className}.${x.getName} under ${if (GlobalConfig.printContext) context else "[hidden context]"}")
     VERuntime.init()
     val testObject = createObject(params)
-    before.map(_.invoke(testObject, context))
     try {
+      before.map(_.invoke(testObject, context))
       x.invoke(testObject, context)
       if (VERuntime.hasVException) {
         val expCtx = VERuntime.exceptionCtx.clone()
@@ -200,6 +200,7 @@ case class TestClass(c: Class[_]) {
         })
       }
       VTestStat.succeed(className, x.getName)
+      after.map(_.invoke(testObject, context))
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
@@ -227,7 +228,6 @@ case class TestClass(c: Class[_]) {
       case e =>
         throw new RuntimeException(s"Expecting InvocationTargetException, but found $e")
     }
-    after.map(_.invoke(testObject, context))
   }
 
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
