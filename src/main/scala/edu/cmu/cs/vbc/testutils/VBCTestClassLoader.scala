@@ -11,10 +11,11 @@ import org.objectweb.asm.{ClassReader, ClassWriter}
 
 class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
-                         testClasspath: String) extends VBCClassLoader(parentClassLoader = parent, configFile = Some("intro-class.conf")) {
+                         testClasspath: String,
+                         config: Option[String] = Some("intro-class.conf")) extends VBCClassLoader(parentClassLoader = parent, configFile = config) {
 
-  require(mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
-  require(testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
+  require(mainClasspath.endsWith(".jar") || mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
+  require(testClasspath.endsWith(".jar") || testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
   private val urlClassLoader = new URLClassLoader(Array(mainClasspath, testClasspath).map(new File(_).toURI.toURL))
 
   override def findClass(name: String): Class[_] = {
