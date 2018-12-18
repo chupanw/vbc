@@ -194,17 +194,18 @@ object Rewrite {
             val handler = VBCHandler("edu/cmu/cs/vbc/VException", currentIdx, Nil, Nil)
             val firstBlock = Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(currentIdx + 1))
             val originHandlers = b.exceptionHandlers.toList
-            val hIdx = originHandlers.indexOf(h)
+            // remove the last one, which should be Throwable and the VException, the rest should be the original exceptions being handled
+            val originHandlersWithExceptions = originHandlers.init.filter(_.exceptionType != "edu/cmu/cs/vbc/VException")
             // leave one actual handler for the last GOTO
-            val jumpBlocks: List[Block] = originHandlers.take(hIdx - 1).map(x => {
+            val jumpBlocks: List[Block] = originHandlersWithExceptions.init.map(x => {
               Block(List(
                 InstrDUP(),
                 InstrLDC(x.exceptionType),
                 InstrINVOKESTATIC(Owner.getVOps, MethodName("isTypeOf"), MethodDesc("(Ledu/cmu/cs/vbc/VException;Ljava/lang/String;)Z"), itf = false),
                 InstrIFNE(x.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true
               )
-            }) ::: Block(List(InstrGOTO(originHandlers(hIdx - 1).handlerBlockIdx)), Nil, Nil, shouldJumpBack = true) :: Nil
-            currentIdx += hIdx + 1
+            }) ::: Block(List(InstrGOTO(originHandlersWithExceptions.last.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true) :: Nil
+            currentIdx += originHandlersWithExceptions.size + 1
             (handler, firstBlock :: jumpBlocks)
           }
         }

@@ -128,10 +128,13 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
           if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.toList))
       assume(hs.last.exceptionType == "java/lang/Throwable")
       val vExp = VBCHandler("edu/cmu/cs/vbc/VException", -1, Nil, Nil)  // this will get translated in Rewrite.addFakeHandlerBlocks()
+      val hasException = hs.init.exists(_.exceptionType == "java/lang/Exception")
+      val hsInitNoException = hs.init.filter(_.exceptionType != "java/lang/Exception")
+      val hsInitException = hs.init.filter(_.exceptionType == "java/lang/Exception")
       // assuming the last one is the one we added to catch all exceptions
       // null is possible if using synchronization or finally
       if (hs.size > 1 && !hs.exists(x => x.exceptionType == null))
-        hs.init ::: vExp :: hs.last :: Nil
+        hsInitNoException ::: vExp :: hsInitException ::: hs.last :: Nil
       else
         hs
     }
