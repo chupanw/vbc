@@ -685,7 +685,11 @@ public class VOps {
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
-            e.printStackTrace();
+            if (e.getCause() instanceof VException)
+                throw new VException(new InvocationTargetException(((VException) e.getCause()).e()), ((VException) e.getCause()).ctx());
+            else {
+                e.printStackTrace();
+            }
         }
         throw new RuntimeException("Error in invoke");
     }
