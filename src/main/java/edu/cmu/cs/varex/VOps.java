@@ -639,10 +639,10 @@ public class VOps {
         StringBuilder sb = new StringBuilder(name);
         sb.append("__");
         for (int i = 0; i < parameters.length; i++) {
-            sb.append("L" + parameters[i].getCanonicalName().replace('.', '_') + "_");
+            sb.append(encodeParameter(parameters[i]) + "_");
         }
         String prefix = sb.toString();
-        Method[] allMethods = clazz.getMethods();
+        Method[] allMethods = clazz.getDeclaredMethods();
         Method res = null;
         for (int i = 0; i < allMethods.length; i++) {
             if (allMethods[i].getName().startsWith(prefix)) {
@@ -659,7 +659,22 @@ public class VOps {
         }
     }
 
-    public static Object invoke(Method m, Object obj, Object[] parameters, FeatureExpr ctx) {
+    static String encodeParameter(Class p) {
+        switch(p.getCanonicalName()) {
+            case "int": return "I";
+            case "byte": return "B";
+            case "short": return "S";
+            case "long": return "J";
+            case "char": return "C";
+            case "float": return "F";
+            case "double": return "D";
+            case "boolean": return "Z";
+            default:
+                return "L" + p.getCanonicalName().replace('.', '_');
+        }
+    }
+
+    public static Object invoke(Method m, Object obj, Object[] parameters, FeatureExpr ctx) throws Throwable {
         Object[] newParameters = new Object[parameters.length + 1];
         for (int i = 0; i < parameters.length; i++) {
             newParameters[i] = V.one(ctx, parameters[i]);
