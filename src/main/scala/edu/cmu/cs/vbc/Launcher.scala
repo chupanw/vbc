@@ -30,7 +30,7 @@ object VBCLauncher extends RelaunchExceptionHandler {
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
     invokeMain(cls, args)
-        if (liftBytecode) Statistics.printStatistics()
+//        if (liftBytecode) Statistics.printStatistics()
 //    Profiler.report()
   }
 
