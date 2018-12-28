@@ -74,7 +74,7 @@ object VTestStat {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     hasOverallSolution = hasLDSolution
     if (hasLDSolution)
-      printlnAndLog(s"All test cases can pass if: ${V.getAllLowDegreeSolutions(fe)}")
+      printlnAndLog(s"All test cases can pass if: ${V.getAllLowDegreeSolutions(fe)}, todo: also print options that do not matter")  //todo
     else
       printlnAndLog(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
   }
