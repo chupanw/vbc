@@ -3,7 +3,7 @@ package edu.cmu.cs.vbc.utils
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.Opcodes._
-import org.objectweb.asm.{ClassVisitor, Handle, MethodVisitor, Type}
+import org.objectweb.asm._
 
 /**
   * Utilities for doing invokedynamic on V object. For example, GETFIELD, ANEWARRAY, AASTORE, etc.
@@ -195,7 +195,7 @@ object InvokeDynamicUtils {
           lambdaMtdName,
           lambdaDesc,
           lambdaDesc,
-          Array[String]() // Empty exception list
+          Array[String]("java/lang/Throwable") // some instructions can cause exceptions, such as AALOAD
         )
         mv.visitCode()
 
@@ -227,8 +227,22 @@ object InvokeDynamicUtils {
           expandArray(mv)
           if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
         }
-        else
+        else {
+          val startLabel = new Label()
+          val endLabel = new Label()
+          val handlerLabel = new Label()
+          mv.visitTryCatchBlock(startLabel, endLabel, handlerLabel, "java/lang/Throwable")
+          mv.visitLabel(startLabel)
           lambdaOp(mv)
+          mv.visitLabel(endLabel)
+          mv.visitLabel(handlerLabel)
+          callVCreateOne(mv, m => m.visitVarInsn(ALOAD, nArg))
+          mv.visitInsn(DUP)
+          mv.visitVarInsn(ALOAD, nArg)
+          mv.visitVarInsn(ALOAD, nArg)
+          mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype$fexprclasstype)V"), false)
+          if (MethodDesc(lambdaDesc).isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
+        }
         mv.visitMaxs(10, 10)
         mv.visitEnd()
       }
