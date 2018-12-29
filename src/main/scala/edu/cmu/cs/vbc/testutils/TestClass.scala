@@ -169,7 +169,7 @@ case class TestClass(c: Class[_]) {
     if (!isParameterized)
       for (x <- getTestCases if !isSkipped(x)) {
         val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
-        executeOnce(None, x, FeatureExprFactory.True, failingConditions)
+        executeOnce(None, x, FeatureExprFactory.True, failingConditions, mutable.ArrayBuffer[FeatureExpr]())
         writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, x.getName)
       }
     else
@@ -178,50 +178,63 @@ case class TestClass(c: Class[_]) {
         y <- getTestCases if !isSkipped(y)
       ) {
         val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
-        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, failingConditions)
+        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, failingConditions, mutable.ArrayBuffer[FeatureExpr]())
         writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, y.getName)
       }
 
   }
 
-  def executeOnce(params: Option[Array[V[_]]], x: Method, context: FeatureExpr, accFailingCtx: mutable.ArrayBuffer[FeatureExpr]): Unit = {
+  def executeOnce(params: Option[Array[V[_]]],  // test case parameters, in case of parameterized test
+                  x: Method,  // test case to be executed
+                  context: FeatureExpr, // current context
+                  accFailingCtx: mutable.ArrayBuffer[FeatureExpr],  // do we really need this?
+                  accCtx: mutable.ArrayBuffer[FeatureExpr]  // used to filter examined contexts
+                 ): Unit = {
+    /**
+      * Helper function to analyze contexts that could cause VExceptions but were caught internally
+      */
+    def analyzeHiddenContexts(except: FeatureExpr): Unit = {
+      /*
+          If a hidden exception A is thrown before B, which is later caught, A might invalidate B, so we
+          need to analyze A.
+      */
+      val hidden = VERuntime.getHiddenContextsOtherThan(except).filter(x => !accCtx.exists(_ equivalentTo x.and(context)))
+      hidden.foreach(fe => {
+        accFailingCtx += fe
+        executeOnce(params, x, context.and(fe), accFailingCtx, accCtx)
+        executeOnce(params, x, context.and(fe.not()), accFailingCtx, accCtx)
+      })
+    }
     if (context.isContradiction()) return
+    if (accCtx.exists(_.equivalentTo(context))) return
+    accCtx += context
     System.out.println(s"[INFO] Executing ${className}.${x.getName} under ${if (GlobalConfig.printContext) context else "[hidden context]"}")
     VERuntime.init()
     val testObject = createObject(params)
     try {
       before.map(_.invoke(testObject, context))
       x.invoke(testObject, context)
-      if (VERuntime.hasVException) {
-        val expCtx = VERuntime.exceptionCtx.clone()
-        expCtx.foreach(fe => {
-          accFailingCtx += fe
-          executeOnce(params, x, context.and(fe.not()), accFailingCtx)
-        })
-      }
+      analyzeHiddenContexts(context)
       VTestStat.succeed(className, x.getName)
       after.map(_.invoke(testObject, context))
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
-            if (!verifyException(t.e, x, t.ctx))
+            if (!verifyException(t.e, x, t.ctx, context, accCtx))
               System.out.println(t)
             if (!t.ctx.equivalentTo(context)) {
-              val altCtx = context.and(t.ctx.not())
+              analyzeHiddenContexts(t.ctx)
+              /* This is being conservative, so that we don't miss any VExceptions */
               accFailingCtx += t.ctx
-              executeOnce(params, x, altCtx, accFailingCtx)
+              executeOnce(params, x, context.and(t.ctx), accFailingCtx, accCtx)
+              executeOnce(params, x, context.and(t.ctx.not()), accFailingCtx, accCtx)
             }
-            else if (VERuntime.hasVException) {
-              val expCtx = VERuntime.exceptionCtx.clone()
-              expCtx.foreach(fe => {
-                accFailingCtx += fe
-                executeOnce(params, x, context.and(fe.not()), accFailingCtx)
-              })
-            }
-            VTestStat.succeed(className, x.getName)
+            else
+              analyzeHiddenContexts(context)
+            VTestStat.succeed(className, x.getName) // this is conservative, will be filtered by failing test cases
           case t =>
-            if (!verifyException(t, x, FeatureExprFactory.True))
+            if (!verifyException(t, x, FeatureExprFactory.True, context, accCtx))
               throw new RuntimeException("Not a VException", t)
         }
       }
@@ -232,9 +245,13 @@ case class TestClass(c: Class[_]) {
 
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
 
-  def verifyException(t: Throwable, m: Method, ctx: FeatureExpr): Boolean = {
+  def verifyException(t: Throwable, m: Method, expCtx: FeatureExpr, context: FeatureExpr, accCtxs: mutable.ArrayBuffer[FeatureExpr]): Boolean = {
+    def checkAndLog(e: FeatureExpr, c: FeatureExpr): Unit =
+      if (e.equivalentTo(c) && VERuntime.getHiddenContextsOtherThan(e).isEmpty)
+        VTestStat.fail(className, m.getName, e)
+
     if (isJUnit3) {
-      VTestStat.fail(className, m.getName, ctx)
+      checkAndLog(expCtx, context)
       false
     }
     else {
@@ -242,7 +259,7 @@ case class TestClass(c: Class[_]) {
       assert(annotation != null, "No @Test annotation in method: " + m.getName)
       val expected = annotation.expected()
       if (!expected.isInstance(t)) {
-        VTestStat.fail(className, m.getName, ctx)
+        checkAndLog(expCtx, context)
         false
       } else true
     }
