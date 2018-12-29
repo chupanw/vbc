@@ -131,7 +131,7 @@ public class VOps {
                         return null;
                     else {
                         // avoid Integer overflow
-                        if (aa.intValue() > 0 && bb.intValue() < 0)
+                        if (aa.intValue() >= 0 && bb.intValue() < 0)
                            return 1;
                         else if (aa.intValue() < 0 && bb.intValue() > 0)
                             return -1;
@@ -881,6 +881,17 @@ public class VOps {
             result[i] = V.one(fe, fields[i]);
         }
         return result;
+    }
+
+    public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
+        VERuntime.incrementBlockCount();
+        if (VERuntime.curBlockCount() > GlobalConfig.maxBlockCount()) {
+            throw new VException(new RuntimeException("Max block exceeded, potential infinite loop"), ctx);
+        }
+    }
+
+    public static void debug_PrintCtx(FeatureExpr ctx) {
+        System.out.println(ctx);
     }
 
     public static HashMap<String, Stack<java.lang.StringBuilder>> traces = new HashMap<>();
