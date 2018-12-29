@@ -168,18 +168,16 @@ case class TestClass(c: Class[_]) {
     getTestCases.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     if (!isParameterized)
       for (x <- getTestCases if !isSkipped(x)) {
-        val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
-        executeOnce(None, x, FeatureExprFactory.True, failingConditions, mutable.ArrayBuffer[FeatureExpr]())
-        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, x.getName)
+        executeOnce(None, x, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+//        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, x.getName)
       }
     else
       for (
         x <- getParameters;
         y <- getTestCases if !isSkipped(y)
       ) {
-        val failingConditions = mutable.ArrayBuffer[FeatureExpr]()
-        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, failingConditions, mutable.ArrayBuffer[FeatureExpr]())
-        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, y.getName)
+        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+//        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, y.getName)
       }
 
   }
@@ -187,7 +185,6 @@ case class TestClass(c: Class[_]) {
   def executeOnce(params: Option[Array[V[_]]],  // test case parameters, in case of parameterized test
                   x: Method,  // test case to be executed
                   context: FeatureExpr, // current context
-                  accFailingCtx: mutable.ArrayBuffer[FeatureExpr],  // do we really need this?
                   accCtx: mutable.ArrayBuffer[FeatureExpr]  // used to filter examined contexts
                  ): Unit = {
     /**
@@ -200,9 +197,8 @@ case class TestClass(c: Class[_]) {
       */
       val hidden = VERuntime.getHiddenContextsOtherThan(except).filter(x => !accCtx.exists(_ equivalentTo x.and(context)))
       hidden.foreach(fe => {
-        accFailingCtx += fe
-        executeOnce(params, x, context.and(fe), accFailingCtx, accCtx)
-        executeOnce(params, x, context.and(fe.not()), accFailingCtx, accCtx)
+        executeOnce(params, x, context.and(fe), accCtx)
+        executeOnce(params, x, context.and(fe.not()), accCtx)
       })
     }
     if (context.isContradiction()) return
@@ -226,9 +222,8 @@ case class TestClass(c: Class[_]) {
             if (!t.ctx.equivalentTo(context)) {
               analyzeHiddenContexts(t.ctx)
               /* This is being conservative, so that we don't miss any VExceptions */
-              accFailingCtx += t.ctx
-              executeOnce(params, x, context.and(t.ctx), accFailingCtx, accCtx)
-              executeOnce(params, x, context.and(t.ctx.not()), accFailingCtx, accCtx)
+              executeOnce(params, x, context.and(t.ctx), accCtx)
+              executeOnce(params, x, context.and(t.ctx.not()), accCtx)
             }
             else
               analyzeHiddenContexts(context)
