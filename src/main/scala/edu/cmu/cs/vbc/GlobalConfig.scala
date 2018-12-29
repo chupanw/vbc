@@ -12,8 +12,9 @@ object GlobalConfig {
   val detectComplexLoop = false
   val printContext = false
   val printExpandArrayWarnings = false
-  val printTestResults = false
-  val writeBDDs = true
+  val printTestResults = true
+  val writeBDDs = false
+  val blockCounting = false
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
     *
@@ -24,7 +25,13 @@ object GlobalConfig {
     *   degree((A & B) | (C & D)) = 2
     *   degree((A & B) | C) = 1
     */
-  val maxInteractionDegree = 200
+  val maxInteractionDegree = 1000
+  /**
+    * Maximum number of VBlocks we can execute before throwing an exception
+    *
+    * This number is not used if [[blockCounting]] is false
+    */
+  val maxBlockCount = 10000
 }
 
 
@@ -33,16 +40,25 @@ object GlobalConfig {
   */
 object VERuntime {
   var hasVException: Boolean = false
-  var exceptionCtx: mutable.Set[FeatureExpr] = mutable.Set()
+  var exceptionCtx: List[FeatureExpr] = Nil
+  var curBlockCount: Int = 0
+  def incrementBlockCount(): Unit = curBlockCount += 1
   def init(): Unit = {
     hasVException = false
-    exceptionCtx.clear
+    exceptionCtx = Nil
+    curBlockCount = 0
   }
   def logVException(fe: FeatureExpr): Unit = {
     hasVException = true
-    if (!fe.isTautology())
-      exceptionCtx.add(fe)
+    if (!fe.isTautology()) {
+      val hasDuplicate = exceptionCtx.exists(x => x.equivalentTo(fe))
+      if (!hasDuplicate) exceptionCtx = fe :: exceptionCtx
+    }
   }
+
+  def getHiddenContextsOtherThan(that: FeatureExpr): List[FeatureExpr] = exceptionCtx.filterNot(_ equivalentTo that)
+
+  def getHiddenContexts: List[FeatureExpr] = exceptionCtx
 
   var classloader: Option[ClassLoader] = None
 }

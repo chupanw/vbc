@@ -197,6 +197,13 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
     }
   }
 
+  private def doBlockCounting(mv: MethodVisitor, env: VMethodEnv): Unit = {
+    if (GlobalConfig.blockCounting) {
+      loadFExpr(mv, env, env.getVBlockVar(this))
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkBlockCount"), MethodDesc(s"($fexprclasstype)V"), false)
+    }
+  }
+
   private def storeUnbalancedStackVariables(mv: MethodVisitor, env: VMethodEnv): Unit = {
     //store local variables if this block is leaving some values on stack
     val leftVars = env.getLeftVars(this)
