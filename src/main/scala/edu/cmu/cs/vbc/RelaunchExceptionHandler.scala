@@ -6,6 +6,9 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 
 trait RelaunchExceptionHandler {
 
+  /**
+    * OUTDATED, USE WITH CAUTION
+    */
   def executeOnce(o: Option[Object], x: Method, args: Array[Object], context: FeatureExpr): Unit = {
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
     VERuntime.init()
@@ -15,7 +18,7 @@ trait RelaunchExceptionHandler {
       else
         x.invoke(null, args :+ context:_*)
       if (VERuntime.hasVException) {
-        val expCtx = VERuntime.exceptionCtx.clone()
+        val expCtx = VERuntime.getHiddenContextsOtherThan(context)
         expCtx.foreach(fe => executeOnce(o, x, args, context.and(fe.not())))
       }
     } catch {
