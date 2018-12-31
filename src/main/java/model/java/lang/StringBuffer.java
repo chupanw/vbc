@@ -31,6 +31,14 @@ public class StringBuffer {
         vActual = V.one(ctx, new java.lang.StringBuffer());
     }
 
+    public StringBuffer(V<java.lang.Integer> vCapacity, FeatureExpr ctx, int dummy) {
+        vActual = vCapacity.smap(ctx, c -> new java.lang.StringBuffer(c));
+    }
+
+    public StringBuffer(V<java.lang.String> vS, FeatureExpr ctx, String dummy) {
+        vActual = vS.smap(ctx, s -> new java.lang.StringBuffer(s));
+    }
+
     public V<?> append__Ljava_lang_String__Lmodel_java_lang_StringBuffer(V<? extends String> vS, FeatureExpr ctx) {
         vS.sforeach(ctx, (fe, s) -> {
             split(fe);
@@ -99,6 +107,10 @@ public class StringBuffer {
 
     public V<?> toString____Ljava_lang_String(FeatureExpr ctx) {
         return vActual.smap(ctx, sb -> sb.toString());
+    }
+
+    public V<?> length____I(FeatureExpr ctx) {
+        return vActual.smap(ctx, sb -> sb.length());
     }
 
 
