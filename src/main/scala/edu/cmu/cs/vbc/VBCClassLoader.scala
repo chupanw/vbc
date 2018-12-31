@@ -28,7 +28,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                      rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                      toFileDebugging: Boolean = true,
                      configFile: Option[String] = None,
-                     useModel: Boolean = true) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     useModel: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
 
   val loader = new Loader()
   if (configFile.isDefined) {
@@ -53,7 +53,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         findClass(name)
       else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
         loadClassAndUseModelClasses(name)
-      else if (name.startsWith("edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
+      else if (name.startsWith("org.apache.commons.clivbc") || name.startsWith("edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
         loadClassWithoutChanges(name) // avoid LinkageError
       else
         super.loadClass(name)
