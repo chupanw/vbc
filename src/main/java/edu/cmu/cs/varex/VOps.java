@@ -540,8 +540,12 @@ public class VOps {
     public static V<? extends Throwable> extractVExceptionIfHandled(V<? extends Throwable> vT, String handledExceptions, FeatureExpr ctx) throws Throwable {
         String[] exps = handledExceptions.split(";");
         HashSet<String> expSet = new HashSet<>();
-        for (int i = 0; i < exps.length; i++)
-            expSet.add(exps[i]);
+        for (int i = 0; i < exps.length; i++) {
+            if (exps[i] != "null")
+                expSet.add(exps[i]);
+            else
+                expSet.add("java/lang/Throwable");
+        }
         FeatureExpr ctxOfVException = vT.select(ctx).when(x -> {return x instanceof VException;}, false);
         if (ctxOfVException.isContradiction())
             return vT;
