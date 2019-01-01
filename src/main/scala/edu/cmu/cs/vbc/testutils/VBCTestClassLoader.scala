@@ -12,7 +12,8 @@ import org.objectweb.asm.{ClassReader, ClassWriter}
 class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
                          testClasspath: String,
-                         config: Option[String] = Some("intro-class.conf")) extends VBCClassLoader(parentClassLoader = parent, configFile = config) {
+                         config: Option[String] = Some("intro-class.conf"),
+                         useModel: Boolean) extends VBCClassLoader(parentClassLoader = parent, configFile = config, useModel = useModel) {
 
   require(mainClasspath.endsWith(".jar") || mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
   require(testClasspath.endsWith(".jar") || testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")

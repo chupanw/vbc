@@ -12,7 +12,7 @@ object CLITestLauncher extends App {
 //  val main = "/Users/chupanw/Projects/mutationtest-varex/code-ut/jars/mutated-cli.jar"
 //  val test = "/Users/chupanw/Projects/mutationtest-varex/code-ut/jars/mutated-cli.jar"
 
-  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, main, test, config = Some("cli.conf"))
+  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, main, test, config = Some("cli.conf"), useModel = false)
   VERuntime.classloader = Some(testLoader)
 
   val tests = List(
@@ -42,7 +42,7 @@ object CLITestLauncher extends App {
   )
 
   tests.foreach {x =>
-    val testClass = TestClass(testLoader.loadClass(x))
+    val testClass = new TestClass(testLoader.loadClass(x))
     testClass.runTests()
   }
 

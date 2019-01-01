@@ -12,7 +12,7 @@ object MonopoliTestLauncher extends App {
   val main = "/tmp/Monopooly/bin/"
   val test = "/tmp/Monopooly/bin/"
 
-  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, main, test, config = Some("monopoli.conf"))
+  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, main, test, config = Some("monopoli.conf"), useModel = true)
   VERuntime.classloader = Some(testLoader)
 
   val tests = List(
@@ -56,7 +56,7 @@ object MonopoliTestLauncher extends App {
   )
 
   tests.foreach {x =>
-    val testClass = TestClass(testLoader.loadClass(x))
+    val testClass = new TestClass(testLoader.loadClass(x))
     testClass.runTests()
   }
 

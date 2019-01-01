@@ -28,7 +28,7 @@ import scala.collection.mutable
   *   setUp
   *   tearDown
   */
-case class TestClass(c: Class[_]) {
+class TestClass(c: Class[_]) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
 

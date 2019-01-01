@@ -25,7 +25,7 @@ object TestLauncher extends App {
   val testClasspath = s"$repository$version/target/test-classes/"
   val mainClasspath = s"$repository$version/target/classes/"
 
-  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, mainClasspath, testClasspath)
+  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, mainClasspath, testClasspath, useModel = false)
   VERuntime.classloader = Some(testLoader)
 
 //  val allTests = testLoader.findTestClassFiles()
@@ -110,7 +110,7 @@ object TestLauncher extends App {
 //  )
 
     tests.foreach {x =>
-      val testClass = TestClass(testLoader.loadClass(x))
+      val testClass = new TestClass(testLoader.loadClass(x))
       testClass.runTests()
     }
 
