@@ -14,7 +14,7 @@ object GlobalConfig {
   val printExpandArrayWarnings = false
   val printTestResults = true
   val writeBDDs = false
-  val blockCounting = false
+  val blockCounting = true
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
     *
@@ -30,8 +30,10 @@ object GlobalConfig {
     * Maximum number of VBlocks we can execute before throwing an exception
     *
     * This number is not used if [[blockCounting]] is false
+    *
+    * This limit is intentionally large because we hope identify infinite loops so that we can remove them.
     */
-  val maxBlockCount = 10000
+  val maxBlockCount = 1000000 // 1 million
 }
 
 

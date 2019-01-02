@@ -58,6 +58,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
     //exception blocks have no stack variables and always a satisfiable condition
     if (env.isVBlockHead(this) && !isUniqueFirstBlock(env)) {
       vblockSkipIfCtxContradition(mv, env)
+      doBlockCounting(mv, env)
       loadUnbalancedStackVariables(mv, env)
       if (GlobalConfig.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
