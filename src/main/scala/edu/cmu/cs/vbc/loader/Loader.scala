@@ -2,6 +2,7 @@ package edu.cmu.cs.vbc.loader
 
 import java.io.InputStream
 
+import edu.cmu.cs.vbc.analysis.MethodChopper
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
@@ -32,7 +33,17 @@ class Loader {
     cl.superName,
     if (cl.interfaces == null) Nil else cl.interfaces.toList,
     if (cl.fields == null) Nil else cl.fields.map(adaptField).toList,
+    // todo: rewrite this part with trait stacking
     if (cl.methods == null) Nil else cl.methods.map(
+//      m => transformSwitches(LocalVariableTransformer.transform(m))).flatMap(m => new MethodChopper(cl.name, m).chop()).map(m => {
+//        adaptMethod(cl.name,
+//          TryCatchBlock.wrapMethodBody(
+//            TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
+//              InitRewriter.extractInitSeq(m, cl)
+//            )
+//          )
+//        )
+//      }
       m => adaptMethod(cl.name,
         TryCatchBlock.wrapMethodBody(
           TernaryOperatorRewriter.extractAllTernaryOperator(cl.name,
