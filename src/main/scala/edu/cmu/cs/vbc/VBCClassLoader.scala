@@ -28,7 +28,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                      rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                      toFileDebugging: Boolean = true,
                      configFile: Option[String] = None,
-                     useModel: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     useModel: Boolean = false,
+                     reuseLifted: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
 
   val loader = new Loader()
   if (configFile.isDefined) {
@@ -105,8 +106,10 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   def liftClass(name: String, clazz: VBCClassNode): Class[_] = {
-//    val existing = loadExistingLiftedClass(name)
-//    if (existing.isDefined) return existing.get
+    if (reuseLifted) {
+      val existing = loadExistingLiftedClass(name)
+      if (existing.isDefined) return existing.get
+    }
     import scala.collection.JavaConversions._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     val dotifier = new Dotifier()

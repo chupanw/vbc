@@ -13,7 +13,8 @@ class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
                          testClasspath: String,
                          config: Option[String] = Some("intro-class.conf"),
-                         useModel: Boolean) extends VBCClassLoader(parentClassLoader = parent, configFile = config, useModel = useModel) {
+                         useModel: Boolean,
+                         reuseLifted: Boolean = false) extends VBCClassLoader(parentClassLoader = parent, configFile = config, useModel = useModel, reuseLifted = reuseLifted) {
 
   require(mainClasspath.endsWith(".jar") || mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
   require(testClasspath.endsWith(".jar") || testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
