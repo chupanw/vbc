@@ -306,8 +306,8 @@ public interface V<T> {
     }
 
     static String getAllLowDegreeSolutions(FeatureExpr fe) {
-//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
+        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
+//        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
         List<String> enabled = new LinkedList<>();
         List<String> unrelated = null;
         List<String> unrelatedTmp = new LinkedList<>();
