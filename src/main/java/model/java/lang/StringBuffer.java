@@ -2,6 +2,7 @@ package model.java.lang;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import edu.cmu.cs.varex.V;
+import edu.cmu.cs.vbc.VException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -32,13 +33,21 @@ public class StringBuffer {
     }
 
     public StringBuffer(V<java.lang.Integer> vCapacity, FeatureExpr ctx, int dummy) {
-        vActual = vCapacity.smap(ctx, c -> new java.lang.StringBuffer(c));
+        vActual = vCapacity.smap(ctx, (fe, c) -> {
+            try {
+                return new java.lang.StringBuffer(c);
+            } catch (Exception e) {
+                throw new VException(e, fe);
+            }
+        });
     }
 
+    // no exception
     public StringBuffer(V<java.lang.String> vS, FeatureExpr ctx, String dummy) {
         vActual = vS.smap(ctx, s -> new java.lang.StringBuffer(s));
     }
 
+    // no exception
     public V<?> append__Ljava_lang_String__Lmodel_java_lang_StringBuffer(V<? extends String> vS, FeatureExpr ctx) {
         vS.sforeach(ctx, (fe, s) -> {
             split(fe);
@@ -47,6 +56,7 @@ public class StringBuffer {
         return V.one(ctx, this);
     }
 
+    // no exception
     public V<?> append__C__Lmodel_java_lang_StringBuffer(V<java.lang.Integer> vC, FeatureExpr ctx) {
         vC.sforeach(ctx, (fe, c) -> {
             split(fe);
@@ -55,6 +65,7 @@ public class StringBuffer {
         return V.one(ctx, this);
     }
 
+    // no exception
     public V<?> append__D__Lmodel_java_lang_StringBuffer(V<java.lang.Double> vD, FeatureExpr ctx) {
         vD.sforeach(ctx, (fe, d) -> {
             split(fe);
@@ -63,6 +74,7 @@ public class StringBuffer {
         return V.one(ctx, this);
     }
 
+    // no exception
     public V<?> append__J__Lmodel_java_lang_StringBuffer(V<java.lang.Long> vL, FeatureExpr ctx) {
         vL.sforeach(ctx, (fe, l) -> {
             split(fe);
@@ -71,6 +83,7 @@ public class StringBuffer {
         return V.one(ctx, this);
     }
 
+    // no exception
     public V<?> append__Ljava_lang_Object__Lmodel_java_lang_StringBuffer(V<?> vO, FeatureExpr ctx) {
         vO.sforeach(ctx, (fe, o) -> {
             split(fe);
@@ -87,6 +100,7 @@ public class StringBuffer {
         return V.one(ctx, this);
     }
 
+    // no exception
     public V<?> append__Lmodel_java_lang_StringBuffer__Lmodel_java_lang_StringBuffer(V<? extends StringBuffer> vSb, FeatureExpr ctx) {
         vSb.sforeach(ctx, (fe, osb) -> {
             osb.raw().sforeach(fe, (fe2, rosb) -> {
@@ -100,15 +114,23 @@ public class StringBuffer {
     public V<?> setLength__I__V(V<? extends java.lang.Integer> vI, FeatureExpr ctx) {
         vI.sforeach(ctx, (fe, i) -> {
             split(fe);
-            vActual.sforeach(fe, sb -> sb.setLength(i));
+            vActual.sforeach(fe, (fe2, sb) -> {
+                try {
+                    sb.setLength(i);
+                } catch (Exception e) {
+                    throw new VException(e, fe2);
+                }
+            });
         });
         return null;    // void
     }
 
+    // no exception
     public V<?> toString____Ljava_lang_String(FeatureExpr ctx) {
         return vActual.smap(ctx, sb -> sb.toString());
     }
 
+    // no exception
     public V<?> length____I(FeatureExpr ctx) {
         return vActual.smap(ctx, sb -> sb.length());
     }
