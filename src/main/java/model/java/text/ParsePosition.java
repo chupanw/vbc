@@ -5,18 +5,18 @@ import edu.cmu.cs.varex.V;
 
 public class ParsePosition {
 
-    private V<? extends java.text.ParsePosition> vActual;
+    private V<? extends MyParsePosition> vActual;
 
-    private void split(FeatureExpr ctx) {
-        V<? extends java.text.ParsePosition> selected = vActual.smap(ctx, pp -> {
-            java.text.ParsePosition newPP = new java.text.ParsePosition(pp.getIndex());
+    public void split(FeatureExpr ctx) {
+        V<? extends MyParsePosition> selected = vActual.smap(ctx, pp -> {
+            MyParsePosition newPP = new MyParsePosition(pp.getIndex());
             newPP.setErrorIndex(pp.getErrorIndex());
             return newPP;
         });
         vActual = V.choice(ctx, selected, vActual);
     }
 
-    public V<? extends java.text.ParsePosition> raw() {
+    public V<? extends MyParsePosition> raw() {
         return vActual;
     }
 
@@ -25,7 +25,7 @@ public class ParsePosition {
     //////////////////////////////////////////////////
 
     public ParsePosition(V<? extends Integer> vI, FeatureExpr ctx, int dummy) {
-        vActual = vI.smap(ctx, i -> new java.text.ParsePosition(i));
+        vActual = vI.smap(ctx, i -> new MyParsePosition(i));
     }
 
     public V getIndex____I(FeatureExpr ctx) {
@@ -46,5 +46,18 @@ public class ParsePosition {
         split(ctx);
         vI.sforeach(ctx, (fe, i) -> vActual.sforeach(fe, pp -> pp.setErrorIndex(i)));
         return null;    // void
+    }
+}
+
+/**
+ * Replace equals with reference comparison
+ */
+class MyParsePosition extends java.text.ParsePosition {
+    public MyParsePosition(int index) {
+        super(index);
+    }
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj;
     }
 }
