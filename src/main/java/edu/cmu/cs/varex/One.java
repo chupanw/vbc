@@ -35,13 +35,13 @@ public class One<T> implements V<T>, Serializable {
     @Override
     public <U> V<? extends U> map(@Nonnull Function<? super T, ? extends U> fun) {
         assert fun != null;
-        return new One(configSpace, fun.apply(value));
+        return V.one(configSpace, fun.apply(value));
     }
 
     @Override
     public <U> V<? extends U> map(@Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> fun) {
         assert fun != null;
-        return new One(configSpace, fun.apply(configSpace, value));
+        return V.one(configSpace, fun.apply(configSpace, value));
     }
 
     @Override
@@ -99,7 +99,7 @@ public class One<T> implements V<T>, Serializable {
         assert reducedConfigSpace != null;
         FeatureExpr newCondition = VCache.and(configSpace, reducedConfigSpace);
         if (VCache.isSatisfiable(newCondition))
-            return new One(newCondition, value);
+            return V.one(newCondition, value);
         else return VEmpty.instance();
     }
 
