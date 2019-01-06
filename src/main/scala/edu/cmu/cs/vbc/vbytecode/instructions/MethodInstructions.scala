@@ -107,6 +107,12 @@ trait MethodInstruction extends Instruction {
     } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getDeclaredFields") {
       mv.visitVarInsn(ALOAD, ctxIdx)  // load context
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.toVArrayReturnType.prepend(call.owner.getTypeDesc).appendFE, false)
+    } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getDeclaredField") {
+      mv.visitVarInsn(ALOAD, ctxIdx)  // load context
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.prepend(call.owner.getTypeDesc).appendFE, false)
+    } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getResourceAsStream") {
+      mv.visitVarInsn(ALOAD, ctxIdx)  // load context
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.prepend(call.owner.getTypeDesc).appendFE, false)
     } else if (call.owner == Owner("java/lang/reflect/Constructor") && call.name.name == "newInstance") {
       mv.visitVarInsn(ALOAD, ctxIdx)  // load context
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.prepend(call.owner.getTypeDesc).appendFE, false)
@@ -168,7 +174,15 @@ trait MethodInstruction extends Instruction {
     */
   def toVArray(lifted: LiftedCall, mv: MethodVisitor, ctxIdx: Int): Unit = {
     lifted.desc.getReturnType match {
-      case Some(TypeDesc("[I")) => ???
+      case Some(TypeDesc("[I")) =>
+        mv.visitVarInsn(ALOAD, ctxIdx)
+        mv.visitMethodInsn(
+          INVOKESTATIC,
+          Owner.getArrayOps,
+          "IArray2VArray",
+          MethodDesc(s"([I$fexprclasstype)[$vclasstype"),
+          false
+        )
       case Some(TypeDesc("[C")) =>
         mv.visitVarInsn(ALOAD, ctxIdx)
         mv.visitMethodInsn(
@@ -621,7 +635,7 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
         loadVar(args.size, liftedCall.desc, args.size - 1, m) // last argument
         m.visitMethodInsn(INVOKESTATIC, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
         boxReturnValue(liftedCall.desc, m)
-        toVArray(liftedCall, m, args.size - 1)
+//        toVArray(liftedCall, m, args.size - 1)  // should be compressed later as part of InvokeDynamic
         if (liftedCall.desc.isReturnVoid) {
           m.visitInsn(RETURN)
         }
