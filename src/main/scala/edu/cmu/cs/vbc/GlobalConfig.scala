@@ -33,7 +33,7 @@ object GlobalConfig {
     *
     * This limit is intentionally large because we hope identify infinite loops so that we can remove them.
     */
-  val maxBlockCount = 1000000 // 1 million
+  val maxBlockCount = 1000000000 // 10 million
 }
 
 
