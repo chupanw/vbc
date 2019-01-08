@@ -107,6 +107,9 @@ trait MethodInstruction extends Instruction {
     } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getDeclaredFields") {
       mv.visitVarInsn(ALOAD, ctxIdx)  // load context
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.toVArrayReturnType.prepend(call.owner.getTypeDesc).appendFE, false)
+    } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getMethod") {
+      mv.visitVarInsn(ALOAD, ctxIdx)  // load context
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.prepend(call.owner.getTypeDesc).appendFE, false)
     } else if (call.owner == Owner("java/lang/Class") && call.name.name == "getDeclaredField") {
       mv.visitVarInsn(ALOAD, ctxIdx)  // load context
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.prepend(call.owner.getTypeDesc).appendFE, false)
@@ -142,6 +145,15 @@ trait MethodInstruction extends Instruction {
     }
     else
       otherwise
+  }
+
+  def interceptStaticCalls(call: LiftedCall, mv: MethodVisitor, ctxIdx: Int, env: VMethodEnv)(otherwise: => Unit): Unit = {
+    if (call.owner == Owner("org/apache/commons/beanutils/PropertyUtils") && call.name.name == "getProperty") {
+        mv.visitVarInsn(ALOAD, ctxIdx)  // load context
+        mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, call.name, call.desc.appendFE, false)
+    } else {
+      otherwise
+    }
   }
 
   def getInvokeType: Int = this match {
@@ -633,7 +645,9 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
       (m: MethodVisitor) => {
         0 to args.length - 2 foreach { i => loadVar(i, liftedCall.desc, i, m) } // first args.size - 1 arguments
         loadVar(args.size, liftedCall.desc, args.size - 1, m) // last argument
-        m.visitMethodInsn(INVOKESTATIC, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
+        interceptStaticCalls(liftedCall, m, args.length - 1, env) {
+          m.visitMethodInsn(INVOKESTATIC, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
+        }
         boxReturnValue(liftedCall.desc, m)
 //        toVArray(liftedCall, m, args.size - 1)  // should be compressed later as part of InvokeDynamic
         if (liftedCall.desc.isReturnVoid) {
