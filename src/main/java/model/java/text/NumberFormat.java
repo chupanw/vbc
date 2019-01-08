@@ -6,17 +6,17 @@ import model.java.lang.StringBuffer;
 
 public class NumberFormat extends Format {
 
-    private V<? extends java.text.NumberFormat> vActual;
+//    private V<? extends java.text.NumberFormat> vActual;
 
     private NumberFormat(V<? extends java.text.NumberFormat> v) {
         super(v.getConfigSpace());
         vActual = v;
     }
 
-    private void split(FeatureExpr ctx) {
-        V<? extends java.text.NumberFormat> selected = vActual.smap(ctx, t -> (java.text.NumberFormat) t.clone());
-        vActual = V.choice(ctx, selected, vActual);
-    }
+//    private void split(FeatureExpr ctx) {
+//        V<? extends java.text.NumberFormat> selected = vActual.smap(ctx, t -> (java.text.NumberFormat) t.clone());
+//        vActual = V.choice(ctx, selected, vActual);
+//    }
 
     //////////////////////////////////////////////////
     // Lifted methods
@@ -25,6 +25,11 @@ public class NumberFormat extends Format {
     public NumberFormat(FeatureExpr ctx) {
         // empty originally
         super(ctx);
+    }
+
+    public NumberFormat(java.text.NumberFormat nf, FeatureExpr ctx) {
+        super(ctx);
+        vActual = V.one(ctx, nf);
     }
 
     public static V<?> getNumberInstance__Ljava_util_Locale__Lmodel_java_text_NumberFormat(
@@ -46,20 +51,20 @@ public class NumberFormat extends Format {
 
     public V<?> setMaximumFractionDigits__I__V(V<Integer> vNewValue, FeatureExpr ctx) {
         split(ctx);
-        vNewValue.sforeach(ctx, (fe, i) -> vActual.sforeach(fe, l -> l.setMaximumFractionDigits(i)));
+        vNewValue.sforeach(ctx, (fe, i) -> vActual.sforeach(fe, l -> ((java.text.NumberFormat)l).setMaximumFractionDigits(i)));
         return null;    // void
     }
 
     public V<?> setParseIntegerOnly__Z__V(V<Integer> vValue, FeatureExpr ctx) {
         split(ctx);
-        vValue.sforeach(ctx, (fe, v) -> vActual.sforeach(fe, l -> l.setParseIntegerOnly(v != 0)));
+        vValue.sforeach(ctx, (fe, v) -> vActual.sforeach(fe, l -> ((java.text.NumberFormat)l).setParseIntegerOnly(v != 0)));
         return null;    // void
     }
 
     public V<?> setGroupingUsed__Z__V(V<? extends Integer> vNewValue, FeatureExpr ctx) {
         vNewValue.sforeach(ctx, (fe, v) -> {
             split(fe);
-            vActual.sforeach(fe, nf -> nf.setGroupingUsed(v.intValue() != 0));
+            vActual.sforeach(fe, nf -> ((java.text.NumberFormat)nf).setGroupingUsed(v.intValue() != 0));
         });
         return null;    // void
     }
@@ -67,7 +72,7 @@ public class NumberFormat extends Format {
     public V<?> setMinimumFractionDigits__I__V(V<? extends Integer> vNewValue, FeatureExpr ctx) {
         vNewValue.sforeach(ctx, (fe, v) -> {
             split(fe);
-            vActual.sforeach(fe, nf -> nf.setMinimumFractionDigits(v.intValue()));
+            vActual.sforeach(fe, nf -> ((java.text.NumberFormat)nf).setMinimumFractionDigits(v.intValue()));
         });
         return null;    // void
     }
@@ -172,11 +177,82 @@ public class NumberFormat extends Format {
         return V.one(ctx, new StringBuffer(ret));
     }
 
+    @Override
+    public V<?> parseObject__Ljava_lang_String_Lmodel_java_text_ParsePosition__Ljava_lang_Object(V<String> vString, V<? extends ParsePosition> vPP, FeatureExpr ctx) {
+        return vString.sflatMap(ctx, (fe, s) -> {
+            return vPP.sflatMap(fe, (fe2, mpp) -> {
+                mpp.split(fe2);
+                return (V) mpp.raw().sflatMap(fe2, (fe3, pp) -> {
+                    split(fe3);
+                    return (V) vActual.smap(fe3, (fe4, nf) -> {
+                        return ((java.text.NumberFormat) nf).parseObject(s, pp);
+                    });
+                });
+            });
+        });
+    }
+
     public V parse__Ljava_lang_String_Lmodel_java_text_ParsePosition__Ljava_lang_Number(V<? extends String> vS, V<? extends ParsePosition> vP, FeatureExpr ctx) {
         if (vActual == null) {
             throw new RuntimeException("Should get overridden by: " + this.getClass());
         } else {
-            return vS.sflatMap(ctx, (fe1, s) -> vP.sflatMap(fe1, (fe2, p) -> (V) p.raw().sflatMap(fe2, (fe3, rawp) -> (V) vActual.smap(fe2, nf -> nf.parse(s, rawp)))));
+            return vS.sflatMap(ctx, (fe1, s) -> vP.sflatMap(fe1, (fe2, p) -> (V) p.raw().sflatMap(fe2, (fe3, rawp) -> (V) vActual.smap(fe2, nf -> ((java.text.NumberFormat)nf).parse(s, rawp)))));
         }
     }
+
+    public static V<?> getCurrencyInstance____Lmodel_java_text_NumberFormat(FeatureExpr ctx) {
+        java.text.NumberFormat rnf = java.text.NumberFormat.getCurrencyInstance();
+        if (rnf instanceof java.text.DecimalFormat) {
+            return V.one(ctx, new DecimalFormat(rnf, ctx));
+        } else {
+            throw new RuntimeException("Unsupported subclass of NumberFormat");
+        }
+    }
+
+    public static V<?> getCurrencyInstance__Ljava_util_Locale__Lmodel_java_text_NumberFormat(V<? extends java.util.Locale> vL, FeatureExpr ctx) {
+        return vL.smap(ctx, (fe, l) -> {
+            java.text.NumberFormat rnf = java.text.NumberFormat.getCurrencyInstance(l);
+            if (rnf instanceof java.text.DecimalFormat) {
+                return new DecimalFormat(rnf, fe);
+            } else {
+                throw new RuntimeException("Unsupported subclass of NumberFormat");
+            }
+        });
+    }
+
+    public static V<?> getPercentInstance____Lmodel_java_text_NumberFormat(FeatureExpr ctx) {
+        java.text.NumberFormat rnf = java.text.NumberFormat.getPercentInstance();
+        if (rnf instanceof java.text.DecimalFormat) {
+            return V.one(ctx, new DecimalFormat(rnf, ctx));
+        } else {
+            throw new RuntimeException("Unsupported subclass of NumberFormat");
+        }
+    }
+
+    public static V<?> getPercentInstance__Ljava_util_Locale__Lmodel_java_text_NumberFormat(V<? extends java.util.Locale> vL, FeatureExpr ctx) {
+        return vL.smap(ctx, (fe, l) -> {
+            java.text.NumberFormat rnf = java.text.NumberFormat.getPercentInstance(l);
+            if (rnf instanceof java.text.DecimalFormat) {
+                return new DecimalFormat(rnf, fe);
+            } else {
+                throw new RuntimeException("Unsupported subclass of NumberFormat");
+            }
+        });
+    }
+
+    public V<?> isParseIntegerOnly____Z(FeatureExpr ctx) {
+        split(ctx);
+        return vActual.smap(ctx, nf -> ((java.text.NumberFormat) nf).isParseIntegerOnly());
+    }
+
+    public V<?> getMinimumFractionDigits____I(FeatureExpr ctx) {
+        split(ctx);
+        return vActual.smap(ctx, nf -> ((java.text.NumberFormat) nf).getMinimumFractionDigits());
+    }
+
+    public V<?> getMaximumFractionDigits____I(FeatureExpr ctx) {
+        split(ctx);
+        return vActual.smap(ctx, nf -> ((java.text.NumberFormat) nf).getMaximumFractionDigits());
+    }
+
 }
