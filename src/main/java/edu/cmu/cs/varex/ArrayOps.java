@@ -309,6 +309,14 @@ public class ArrayOps {
     // int
     //////////////////////////////////////////////////
 
+    public static V<?>[] IArray2VArray(int[] ints, FeatureExpr ctx) {
+        V<?>[] vs = new V<?>[ints.length];
+        for (int i = 0; i < ints.length; i++) {
+            vs[i] = V.one(ctx, ints[i]);
+        }
+        return vs;
+    }
+
     public static V<Integer>[] initIArray(Integer length, FeatureExpr ctx) {
         V<?>[] array = new V<?>[length];
         ArrayList<V<Integer>> arrayList = new ArrayList<>();
