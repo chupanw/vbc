@@ -114,6 +114,7 @@ object LiftingPolicy {
       case (Owner("org/apache/commons/math3/stat/clustering/KMeansPlusPlusClusterer$EmptyClusterStrategy"), _, _) => false
       case (Owner("org/apache/commons/math3/stat/clustering/DBSCANClusterer$PointStatus"), _, _) => false
       case (Owner("org/apache/commons/math3/util/MathArrays$Position"), _, _) => false
+      case (Owner("org/apache/commons/validator/FormSetFactory"), FieldName("digester"), _) => false
       case _ =>
         if (currentConfig.notLiftingClasses.exists(n => owner.name.matches(n)))
           false

@@ -143,8 +143,14 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.shouldLiftInstr(this))
       getFieldFromV(mv, env, block, owner.toModel, name, desc)
-    else
-      mv.visitFieldInsn(GETFIELD, owner.toModel, name, "Ledu/cmu/cs/varex/V;")
+    else {
+      if (LiftingPolicy.shouldLiftField(this.owner, this.name, this.desc))
+        mv.visitFieldInsn(GETFIELD, owner.toModel, name, "Ledu/cmu/cs/varex/V;")
+      else {
+        mv.visitFieldInsn(GETFIELD, owner, name, desc)
+        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+      }
+    }
 
     //select V to current context
 //    loadCurrentCtx(mv, env, block)
