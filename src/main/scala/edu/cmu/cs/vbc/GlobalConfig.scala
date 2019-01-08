@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc
 
-import de.fosd.typechef.featureexpr.FeatureExpr
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 
 import scala.collection.mutable
 
@@ -44,11 +44,13 @@ object VERuntime {
   var hasVException: Boolean = false
   var exceptionCtx: List[FeatureExpr] = Nil
   var curBlockCount: Int = 0
+  var boundaryCtx: FeatureExpr = FeatureExprFactory.True
   def incrementBlockCount(): Unit = curBlockCount += 1
-  def init(): Unit = {
+  def init(ctx: FeatureExpr): Unit = {
     hasVException = false
     exceptionCtx = Nil
     curBlockCount = 0
+    boundaryCtx = ctx
   }
   def logVException(fe: FeatureExpr): Unit = {
     hasVException = true

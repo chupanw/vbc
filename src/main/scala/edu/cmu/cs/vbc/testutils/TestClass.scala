@@ -205,7 +205,7 @@ class TestClass(c: Class[_]) {
     if (accCtx.exists(_.equivalentTo(context))) return
     accCtx += context
     System.out.println(s"[INFO] Executing ${className}.${x.getName} under ${if (GlobalConfig.printContext) context else "[hidden context]"}")
-    VERuntime.init()
+    VERuntime.init(context)
     val testObject = createObject(params)
     try {
       before.map(_.invoke(testObject, context))

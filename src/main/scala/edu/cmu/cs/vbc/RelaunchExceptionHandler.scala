@@ -11,7 +11,7 @@ trait RelaunchExceptionHandler {
     */
   def executeOnce(o: Option[Object], x: Method, args: Array[Object], context: FeatureExpr): Unit = {
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init()
+    VERuntime.init(context)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
