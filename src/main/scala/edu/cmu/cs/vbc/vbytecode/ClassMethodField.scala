@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.vbytecode
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.cmu.cs.vbc.utils.LiftUtils
+import edu.cmu.cs.vbc.utils.{LiftUtils, ValidatorBeanBridge}
 import edu.cmu.cs.vbc.vbytecode.instructions.{InstrINIT_CONDITIONAL_FIELDS, InstrINVOKESTATIC, InstrRETURN, Instruction}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm._
@@ -308,6 +308,8 @@ case class VBCClassNode(
       createUnliftedWriteOfOutputStream(cv)
     if (superName == "java/util/TimerTask")
       createUnliftedRunOfTimerTask(cv)
+    if (name.startsWith("org/apache/commons/validator/"))
+      ValidatorBeanBridge.bridge(name, cv)
     // create <clinit> method
     if (hasStaticConditionalFields) createCLINIT(cv, rewriter)
     // Write lambda methods
