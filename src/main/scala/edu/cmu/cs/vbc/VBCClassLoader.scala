@@ -5,7 +5,7 @@ import java.io._
 import com.typesafe.scalalogging.LazyLogging
 import edu.cmu.cs.vbc.loader.Loader
 import edu.cmu.cs.vbc.testutils.TestStat
-import edu.cmu.cs.vbc.utils.{Dotifier, LiftingPolicy, MyClassWriter, VBCModel}
+import edu.cmu.cs.vbc.utils._
 import edu.cmu.cs.vbc.vbytecode.{Owner, VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree.ClassNode
@@ -54,8 +54,10 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         findClass(name)
       else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
         loadClassAndUseModelClasses(name)
-      else if (name.startsWith("org.apache.commons.clivbc") || name.startsWith("edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
+      else if (name.startsWith("org.apache.commons.validator") || name.startsWith("org.apache.commons.clivbc") || name.startsWith("edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
         loadClassWithoutChanges(name) // avoid LinkageError
+      else if (name.startsWith("org.apache.commons.digester"))
+        loadClassAndReplaceCalls(name)
       else
         super.loadClass(name)
     })
@@ -88,6 +90,17 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     clazz.toByteCode(cw, rewriter)
     if (toFileDebugging)
       toFile(name, cw)
+    defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
+  }
+
+  def loadClassAndReplaceCalls(name: String): Class[_] = {
+    val resource: String = name.replace('.', '/') + ".class"
+    val is: InputStream = getResourceAsStream(resource)
+    if (is == null) throw new ClassNotFoundException(name)
+    val cr = new ClassReader(is)
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cv = new ReplaceCallsClassVisitor(cw)
+    cr.accept(cv, 0)
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }
 
