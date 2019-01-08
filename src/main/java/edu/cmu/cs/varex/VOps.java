@@ -5,17 +5,16 @@ import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import edu.cmu.cs.vbc.GlobalConfig;
 import edu.cmu.cs.vbc.VERuntime;
 import edu.cmu.cs.vbc.VException;
+import edu.cmu.cs.vbc.vbytecode.Owner;
 import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Stack;
 
 /**
@@ -694,6 +693,8 @@ public class VOps {
             else {
                 e.printStackTrace();
             }
+        } catch (IllegalArgumentException e) {
+            throw new VException(e, ctx);
         }
         throw new RuntimeException("Error in invoke");
     }
@@ -728,6 +729,80 @@ public class VOps {
                 }
             }
         }
+    }
+
+    /**
+     * Called from the digester library
+     *
+     * NOTE: we assume that the digester library code is executed under the global entry context.
+     */
+    public static void populate(Object bean, Map<String, Object> properties) {
+        FeatureExpr ctx = VERuntime.boundaryCtx();
+        for (String key : properties.keySet()) {
+            String methodNamePrefix = "set" + key.toUpperCase().charAt(0) + key.substring(1) + "__";
+            Object value = properties.get(key);
+            if (!(value instanceof String)) {
+                throw new RuntimeException("Unsupported property value type: " + value.getClass());
+            }
+            try {
+                Method[] methods = bean.getClass().getDeclaredMethods();
+                boolean found = false;
+                for (Method m : methods) {
+                    if (m.getName().startsWith(methodNamePrefix)) {
+                        found = true;
+                        if (m.getName().startsWith(methodNamePrefix + "Z")) {
+                            int bValue = 0;
+                            if (value.equals("true")) bValue = 1;
+                            m.invoke(bean, V.one(ctx, bValue), ctx);
+                        } else if (m.getName().startsWith(methodNamePrefix + "I")) {
+                            int iValue = Integer.valueOf((String) value);
+                            m.invoke(bean, V.one(ctx, iValue), ctx);
+                        } else {
+                            m.invoke(bean, V.one(ctx, value), ctx);
+                        }
+                    }
+                }
+                if (!found)
+                    throw new RuntimeException("No setter method for: " + key);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+                throw new RuntimeException("Error in VOps.populate");
+            }
+        }
+    }
+
+    public static Object getProperty(Object bean, String property, FeatureExpr ctx) {
+        String methodPrefix = "get" + property.toUpperCase().charAt(0) + property.substring(1);
+        try {
+            Method[] methods = bean.getClass().getDeclaredMethods();
+            for (Method m : methods) {
+                if (m.getName().startsWith(methodPrefix)) {
+                    return m.invoke(bean, ctx);
+                }
+            }
+            throw new VException(new RuntimeException("no getter method for " + property), ctx);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+//            e.printStackTrace();
+            throw new VException(e, ctx);
+        }
+    }
+
+    public static Method getMethod(Class clazz, String mName, Class[] paramTypes, FeatureExpr ctx) {
+        StringBuffer mdb = new StringBuffer();
+        mdb.append(mName + "__");
+        for (Class c : paramTypes) {
+            String model = new Owner(c.getName().replace(".", "/")).toModel().toString();
+            mdb.append("L" + model.replace("/", "_") + "_");
+        }
+        mdb.append("_");
+        String liftedNamePrefix = mdb.toString();
+        Method[] allMethods = clazz.getDeclaredMethods();
+        for (Method m : allMethods) {
+            if (m.getName().startsWith(liftedNamePrefix)) {
+                return m;
+            }
+        }
+        throw new VException(new RuntimeException("could not find required lifted method"), ctx);
     }
 
     /**
@@ -885,6 +960,18 @@ public class VOps {
             result[i] = V.one(fe, fields[i]);
         }
         return result;
+    }
+
+    public static Field getDeclaredField(Class c, String fn, FeatureExpr ctx) {
+        try {
+            return c.getDeclaredField(fn);
+        } catch (NoSuchFieldException e) {
+            throw new VException(e, ctx);
+        }
+    }
+
+    public static InputStream getResourceAsStream(Class c, String s, FeatureExpr ctx) {
+        return c.getResourceAsStream(s);
     }
 
     public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
