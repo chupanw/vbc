@@ -525,10 +525,8 @@ public class VOps {
         if (selected instanceof One) {
             return selected.getOne();
         } else {
-            if (GlobalConfig.printContext())
-                return new RuntimeException("Choice of exceptions: " + selected);
-            else
-                return new RuntimeException("Choice of exceptions, hidden");
+            One oneValue = ((VImpl) selected).getOneValue();
+            throw new VException((Throwable) oneValue.value, oneValue.getConfigSpace());
         }
     }
 

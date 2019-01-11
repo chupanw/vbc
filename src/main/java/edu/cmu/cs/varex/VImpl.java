@@ -305,6 +305,15 @@ class VImpl<T> implements V<T>, Serializable {
         }
     }
 
+    /**
+     * Used in cases where we only need one of the values, such as
+     * {@link VOps#extractThrowable(V, FeatureExpr)}.
+     */
+    public One<T> getOneValue() {
+        T one = values.keySet().iterator().next();
+        return new One<>(values.get(one), one);
+    }
+
 }
 
 
