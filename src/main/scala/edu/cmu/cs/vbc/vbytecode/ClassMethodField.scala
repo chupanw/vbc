@@ -2,7 +2,7 @@ package edu.cmu.cs.vbc.vbytecode
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.cmu.cs.vbc.utils.{LiftUtils, ValidatorBeanBridge}
-import edu.cmu.cs.vbc.vbytecode.instructions.{InstrINIT_CONDITIONAL_FIELDS, InstrINVOKESTATIC, InstrRETURN, Instruction}
+import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm._
 import org.objectweb.asm.tree._
@@ -356,14 +356,26 @@ case class VBCClassNode(
       MethodDesc("()V"),
       None,
       List.empty,
-      CFG(List(Block(instrs, Nil, Nil)))
+      CFG(List(Block(instrs, List(VBCHandler("java/lang/Throwable", 1)), Nil), Block(Array(InstrATHROW()), Nil, Nil)))
     )
     rewriter(Rewrite.rewriteV(vbcMtd, this), this).toVByteCode(cv, this)
 
     val mv = cv.visitMethod(ACC_STATIC, "<clinit>", "()V", null, Array.empty)
     mv.visitCode()
+    val startLabel = new Label()
+    val endLabel = new Label()
+    val handlerLabel = new Label()
+    mv.visitTryCatchBlock(startLabel, endLabel, handlerLabel, "java/lang/Throwable")
+    mv.visitLabel(startLabel)
     pushConstantTRUE(mv)
     mv.visitMethodInsn(INVOKESTATIC, name, "___clinit___", MethodDesc(s"($fexprclasstype)V").toVReturnTypeIfReturningVoid, false)
+    mv.visitInsn(RETURN)
+    mv.visitLabel(endLabel)
+    mv.visitLabel(handlerLabel)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitInsn(DUP)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype$fexprclasstype)V"), false)
     mv.visitInsn(RETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
