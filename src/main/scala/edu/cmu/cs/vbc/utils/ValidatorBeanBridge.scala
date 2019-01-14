@@ -110,6 +110,8 @@ object ValidatorBeanBridge {
     callVCreateOne(mv, m => m.visitMethodInsn(INVOKESTATIC, Owner("edu/cmu/cs/vbc/VERuntime"), MethodName("boundaryCtx"), MethodDesc(s"()$fexprclasstype"), false))
     mv.visitMethodInsn(INVOKESTATIC, Owner("edu/cmu/cs/vbc/VERuntime"), MethodName("boundaryCtx"), MethodDesc(s"()$fexprclasstype"), false)
     mv.visitMethodInsn(INVOKEVIRTUAL, cName, MethodName("createObject").rename(MethodDesc("(Lorg/xml/sax/Attributes;)Ljava/lang/Object;")), MethodDesc(s"($vclasstype)Ljava/lang/Object;").appendFE.toVReturnType, false)
+    mv.visitMethodInsn(INVOKESTATIC, Owner("edu/cmu/cs/vbc/VERuntime"), MethodName("boundaryCtx"), MethodDesc(s"()$fexprclasstype"), false)
+    mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "select", s"($fexprclasstype)$vclasstype", true)
     mv.visitMethodInsn(INVOKEINTERFACE, s"$vclassname", "getOne", "()Ljava/lang/Object;", true)
     mv.visitInsn(ARETURN)
     mv.visitMaxs(10, 10)
