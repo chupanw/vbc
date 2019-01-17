@@ -39,6 +39,9 @@ class VImpl<T> implements V<T>, Serializable {
 
     private VImpl(Map<T, FeatureExpr> values) {
         this.values = values;
+        if (values.size() > 1000) {
+            System.err.println("Too many alternatives, potentially expensive: " + this.values.size());
+        }
         assert checkInvariant() : "invariants violated";
     }
 
