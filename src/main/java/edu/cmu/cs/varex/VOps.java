@@ -709,7 +709,9 @@ public class VOps {
             if (e.getCause() instanceof VException)
                 throw new VException(new InvocationTargetException(((VException) e.getCause()).e()), ((VException) e.getCause()).ctx());
             else {
+                System.err.println("Error in VOps.invoke:");
                 e.printStackTrace();
+                throw new VException(e, ctx);
             }
         } catch (IllegalArgumentException e) {
             throw new VException(e, ctx);
