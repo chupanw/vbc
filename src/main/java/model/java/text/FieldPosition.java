@@ -7,7 +7,7 @@ public class FieldPosition {
 
     private V<? extends java.text.FieldPosition> vActual;
 
-    private void split(FeatureExpr ctx) {
+    public void split(FeatureExpr ctx) {
         V<? extends java.text.FieldPosition> selected = vActual.smap(ctx, f -> {
             java.text.FieldPosition n = new java.text.FieldPosition(f.getFieldAttribute(), f.getField());
             n.setEndIndex(f.getEndIndex());

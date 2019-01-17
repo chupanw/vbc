@@ -10,7 +10,7 @@ import java.text.ParseException;
 public class DateFormat extends Format {
 
     protected DateFormat(FeatureExpr ctx) {
-        super(ctx);
+        super();
     }
 
     DateFormat(V<? extends java.text.Format> vA) {
@@ -30,7 +30,7 @@ public class DateFormat extends Format {
             return vL.smap(fe, (fe2, l) -> {
                 java.text.DateFormat rdf = java.text.DateFormat.getTimeInstance(i, l);
                 if (rdf instanceof java.text.SimpleDateFormat) {
-                    return new SimpleDateFormat(rdf, fe2);
+                    return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe2);
                 } else {
                     throw new RuntimeException("Unsupported subclass of DateFormat");
                 }
@@ -42,7 +42,7 @@ public class DateFormat extends Format {
         return vI.smap(ctx, (fe, i) -> {
             java.text.DateFormat rdf = java.text.DateFormat.getTimeInstance(i);
             if (rdf instanceof java.text.SimpleDateFormat) {
-                return new SimpleDateFormat(rdf, fe);
+                return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe);
             } else {
                 throw new RuntimeException("Unsupported subclass of DateFormat");
             }
@@ -53,7 +53,7 @@ public class DateFormat extends Format {
         return vI.smap(ctx, (fe, i) -> {
             java.text.DateFormat rdf = java.text.DateFormat.getDateInstance(i);
             if (rdf instanceof java.text.SimpleDateFormat) {
-                return new SimpleDateFormat(rdf, fe);
+                return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe);
             } else {
                 throw new RuntimeException("Unsupported subclass of DateFormat");
             }
@@ -65,7 +65,7 @@ public class DateFormat extends Format {
             return vL.smap(fe, (fe2, l) -> {
                 java.text.DateFormat rdf = java.text.DateFormat.getDateInstance(i, l);
                 if (rdf instanceof java.text.SimpleDateFormat) {
-                    return new SimpleDateFormat(rdf, fe2);
+                    return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe2);
                 } else {
                     throw new RuntimeException("Unsupported subclass of DateFormat");
                 }
@@ -78,7 +78,7 @@ public class DateFormat extends Format {
             return vI.smap(fe, (fe2, i2) -> {
                 java.text.DateFormat rdf = java.text.DateFormat.getDateTimeInstance(i, i2);
                 if (rdf instanceof java.text.SimpleDateFormat) {
-                    return new SimpleDateFormat(rdf, fe2);
+                    return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe2);
                 } else {
                     throw new RuntimeException("Unsupported subclass of DateFormat");
                 }
@@ -92,7 +92,7 @@ public class DateFormat extends Format {
                 return (V) vL.smap(fe2, (fe3, l) -> {
                     java.text.DateFormat rdf = java.text.DateFormat.getDateTimeInstance(i, i2, l);
                     if (rdf instanceof java.text.SimpleDateFormat) {
-                        return new SimpleDateFormat(rdf, fe2);
+                        return new SimpleDateFormat(new SimpleDateFormatWrapper((java.text.SimpleDateFormat) rdf), fe3);
                     } else {
                         throw new RuntimeException("Unsupported subclass of DateFormat");
                     }
@@ -102,15 +102,54 @@ public class DateFormat extends Format {
     }
 
     @Override
+    public V<? extends String> format__Ljava_lang_Object__Ljava_lang_String(V<?> vObject, FeatureExpr ctx) {
+        return vObject.sflatMap(ctx, (fe, o) -> {
+            split(fe);
+            return vActual.smap(fe, (fe2, f) -> {
+                if (f instanceof SimpleDateFormatWrapper) {
+                    return ((SimpleDateFormatWrapper) f).actual.format(o);
+                } else {
+                    throw new VException(new RuntimeException("Unsupported format type"), fe);
+                }
+            });
+        });
+    }
+
+    @Override
     public V<? extends StringBuffer> format__Ljava_lang_Object_Lmodel_java_lang_StringBuffer_Lmodel_java_text_FieldPosition__Lmodel_java_lang_StringBuffer(V<?> vObject, V<? extends StringBuffer> vToAppendTo, V<? extends FieldPosition> vPos, FeatureExpr ctx) {
-        return null;
+        V<? extends java.lang.StringBuffer> ret =
+                (V<? extends java.lang.StringBuffer>) vObject.sflatMap(ctx, (fe1, o) -> {
+                    split(fe1);
+                    return vActual.sflatMap(fe1, (fe2, nf) -> {
+                        return (V) vToAppendTo.sflatMap(fe2, (fe3, sb) -> {
+                            sb.split(fe3);
+                            return (V<?>) sb.raw().sflatMap(fe3, (fe4, rsb) -> {
+                                return (V<?>) vPos.sflatMap(fe4, (fe5, p) -> {
+                                    p.split(fe5);
+                                    return (V<?>) p.raw().smap(fe5, (fe6, rp) -> {
+                                        if (nf instanceof SimpleDateFormatWrapper) {
+                                            return ((SimpleDateFormatWrapper)nf).actual.format(o, (java.lang.StringBuffer) rsb, (java.text.FieldPosition) rp);
+                                        } else {
+                                            throw new VException(new RuntimeException("Unsupported format type"), fe6);
+                                        }
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+        return V.one(ctx, new StringBuffer(ret));
     }
 
     public V<?> setLenient__Z__V(V<? extends java.lang.Integer> vB, FeatureExpr ctx) {
         vB.sforeach(ctx, (fe, b) -> {
             split(fe);
             vActual.sforeach(fe, (fe2, df) -> {
-                ((java.text.DateFormat) df).setLenient(b != 0);
+                if (df instanceof SimpleDateFormatWrapper) {
+                    ((SimpleDateFormatWrapper) df).actual.setLenient(b != 0);
+                } else {
+                    throw new VException(new RuntimeException("Unsupported format type"), fe);
+                }
             });
         });
         return null;    // void
@@ -122,12 +161,16 @@ public class DateFormat extends Format {
             FeatureExpr ctx
     ) {
         return vString.sflatMap(ctx, (fe, s) -> {
-            return vPP.sflatMap(fe, (fe2, mpp) -> {
-                mpp.split(fe2);
-                return (V) mpp.raw().sflatMap(fe2, (fe3, pp) -> {
-                    split(fe3);
-                    return (V) vActual.smap(fe3, (fe4, df) -> {
-                        return ((java.text.DateFormat) df).parseObject(s, pp);
+            split(fe);
+            return vActual.sflatMap(fe, (fe2, df) -> {
+                return (V) vPP.sflatMap(fe2, (fe3, mpp) -> {
+                    mpp.split(fe3);
+                    return (V) mpp.raw().smap(fe3, (fe4, pp) -> {
+                        if (df instanceof SimpleDateFormatWrapper) {
+                            return ((SimpleDateFormatWrapper) df).actual.parseObject(s, pp);
+                        } else {
+                            throw new VException(new RuntimeException("Unsupported format type"), fe);
+                        }
                     });
                 });
             });
@@ -139,7 +182,11 @@ public class DateFormat extends Format {
             split(fe);
             return vActual.smap(fe, (fe2, df) -> {
                 try {
-                    return ((java.text.DateFormat)df).parse(s);
+                    if (df instanceof SimpleDateFormatWrapper) {
+                        return ((SimpleDateFormatWrapper) df).actual.parse(s);
+                    } else {
+                        throw new VException(new RuntimeException("Unsupported format type"), fe);
+                    }
                 } catch (ParseException e) {
 //                    e.printStackTrace();
                     throw new VException(e, fe2);
@@ -150,7 +197,13 @@ public class DateFormat extends Format {
 
     public V<?> getCalendar____Ljava_util_Calendar(FeatureExpr ctx) {
         split(ctx);
-        return vActual.smap(ctx, df -> ((java.text.DateFormat) df).getCalendar());
+        return vActual.smap(ctx, (fe, df) -> {
+            if (df instanceof SimpleDateFormatWrapper) {
+                return ((SimpleDateFormatWrapper) df).actual.getCalendar();
+            } else {
+                throw new VException(new RuntimeException("Unsupported format type"), fe);
+            }
+        });
     }
 
 
@@ -158,7 +211,11 @@ public class DateFormat extends Format {
         vT.sforeach(ctx, (fe, t) -> {
             split(fe);
             vActual.sforeach(fe, (fe2, df) -> {
-                ((java.text.DateFormat)df).setTimeZone(t);
+                if (df instanceof SimpleDateFormatWrapper) {
+                    ((SimpleDateFormatWrapper) df).actual.setTimeZone(t);
+                } else {
+                    throw new VException(new RuntimeException("Unsupported format type"), fe);
+                }
             });
         });
         return null;    // null
