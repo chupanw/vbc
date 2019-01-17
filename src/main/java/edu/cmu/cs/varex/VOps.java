@@ -532,7 +532,11 @@ public class VOps {
             return selected.getOne();
         } else {
             One oneValue = ((VImpl) selected).getOneValue();
-            throw new VException((Throwable) oneValue.value, oneValue.getConfigSpace());
+            if (oneValue.value instanceof AssertionError) {
+                throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace());
+            } else {
+                throw new VException((Throwable) oneValue.value, oneValue.getConfigSpace());
+            }
         }
     }
 
