@@ -19,7 +19,7 @@ public class StringBuffer {
         vActual = v;
     }
 
-    private void split(FeatureExpr ctx) {
+    public void split(FeatureExpr ctx) {
         V<? extends java.lang.StringBuffer> selected = vActual.smap(ctx, t -> new java.lang.StringBuffer(t.toString()));
         vActual = V.choice(ctx, selected, vActual);
     }
