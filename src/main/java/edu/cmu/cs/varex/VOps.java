@@ -470,6 +470,12 @@ public class VOps {
         else
             out.println(i + " [hidden context]");
     }
+    public static void println(PrintStream out, long l, FeatureExpr ctx) {
+        if (GlobalConfig.printContext())
+            out.println(l + " [" + ctx + "]");
+        else
+            out.println(l + " [hidden context]");
+    }
     public static void println(PrintStream out, double d, FeatureExpr ctx) {
         if (GlobalConfig.printContext())
             out.println(d + " [" + ctx + "]");
