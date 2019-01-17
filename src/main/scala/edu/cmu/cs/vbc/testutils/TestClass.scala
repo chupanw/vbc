@@ -242,8 +242,10 @@ class TestClass(c: Class[_]) {
 
   def verifyException(t: Throwable, m: Method, expCtx: FeatureExpr, context: FeatureExpr, accCtxs: mutable.ArrayBuffer[FeatureExpr]): Boolean = {
     def checkAndLog(e: FeatureExpr, c: FeatureExpr): Unit =
-      if (e.equivalentTo(c) && VERuntime.getHiddenContextsOtherThan(e).isEmpty)
+      if (e.equivalentTo(c) && VERuntime.getHiddenContextsOtherThan(e).isEmpty) {
         VTestStat.fail(className, m.getName, e)
+        System.gc()
+      }
 
     if (isJUnit3) {
       checkAndLog(expCtx, context)
