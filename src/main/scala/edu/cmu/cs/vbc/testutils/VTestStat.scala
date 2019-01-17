@@ -82,9 +82,9 @@ object VTestStat {
 
 case class VTestStatClass(c: String) {
   import VTestStat.printlnAndLog
-  private var failedMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
-  private var skippedMethods: mutable.Set[String] = mutable.Set()
-  private var succeededMethods: mutable.Set[String] = mutable.Set()
+  var failedMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
+  var skippedMethods: mutable.Set[String] = mutable.Set()
+  var succeededMethods: mutable.Set[String] = mutable.Set()
 
   /* logging */
   def skipMethod(m: String): Unit = skippedMethods += m
@@ -162,7 +162,7 @@ case class VTestStatClass(c: String) {
 }
 
 case class VTestStatMethod(m: String) {
-  private var failingCtx: FeatureExpr = FeatureExprFactory.False
+  var failingCtx: FeatureExpr = FeatureExprFactory.False
 
   def logFailingContext(fe: FeatureExpr): Unit = failingCtx = failingCtx or fe
 

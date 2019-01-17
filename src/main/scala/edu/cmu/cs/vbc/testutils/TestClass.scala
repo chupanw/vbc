@@ -169,7 +169,7 @@ class TestClass(c: Class[_]) {
     if (!isParameterized)
       for (x <- getTestCases if !isSkipped(x)) {
         executeOnce(None, x, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
-//        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, x.getName)
+        writeBDD(c.getName, x.getName)
       }
     else
       for (
@@ -177,7 +177,7 @@ class TestClass(c: Class[_]) {
         y <- getTestCases if !isSkipped(y)
       ) {
         executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
-//        writeBDD(failingConditions.foldLeft(FeatureExprFactory.False)(_ or _), c.getName, y.getName)
+        writeBDD(c.getName, y.getName)
       }
 
   }
@@ -301,14 +301,15 @@ class TestClass(c: Class[_]) {
     }
   }
 
-  def writeBDD(failingCond: FeatureExpr, cName: String, mName: String): Unit = {
+  def writeBDD(cName: String, mName: String): Unit = {
     if (GlobalConfig.writeBDDs) {
+      val failingCond = VTestStat.classes(cName).failedMethods(mName).failingCtx
       val originMethodName = mName.substring(0, mName.indexOf('_'))
       val fileName = "test." + cName + "." + originMethodName + ".txt"
 
       val bddFactory = FExprBuilder.bddFactory
       val writer = new FileWriter(fileName)
-      bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd);
+      bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd)
     }
   }
 }
