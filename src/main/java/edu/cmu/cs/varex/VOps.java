@@ -595,6 +595,16 @@ public class VOps {
         selected.foreachExp((fe, x) -> {
             if (x instanceof VException)
                 throw x;
+            else if (x instanceof ExceptionInInitializerError) {
+                // exceptions thrown inside clinit are converted to ExceptionInInitializerError internally in JVM
+                System.err.println("Error in <clinit>, re-execution likely to be affected");
+                if (x.getCause() instanceof VException) {
+                    throw x.getCause();
+                }
+                else {
+                    throw new VException(x, fe);
+                }
+            }
             else
                 throw new VException(x, fe);
         });
