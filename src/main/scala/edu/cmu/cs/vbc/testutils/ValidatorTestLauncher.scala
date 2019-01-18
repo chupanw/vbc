@@ -20,52 +20,52 @@ object ValidatorTests {
 //    "org.apache.commons.validator.routines.BigDecimalValidatorTest"
 //    "org.apache.commons.validator.routines.AbstractNumberValidatorTest" // abstract
 //    "org.apache.commons.validator.routines.BigIntegerValidatorTest"
-//    "org.apache.commons.validator.routines.IBANValidatorTest"
+//    "org.apache.commons.validator.routines.IBANValidatorTest" // fixme: exceptions when creating test class objects
 //    "org.apache.commons.validator.routines.PercentValidatorTest"
-//    "org.apache.commons.validator.routines.ISSNValidatorTest"
+//    "org.apache.commons.validator.routines.ISSNValidatorTest" // fixme: exceptions when creating test class objects
 //    "org.apache.commons.validator.routines.LongValidatorTest"
 //    "org.apache.commons.validator.routines.RegexValidatorTest"
 //    "org.apache.commons.validator.routines.IntegerValidatorTest"
-//    "org.apache.commons.validator.routines.UrlValidatorTest"
+//    "org.apache.commons.validator.routines.UrlValidatorTest"  // fixme: potential infinite loop
 //    "org.apache.commons.validator.routines.CodeValidatorTest"
-//    "org.apache.commons.validator.routines.CreditCardValidatorTest"
-//    "org.apache.commons.validator.routines.ISBNValidatorTest"
+//    "org.apache.commons.validator.routines.CreditCardValidatorTest" // fixme: out of memory
+//    "org.apache.commons.validator.routines.ISBNValidatorTest" // fixme: might be expensive
 //    "org.apache.commons.validator.routines.DomainValidatorTest"
 //    "org.apache.commons.validator.routines.EmailValidatorTest"
-//    "org.apache.commons.validator.routines.CalendarValidatorTest"
+//    "org.apache.commons.validator.routines.CalendarValidatorTest" // fixme: memory
 //    "org.apache.commons.validator.routines.DoubleValidatorTest"
 //    "org.apache.commons.validator.routines.FloatValidatorTest"
 //    "org.apache.commons.validator.routines.AbstractCalendarValidatorTest" // abstract
-//    "org.apache.commons.validator.routines.checkdigit.ISBNCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.IBANCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.SedolCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ISINCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ModulusTenABACheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ModulusTenCUSIPCheckDigitTest"
+//    "org.apache.commons.validator.routines.checkdigit.ISBNCheckDigitTest" // fixme: slow, memory
+//    "org.apache.commons.validator.routines.checkdigit.IBANCheckDigitTest" // fixed by disabling a few mutants, fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.SedolCheckDigitTest"  // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ISINCheckDigitTest"// fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ModulusTenABACheckDigitTest"  // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ModulusTenCUSIPCheckDigitTest" // fixme: might be expensive
 //    "org.apache.commons.validator.routines.checkdigit.AbstractCheckDigitTest" // abstract
-//    "org.apache.commons.validator.routines.checkdigit.ISSNCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.VerhoeffCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ModulusTenEAN13CheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ModulusTenLuhnCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.CUSIPCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.ModulusTenSedolCheckDigitTest"
-//    "org.apache.commons.validator.routines.checkdigit.LuhnCheckDigitTest",
-//    "org.apache.commons.validator.routines.checkdigit.ISBN10CheckDigitTest",
-//    "org.apache.commons.validator.routines.checkdigit.EAN13CheckDigitTest",
-//    "org.apache.commons.validator.routines.checkdigit.ABANumberCheckDigitTest"
-//    "org.apache.commons.validator.routines.DateValidatorTest",
+//    "org.apache.commons.validator.routines.checkdigit.ISSNCheckDigitTest" // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.VerhoeffCheckDigitTest" // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ModulusTenEAN13CheckDigitTest" // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ModulusTenLuhnCheckDigitTest" // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.CUSIPCheckDigitTest"  // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ModulusTenSedolCheckDigitTest" // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.LuhnCheckDigitTest", // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ISBN10CheckDigitTest", // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.EAN13CheckDigitTest", // fixme: might be expensive
+//    "org.apache.commons.validator.routines.checkdigit.ABANumberCheckDigitTest"  // fixme: might be expensive
+//    "org.apache.commons.validator.routines.DateValidatorTest" // fixme: out of memory
 //    "org.apache.commons.validator.routines.InetAddressValidatorTest"
-//    "org.apache.commons.validator.routines.ShortValidatorTest",
+//    "org.apache.commons.validator.routines.ShortValidatorTest"
 //    "org.apache.commons.validator.routines.ByteValidatorTest"
-    "org.apache.commons.validator.ParameterTest"
+//    "org.apache.commons.validator.ParameterTest"
 //    "org.apache.commons.validator.MultipleTest"
 //    "org.apache.commons.validator.EmailTest"
 //    "org.apache.commons.validator.ExceptionTest"
 //    "org.apache.commons.validator.ShortTest"
 //    "org.apache.commons.validator.custom.CustomValidatorResources"
-//    "org.apache.commons.validator.RetrieveFormTest"
+//    "org.apache.commons.validator.RetrieveFormTest" // fixme: one test failed
 //    "org.apache.commons.validator.VarTest"
-//    "org.apache.commons.validator.MultipleConfigFilesTest"
+//    "org.apache.commons.validator.MultipleConfigFilesTest"  // fixme: stackoverflow
 //    "org.apache.commons.validator.ParameterValidatorImpl"
 //    "org.apache.commons.validator.TypeBean"
 //    "org.apache.commons.validator.ValueBean"
@@ -78,11 +78,11 @@ object ValidatorTests {
 //    "org.apache.commons.validator.GenericTypeValidatorTest"
 //    "org.apache.commons.validator.DoubleTest"
 //    "org.apache.commons.validator.CreditCardValidatorTest"
-//    "org.apache.commons.validator.UrlTest"
+//    "org.apache.commons.validator.UrlTest"  // fixme: infinite loop
 //    "org.apache.commons.validator.RequiredNameTest"
-//    "org.apache.commons.validator.ISBNValidatorTest"
+//    "org.apache.commons.validator.ISBNValidatorTest"  // fixme:
 //    "org.apache.commons.validator.CustomValidatorResourcesTest"
-//    "org.apache.commons.validator.LocaleTest"
+    "org.apache.commons.validator.LocaleTest" // fixme: one test failed
 //    "org.apache.commons.validator.GenericTypeValidatorImpl"
 //    "org.apache.commons.validator.ValidatorResourcesTest"
 //    "org.apache.commons.validator.GenericValidatorImpl"
