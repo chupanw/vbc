@@ -3,4 +3,5 @@ project/
 target/
 lifted/
 *.result
+passingCond/
 out/
