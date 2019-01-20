@@ -18,29 +18,29 @@ object CLITestLoader {
 
 object CLITests {
   val allTests = List(
-    //    "org.apache.commons.clivbc.GnuParserTest"
-    //    "org.apache.commons.clivbc.BugsTest"  // note: 13666 fails individually
-    //    "org.apache.commons.clivbc.OptionGroupTest"
-    //    "org.apache.commons.clivbc.OptionBuilderTest"
-    //    "org.apache.commons.clivbc.ArgumentIsOptionTest"
-//        "org.apache.commons.clivbc.PosixParserTest"
-        "org.apache.commons.clivbc.ApplicationTest" // fixme: testMan failed because of memory
-//        "org.apache.commons.clivbc.OptionTest"
-//        "org.apache.commons.clivbc.ParserTestCase"  // abstract class
-//        "org.apache.commons.clivbc.UtilTest"
-//        "org.apache.commons.clivbc.ValueTest"
-//        "org.apache.commons.clivbc.BasicParserTest"
-//        "org.apache.commons.clivbc.PatternOptionBuilderTest"  // fixme: method code too large and one originally failing test
-//        "org.apache.commons.clivbc.bug.BugCLI13Test"
-//        "org.apache.commons.clivbc.bug.BugCLI18Test"
-//        "org.apache.commons.clivbc.bug.BugCLI148Test"
-//        "org.apache.commons.clivbc.bug.BugCLI133Test"
-//        "org.apache.commons.clivbc.bug.BugCLI71Test"
-//        "org.apache.commons.clivbc.bug.BugCLI162Test" // todo: two test cases were failing
-//        "org.apache.commons.clivbc.OptionsTest" // todo: two test cases were failing
-//        "org.apache.commons.clivbc.HelpFormatterTest"
-//        "org.apache.commons.clivbc.ParseRequiredTest" // todo: two test cases were failing
-//        "org.apache.commons.clivbc.CommandLineTest"
+//        "org.apache.commons.clivbc.GnuParserTest",
+//        "org.apache.commons.clivbc.BugsTest",  // note: 13666 fails individually
+//        "org.apache.commons.clivbc.OptionGroupTest",
+//        "org.apache.commons.clivbc.OptionBuilderTest",
+//        "org.apache.commons.clivbc.ArgumentIsOptionTest",
+//        "org.apache.commons.clivbc.PosixParserTest",
+//        "org.apache.commons.clivbc.ApplicationTest", // fixme: testMan failed because of memory
+//        "org.apache.commons.clivbc.OptionTest",
+//        "org.apache.commons.clivbc.ParserTestCase",  // abstract class
+//        "org.apache.commons.clivbc.UtilTest",
+//        "org.apache.commons.clivbc.ValueTest",
+//        "org.apache.commons.clivbc.BasicParserTest",
+//        "org.apache.commons.clivbc.bug.BugCLI13Test",
+//        "org.apache.commons.clivbc.bug.BugCLI18Test",
+//        "org.apache.commons.clivbc.bug.BugCLI148Test",
+//        "org.apache.commons.clivbc.bug.BugCLI133Test",
+//        "org.apache.commons.clivbc.bug.BugCLI71Test",
+        "org.apache.commons.clivbc.bug.BugCLI162Test", // todo: two test cases were failing
+        "org.apache.commons.clivbc.OptionsTest", // todo: two test cases were failing
+        "org.apache.commons.clivbc.HelpFormatterTest",
+        "org.apache.commons.clivbc.ParseRequiredTest", // todo: two test cases were failing
+        "org.apache.commons.clivbc.CommandLineTest",
+        "org.apache.commons.clivbc.PatternOptionBuilderTest"  // todo: one test was disabled due to reflection
   )
 }
 
@@ -84,7 +84,7 @@ object CLIForkTestLauncher extends App {
   CLITests.allTests.foreach(c => {
     val clazz = new TestClass(CLITestLoader.testLoader.loadClass(c))
     clazz.getTestCases.foreach(m => {
-      Process(Seq("java", "-Xmx16g", "-cp", jarFile, "edu.cmu.cs.vbc.testutils.CLIForkTestCaseLauncher", c, m.getName)).lineStream.foreach(println)
+      Process(Seq("java", "-Xmx12g", "-cp", jarFile, "edu.cmu.cs.vbc.testutils.CLIForkTestCaseLauncher", c, m.getName)).lineStream.foreach(println)
     })
   })
 
