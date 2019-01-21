@@ -13,7 +13,7 @@ object GlobalConfig {
   val printContext = false
   val printExpandArrayWarnings = false
   val printTestResults = true
-  val writeBDDs = false
+  val writeBDDs = true
   val blockCounting = true
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
@@ -65,4 +65,13 @@ object VERuntime {
   def getHiddenContexts: List[FeatureExpr] = exceptionCtx
 
   var classloader: Option[ClassLoader] = None
+
+  def loadFeatures(featureFile: String): Unit = {
+    val resource = getClass.getResourceAsStream("/" + featureFile)
+    for (line <- io.Source.fromInputStream(resource).getLines()) {
+      val features = line.split(' ')
+      features.foreach(x => FeatureExprFactory.createDefinedExternal(x.trim))
+    }
+    println("features loaded")
+  }
 }

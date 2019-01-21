@@ -303,13 +303,15 @@ class TestClass(c: Class[_]) {
 
   def writeBDD(cName: String, mName: String): Unit = {
     if (GlobalConfig.writeBDDs) {
-      val failingCond = VTestStat.classes(cName).failedMethods(mName).failingCtx
-      val originMethodName = mName.substring(0, mName.indexOf('_'))
-      val fileName = "test." + cName + "." + originMethodName + ".txt"
+      if (VTestStat.classes(cName).failedMethods.contains(mName)) {
+        val failingCond = VTestStat.classes(cName).failedMethods(mName).failingCtx
+        val originMethodName = mName.substring(0, mName.indexOf('_'))
+        val fileName = "test." + cName + "." + originMethodName + ".txt"
 
-      val bddFactory = FExprBuilder.bddFactory
-      val writer = new FileWriter(fileName)
-      bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd)
+        val bddFactory = FExprBuilder.bddFactory
+        val writer = new FileWriter(fileName)
+        bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd)
+      }
     }
   }
 }
