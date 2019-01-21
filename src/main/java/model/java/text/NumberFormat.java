@@ -29,7 +29,7 @@ public class NumberFormat extends Format {
         NumberFormat ret = new NumberFormat(vLocale.smap(ctx, (fe, l) -> {
             java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(l);
             if (nf instanceof java.text.DecimalFormat) {
-                return new DecimalFormat(new DecimalFormatWrapper((java.text.DecimalFormat) nf), fe);
+                return new DecimalFormatWrapper((java.text.DecimalFormat) nf);
             } else {
                 throw new VException(new RuntimeException("Unsupported subclass of NumberFormat"), ctx);
             }
