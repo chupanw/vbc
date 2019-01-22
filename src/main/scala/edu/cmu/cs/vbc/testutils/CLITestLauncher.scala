@@ -18,23 +18,24 @@ object CLITestLoader {
 
 object CLITests {
   val allTests = List(
-//        "org.apache.commons.clivbc.GnuParserTest",
-//        "org.apache.commons.clivbc.BugsTest",  // note: 13666 fails individually
-//        "org.apache.commons.clivbc.OptionGroupTest",
-//        "org.apache.commons.clivbc.OptionBuilderTest",
-//        "org.apache.commons.clivbc.ArgumentIsOptionTest",
-//        "org.apache.commons.clivbc.PosixParserTest",
-//        "org.apache.commons.clivbc.ApplicationTest", // fixme: testMan failed because of memory
-//        "org.apache.commons.clivbc.OptionTest",
-//        "org.apache.commons.clivbc.ParserTestCase",  // abstract class
-//        "org.apache.commons.clivbc.UtilTest",
-//        "org.apache.commons.clivbc.ValueTest",
-//        "org.apache.commons.clivbc.BasicParserTest",
-//        "org.apache.commons.clivbc.bug.BugCLI13Test",
-//        "org.apache.commons.clivbc.bug.BugCLI18Test",
-//        "org.apache.commons.clivbc.bug.BugCLI148Test",
-//        "org.apache.commons.clivbc.bug.BugCLI133Test",
-//        "org.apache.commons.clivbc.bug.BugCLI71Test",
+          "org.apache.commons.clivbc.ValuesTest",
+        "org.apache.commons.clivbc.GnuParserTest",
+        "org.apache.commons.clivbc.BugsTest",  // note: 13666 fails individually
+        "org.apache.commons.clivbc.OptionGroupTest",
+        "org.apache.commons.clivbc.OptionBuilderTest",
+        "org.apache.commons.clivbc.ArgumentIsOptionTest",
+        "org.apache.commons.clivbc.PosixParserTest",
+        "org.apache.commons.clivbc.ApplicationTest", // fixme: testMan failed because of memory
+        "org.apache.commons.clivbc.OptionTest",
+        "org.apache.commons.clivbc.ParserTestCase",  // abstract class
+        "org.apache.commons.clivbc.UtilTest",
+        "org.apache.commons.clivbc.ValueTest",
+        "org.apache.commons.clivbc.BasicParserTest",
+        "org.apache.commons.clivbc.bug.BugCLI13Test",
+        "org.apache.commons.clivbc.bug.BugCLI18Test",
+        "org.apache.commons.clivbc.bug.BugCLI148Test",
+        "org.apache.commons.clivbc.bug.BugCLI133Test",
+        "org.apache.commons.clivbc.bug.BugCLI71Test",
         "org.apache.commons.clivbc.bug.BugCLI162Test", // todo: two test cases were failing
         "org.apache.commons.clivbc.OptionsTest", // todo: two test cases were failing
         "org.apache.commons.clivbc.HelpFormatterTest",
@@ -48,6 +49,7 @@ object CLITestLauncher extends App {
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
 
   VERuntime.classloader = Some(CLITestLoader.testLoader)
+  VERuntime.loadFeatures("cli.txt")
 
   CLITests.allTests.foreach {x =>
     val testClass = new TestClass(CLITestLoader.testLoader.loadClass(x))
@@ -65,6 +67,7 @@ object CLITestLauncher extends App {
 object CLIForkTestCaseLauncher extends App {
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
   VERuntime.classloader = Some(CLITestLoader.testLoader)
+  VERuntime.loadFeatures("cli.txt")
   val cName = args(0)
   val mName = args(1)
   val t = new ForkTestCase(CLITestLoader.testLoader.loadClass(cName), mName)

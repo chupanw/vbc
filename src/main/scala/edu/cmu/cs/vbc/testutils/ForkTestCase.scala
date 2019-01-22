@@ -17,6 +17,10 @@ class ForkTestCase(c: Class[_], mName: String) extends TestClass(c) {
 
   def run(): Unit = {
     require(checkAnnotations, s"Unsupported annotation in $c")
+    if (isAbstract) {
+      VTestStat.skipClass(className)
+      return
+    }
     val m = getTestCases.find(x => x.getName.equals(mName))
     if (m.isDefined && !isSkipped(m.get)) {
       if (!isParameterized) {
