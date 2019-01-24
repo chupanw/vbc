@@ -305,7 +305,7 @@ class TestClass(c: Class[_]) {
     if (GlobalConfig.writeBDDs) {
       if (VTestStat.classes(cName).failedMethods.contains(mName)) {
         val failingCond = VTestStat.classes(cName).failedMethods(mName).failingCtx
-        val originMethodName = mName.substring(0, mName.indexOf('_'))
+        val originMethodName = mName.substring(0, mName.indexOf("__"))
         val fileName = "test." + cName + "." + originMethodName + ".txt"
 
         val bddFactory = FExprBuilder.bddFactory
