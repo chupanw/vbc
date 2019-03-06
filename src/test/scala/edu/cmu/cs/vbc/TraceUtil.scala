@@ -79,7 +79,7 @@ object TraceConfig {
 
   def getOption(n: String) = {
     val o = FeatureExprFactory.createDefinedExternal(n)
-    options += o
+//    options += o
     o
   }
 

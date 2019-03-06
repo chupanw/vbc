@@ -43,28 +43,28 @@ object Config {
 }
 
 object TestOutput {
-  type TOpt[T] = de.fosd.typechef.conditional.Opt[T]
+//  type TOpt[T] = de.fosd.typechef.conditional.Opt[T]
 
-  var output: List[TOpt[String]] = Nil
+//  var output: List[TOpt[String]] = Nil
 
   def printI(i: Int): Unit = {
     //        println(i)
-    output ::= de.fosd.typechef.conditional.Opt(FeatureExprFactory.True, i.toString)
+//    output ::= de.fosd.typechef.conditional.Opt(FeatureExprFactory.True, i.toString)
   }
 
   def printVI(i: V[_ <: Integer], ctx: FeatureExpr): Unit = {
     //        println(i)
-    for ((c, v) <- VHelper.explode(ctx, i))
-      output ::= de.fosd.typechef.conditional.Opt(c, v.toString)
+//    for ((c, v) <- VHelper.explode(ctx, i))
+//      output ::= de.fosd.typechef.conditional.Opt(c, v.toString)
   }
 
   def printStr(s: String): Unit = {
-    output ::= de.fosd.typechef.conditional.Opt(FeatureExprFactory.True, s)
+//    output ::= de.fosd.typechef.conditional.Opt(FeatureExprFactory.True, s)
   }
 
   def printVStr(vs: V[_ <: String], ctx: FeatureExpr): Unit = {
-    for ((c, v) <- VHelper.explode(ctx, vs))
-      output ::= de.fosd.typechef.conditional.Opt(c, v.toString)
+//    for ((c, v) <- VHelper.explode(ctx, vs))
+//      output ::= de.fosd.typechef.conditional.Opt(c, v.toString)
   }
 
   def printFE(f: FeatureExpr): Unit = {

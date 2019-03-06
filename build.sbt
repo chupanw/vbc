@@ -2,9 +2,9 @@ scalaVersion := "2.11.7"
 
 //libraryDependencies += "org.ow2.asm" % "asm" % "5.0.4"
 
-libraryDependencies += "de.fosd.typechef" % "featureexprlib_2.11" % "0.4.1"
+//libraryDependencies += "de.fosd.typechef" % "featureexprlib_2.11" % "0.4.1"
 
-libraryDependencies += "de.fosd.typechef" % "conditionallib_2.11" % "0.4.1"
+//libraryDependencies += "de.fosd.typechef" % "conditionallib_2.11" % "0.4.1"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
 libraryDependencies += "org.pegdown" % "pegdown" % "1.6.0" % "test"
@@ -42,6 +42,9 @@ libraryDependencies += "org.apache.ant" % "ant" % "1.7.0"
 
 // config
 libraryDependencies += "com.typesafe" % "config" % "1.3.1"
+
+// multi-terminal bdd
+libraryDependencies += "edu.cmu.cs.varex" %% "vbdd" % "0.3.0"
 
 unmanagedJars in Compile ~= {uj =>
   Seq(Attributed.blank(file(System.getProperty("java.home").dropRight(3) + "lib/tools.jar"))) ++ uj

@@ -1,5 +1,6 @@
 package edu.cmu.cs.vbc
 
+import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config._
 
 import scala.collection.JavaConversions._
@@ -8,7 +9,7 @@ import scala.collection.JavaConversions._
   *
   * @author chupanw
   */
-class ModelConfig(fileName: String) {
+class ModelConfig(val fileName: String) {
   val config: Config = ConfigFactory.load(fileName)
   val defaultConfig: Option[ModelConfig] = if (fileName == "default.conf") None else Some(ModelConfig.defaultConfig)
 

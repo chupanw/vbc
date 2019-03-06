@@ -35,7 +35,7 @@ trait RelaunchExceptionHandler {
         }
       }
       case e =>
-        throw new RuntimeException(s"Expecting InvocationTargetException, but found $e")
+        throw new RuntimeException(s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
     }
   }
 }

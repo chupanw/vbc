@@ -1,8 +1,8 @@
 package edu.cmu.cs.vbc
 
-import de.fosd.typechef.conditional.{ConditionalLib, Opt}
+//import de.fosd.typechef.conditional.{ConditionalLib, Opt}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.vbc.TestOutput.TOpt
+//import edu.cmu.cs.vbc.TestOutput.TOpt
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.ClassWriter
@@ -96,12 +96,12 @@ trait DiffMethodTestInfrastructure {
     val testClass = loadTestClass(clazz)
     val testVClass = loadVTestClass(clazz)
 
-    val vresult: List[TOpt[String]] = executeV(testVClass, m.name)
-    println("found    " + vresult.reverse)
+//    val vresult: List[TOpt[String]] = executeV(testVClass, m.name)
+//    println("found    " + vresult.reverse)
     if (compareBruteForce) {
-      val bruteForceResult = executeBruteForce(testClass, m.name, configOptions)
-      println("expected " + bruteForceResult.reverse)
-      compare(bruteForceResult.reverse, vresult.reverse)
+//      val bruteForceResult = executeBruteForce(testClass, m.name, configOptions)
+//      println("expected " + bruteForceResult.reverse)
+//      compare(bruteForceResult.reverse, vresult.reverse)
       benchmark(testVClass, testClass, m.name, configOptions)
     }
   }
@@ -112,51 +112,51 @@ trait DiffMethodTestInfrastructure {
     configOptions
   }
 
-  private def compare(expected: List[TOpt[String]], result: List[TOpt[String]]): Unit = {
-    def compareOne(ctx: FeatureExpr, e: String, f: String): Unit =
-      assert(ctx.isContradiction || e.trim == f.trim, s"mismatch between expected output and actual output in context $ctx: \nEXPECTED:\n$e\nFOUND:\n$f\nALL:\n" + render(result))
+//  private def compare(expected: List[TOpt[String]], result: List[TOpt[String]]): Unit = {
+//    def compareOne(ctx: FeatureExpr, e: String, f: String): Unit =
+//      assert(ctx.isContradiction || e.trim == f.trim, s"mismatch between expected output and actual output in context $ctx: \nEXPECTED:\n$e\nFOUND:\n$f\nALL:\n" + render(result))
+//
+//    val allExpected = ConditionalLib.explodeOptList(expected).map(_.mkString)
+//    val allFound = ConditionalLib.explodeOptList(result).map(_.mkString)
+//    ConditionalLib.vmapCombination(allExpected, allFound, FeatureExprFactory.True, compareOne)
+//  }
 
-    val allExpected = ConditionalLib.explodeOptList(expected).map(_.mkString)
-    val allFound = ConditionalLib.explodeOptList(result).map(_.mkString)
-    ConditionalLib.vmapCombination(allExpected, allFound, FeatureExprFactory.True, compareOne)
-  }
+//  private def render(result: List[TOpt[String]]): String =
+//    result.map(o => "[#condition " + o.feature + "]" + o.entry).mkString
 
-  private def render(result: List[TOpt[String]]): String =
-    result.map(o => "[#condition " + o.feature + "]" + o.entry).mkString
+//  def executeBruteForce(testClass: Class[_], method: String, configOptions: Set[String]) = {
+//    //now all the separate executions
+//    var bruteForceResult: List[Opt[String]] = Nil
+//    val configs = explode(configOptions.toList)
+//    for ((sel, desel) <- configs) {
+//      TestOutput.output = Nil
+//      Config.configValues = (sel.map((_ -> 1)) ++ desel.map((_ -> 0))).toMap
+//      val config = (sel.map(FeatureExprFactory.createDefinedExternal(_))
+//        ++ desel.map(FeatureExprFactory.createDefinedExternal(_).not)).
+//        fold(FeatureExprFactory.True)(_ and _)
+//
+//      val testObject = testClass.newInstance()
+//      testClass.getMethod(method).invoke(testObject)
+//
+//      bruteForceResult = TestOutput.output.map(_.and(config)) ++ bruteForceResult
+//    }
+//    bruteForceResult
+//  }
 
-  def executeBruteForce(testClass: Class[_], method: String, configOptions: Set[String]) = {
-    //now all the separate executions
-    var bruteForceResult: List[Opt[String]] = Nil
-    val configs = explode(configOptions.toList)
-    for ((sel, desel) <- configs) {
-      TestOutput.output = Nil
-      Config.configValues = (sel.map((_ -> 1)) ++ desel.map((_ -> 0))).toMap
-      val config = (sel.map(FeatureExprFactory.createDefinedExternal(_))
-        ++ desel.map(FeatureExprFactory.createDefinedExternal(_).not)).
-        fold(FeatureExprFactory.True)(_ and _)
-
-      val testObject = testClass.newInstance()
-      testClass.getMethod(method).invoke(testObject)
-
-      bruteForceResult = TestOutput.output.map(_.and(config)) ++ bruteForceResult
-    }
-    bruteForceResult
-  }
-
-  def executeV(testVClass: Class[_], method: String): List[TOpt[String]] = {
-    //VExecution first
-    TestOutput.output = Nil
-    Config.configValues = Map()
-    val ctx = FeatureExprFactory.True
-
-    val constructor = testVClass.getConstructor(classOf[FeatureExpr])
-    val testVObject = constructor.newInstance(ctx)
-    val mn = MethodName(method).rename(MethodDesc("()V"))
-    val exceptions = testVClass.getMethod(mn, classOf[FeatureExpr]).invoke(testVObject, ctx)
-    val vresult = TestOutput.output
-    println("[INFO] Returned exceptions: " + exceptions)
-    vresult
-  }
+//  def executeV(testVClass: Class[_], method: String): List[TOpt[String]] = {
+//    //VExecution first
+////    TestOutput.output = Nil
+//    Config.configValues = Map()
+//    val ctx = FeatureExprFactory.True
+//
+//    val constructor = testVClass.getConstructor(classOf[FeatureExpr])
+//    val testVObject = constructor.newInstance(ctx)
+//    val mn = MethodName(method).rename(MethodDesc("()V"))
+//    val exceptions = testVClass.getMethod(mn, classOf[FeatureExpr]).invoke(testVObject, ctx)
+////    val vresult = TestOutput.output
+//    println("[INFO] Returned exceptions: " + exceptions)
+////    vresult
+//  }
 
   type Feature = String
   type Config = (List[Feature], List[Feature])
@@ -184,7 +184,7 @@ trait DiffMethodTestInfrastructure {
       //        } withMeasurer {
       //            new Measurer.IgnoringGC
     } setUp { _ =>
-      TestOutput.output = Nil
+//      TestOutput.output = Nil
       Config.configValues = Map()
       _ctx = FeatureExprFactory.True
       val constructor = testVClass.getConstructor(classOf[FeatureExpr])
@@ -206,7 +206,7 @@ trait DiffMethodTestInfrastructure {
         //        } withMeasurer {
         //            new Measurer.IgnoringGC
       } setUp { _ =>
-        TestOutput.output = Nil
+//        TestOutput.output = Nil
         Config.configValues = (sel.map((_ -> 1)) ++ desel.map((_ -> 0))).toMap
         testObject = testClass.newInstance()
       } measure {
