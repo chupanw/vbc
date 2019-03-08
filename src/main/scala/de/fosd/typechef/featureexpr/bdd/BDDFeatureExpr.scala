@@ -14,14 +14,13 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   def implies(that: FeatureExpr): FeatureExpr = new BDDFeatureExpr(this.bdd.not.or(that.bdd))
   def isSatisfiable(): Boolean = !(this.bdd == MTBDDFactory.FALSE)
 
-  /*
-   * Unimplemented
-   */
+  /* Unimplemented */
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])] = ???
   def collectDistinctFeatureObjects: Set[SingleFeatureExpr] = ???
   def simplify(fe: FeatureExpr): FeatureExpr = ???
   def toTextExpr: String = "<NOT IMPLEMENTED>"
   def evaluate(o: Set[String]): Boolean = ???
 
-  override def toString: String = "Unknown context"
+  /* Debugging */
+  override def toString: String = boolOps(bdd).toString
 }

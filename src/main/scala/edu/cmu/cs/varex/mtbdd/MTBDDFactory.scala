@@ -87,20 +87,31 @@ object MTBDDFactory {
       case _ => false
     }
 
-    override def toString: String = {
-      def go(r: MTBDD[T], enabled: Set[Int], ordered: Queue[Int]): List[(String, String)] = r match {
-        case n: Node[T] =>
-          go(n.low, enabled, ordered enqueue n.v) ::: go(n.high, enabled + n.v, ordered enqueue n.v)
+    /**
+      * Transform the MTBDD to a mapping of values to conditions
+      *
+      * O(|V|) implementation, where |V| is the number of vertex
+      *
+      * @return mapping of concrete values to conditions
+      */
+    def toMap[U >: T]: Map[Value[U], String] = {
+      def go(r: MTBDD[T], enabled: Set[Int], ordered: Queue[Int]): Map[Value[U], String] = r match {
         case v: Value[T] =>
-          syncFeatureMaps()
-          val cond = ordered.map(x => if (enabled contains x) " " + featureIDs(x) else "!" + featureIDs(x)) mkString "&"
-          List((v.toString, cond))
+          val cond = ordered.map(x => if (enabled contains x) lookupVarName(x) else "!" + lookupVarName(x)) mkString "&"
+          Map(v -> s"($cond)")
+        case n: Node[T] =>
+          val ordered2 = ordered enqueue n.v
+          val lowMap = go(n.low, enabled, ordered2)
+          val highMap = go(n.high, enabled + n.v, ordered2)
+          lowMap ++ highMap.map {case (key, value) => key -> {
+            val x = lowMap.get(key)
+            if (x.isDefined) x.get + "||" + value else value
+          }}
       }
-
-      val all = go(this, Set(), Queue())
-      "{\n" + all.map(p => s"\t${p._2} -> ${p._1}\n").mkString("") + "}"
+      go(this, Set(), Queue())
     }
 
+    override def toString: String = toMap[T].toString
     override def hashCode: Int = hash
   }
 
@@ -116,6 +127,11 @@ object MTBDDFactory {
       lookupCache(boolOpCache, ("OR", s, that), {
         apply[Boolean, Boolean, Boolean]((a, b) => if (a.value || b.value) TRUE else FALSE, s, that)
       })
+
+    override def toString: String = s match {
+      case n: NodeImpl[Boolean] => n.toMap(TRUE)
+      case v: ValueImpl[Boolean] => v.toString
+    }
   }
 
   implicit def boolOps(s: MTBDD[Boolean]): BooleanNode = new BooleanNode(s)
@@ -313,9 +329,11 @@ object MTBDDFactory {
 
   private var features: mutable.Map[String, Int] = mutable.Map()
   private var featureIDs: mutable.Map[Int, String] = mutable.Map()
-  private def syncFeatureMaps(): Unit = if (featureIDs.size != features.size) {
-    for (p <- features) featureIDs += (p._2 -> p._1)
-  }
+  private def lookupVarName(id: Int): String = featureIDs.getOrElseUpdate(id, {
+    val varNameOpt = features.find(_._2 == id)
+    assert(varNameOpt.isDefined, s"Unknown variable id: $id")
+    varNameOpt.get._1
+  })
 
   def varNum = features.size
 

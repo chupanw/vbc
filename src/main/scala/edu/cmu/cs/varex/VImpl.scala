@@ -67,6 +67,9 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
   override def restrictInteractionDegree(): V[T] = ???
 
   def getOneValue(): One[T] = ???
+
+  /* Debugging */
+  override def toString: String = values.toString
 }
 
 object VImpl {
