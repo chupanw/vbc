@@ -247,8 +247,6 @@ object MTBDDFactory {
           case f: Node[Boolean] =>
             // PERF Could have just do two select calls and then a union, but that is likely to be slow
             //  - if this happen too often, maybe we can make the references to leave nodes mutable and update them
-
-            // TODO Rewrite, ugly
             val result = (g, h) match {
               case (g: Value[T], h: Value[T]) => mk(f.v, ite_(f.low, g, h), ite_(f.high, g, h))
               case (g: Value[T], h: Node[T]) =>
