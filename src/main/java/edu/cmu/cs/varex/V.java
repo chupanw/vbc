@@ -235,7 +235,7 @@ public interface V<T> {
             return VImpl.choice(condition, a.get(), b.get());
     }
 
-    static <U> V<? extends U> choice(@Nonnull FeatureExpr condition, @Nonnull V<? extends U> a, @Nonnull V<? extends U> b) {
+    static V choice(@Nonnull FeatureExpr condition, @Nonnull V a, @Nonnull V b) {
         assert a != null;
         //TODO should not accept null values here. requires clean initialization of variational variables with One(null) instead of null
         if (b == null)
@@ -246,7 +246,7 @@ public interface V<T> {
         else if (condition.isTautology())
             return a;
         else
-            return VImpl.choice(condition, a, b);
+            return VImpl.choiceV(condition, a, b);
     }
 
     /**

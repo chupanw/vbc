@@ -23,5 +23,5 @@ class BDDFeatureExpr(val bdd: V[Boolean]) extends FeatureExpr {
   def toTextExpr: String = "<NOT IMPLEMENTED>"
   def evaluate(o: Set[String]): Boolean = ???
 
-  override def toString: String = bdd.toString
+  override def toString: String = "Unknown context"
 }
