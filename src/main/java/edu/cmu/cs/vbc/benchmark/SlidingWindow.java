@@ -7,7 +7,7 @@ package edu.cmu.cs.vbc.benchmark;
  *
  * @author chupanw
  */
-public class SlidingWindown {
+public class SlidingWindow {
     private int capacity;
     private double[] measurements;
     private int size;
@@ -15,7 +15,7 @@ public class SlidingWindown {
     private int firstElementIndex;
     private int nextElementIndex;
 
-    public SlidingWindown(int s) {
+    public SlidingWindow(int s) {
         capacity = s;
         measurements = new double[capacity];
         size = 0;

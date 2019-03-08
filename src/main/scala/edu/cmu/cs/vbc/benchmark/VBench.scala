@@ -39,7 +39,7 @@ trait VBench {
     var start: Double = 0.0
     var end: Double = 0.0
 
-    val measurements = new SlidingWindown(windowSize)
+    val measurements = new SlidingWindow(windowSize)
 
     val m = getMainMethod(prog, config, useModel = useModel)
 
