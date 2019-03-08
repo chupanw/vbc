@@ -3,7 +3,7 @@ package de.fosd.typechef.featureexpr
 import java.io.Writer
 
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
-import edu.cmu.cs.varex.mtbdd.{MTBDDFactory, V}
+import edu.cmu.cs.varex.mtbdd.{MTBDDFactory}
 
 object FeatureExprFactory {
   val True: FeatureExpr = new BDDFeatureExpr(MTBDDFactory.TRUE)

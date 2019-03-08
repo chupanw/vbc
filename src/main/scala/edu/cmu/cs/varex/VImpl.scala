@@ -5,10 +5,10 @@ import java.util.function.{BiConsumer, BiFunction, Consumer, Predicate}
 import de.fosd.typechef.featureexpr.FeatureExpr
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory.NOVALUE
-import edu.cmu.cs.varex.mtbdd.{MTBDDFactory, VNode, VValue}
+import edu.cmu.cs.varex.mtbdd.{MTBDD, MTBDDFactory}
 
 
-class VImpl[T] (val values: mtbdd.V[T]) extends V[T] {
+class VImpl[T] (val values: MTBDD[T]) extends V[T] {
 
   override def getOne: T = {
     val allValues = MTBDDFactory.valueIterator(values)
@@ -75,6 +75,6 @@ object VImpl {
     new VImpl[T](MTBDDFactory.createChoice(context.bdd, a.asInstanceOf[VImpl[T]].values, b.asInstanceOf[VImpl[T]].values))
 }
 
-class One[T] (val value: mtbdd.V[T]) extends VImpl[T](value) {
+class One[T] (val value: MTBDD[T]) extends VImpl[T](value) {
   def this(context: FeatureExpr, v: T) = this(MTBDDFactory.createValue(v).select(context.bdd))
 }

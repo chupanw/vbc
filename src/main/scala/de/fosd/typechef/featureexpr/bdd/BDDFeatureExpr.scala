@@ -1,10 +1,10 @@
 package de.fosd.typechef.featureexpr.bdd
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, SingleFeatureExpr}
-import edu.cmu.cs.varex.mtbdd.{MTBDDFactory, V}
+import edu.cmu.cs.varex.mtbdd.{MTBDDFactory, MTBDD}
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory.boolOps
 
-class BDDFeatureExpr(val bdd: V[Boolean]) extends FeatureExpr {
+class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   def isTautology(): Boolean = bdd == MTBDDFactory.TRUE
   def isContradiction(): Boolean = bdd == MTBDDFactory.FALSE
   def equivalentTo(that: FeatureExpr): Boolean = this.bdd == that.bdd

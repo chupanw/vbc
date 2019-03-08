@@ -1,9 +1,9 @@
 package de.fosd.typechef.featureexpr
 
-import edu.cmu.cs.varex.mtbdd.V
+import edu.cmu.cs.varex.mtbdd.MTBDD
 
 trait FeatureExpr {
-  val bdd: V[Boolean]
+  val bdd: MTBDD[Boolean]
   def isTautology(): Boolean
   def isContradiction(): Boolean
   def equivalentTo(that: FeatureExpr): Boolean
