@@ -532,10 +532,11 @@ public class VOps {
             return selected.getOne();
         } else {
             One oneValue = ((VImpl) selected).getOneValue();
-            if (oneValue.value() instanceof AssertionError) {
+            Object v = oneValue.value;  // HashMap VImpl
+            if (v instanceof AssertionError) {
                 throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace());
             } else {
-                throw new VException((Throwable) oneValue.value(), oneValue.getConfigSpace());
+                throw new VException((Throwable) v, oneValue.getConfigSpace());
             }
         }
     }

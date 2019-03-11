@@ -116,7 +116,7 @@ object MTBDDFactory {
   }
 
   class BooleanNode(val s: MTBDD[Boolean]) {
-    def not: MTBDD[Boolean] = map[Boolean, Boolean](s, x => !x)
+    def not: MTBDD[Boolean] = lookupCache(notCache, s, map[Boolean, Boolean](s, x => !x))
 
     def and(that: MTBDD[Boolean]): MTBDD[Boolean] =
       lookupCache(boolOpCache, ("AND", s, that), {

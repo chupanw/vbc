@@ -245,8 +245,10 @@ public interface V<T> {
             return b;
         else if (condition.isTautology())
             return a;
-        else
-            return VImpl.choiceV(condition, a, b);
+        else {
+//            return MTBDDVImpl.choiceV(condition, a, b);
+            return VImpl.choice(condition, a, b);
+        }
     }
 
     /**

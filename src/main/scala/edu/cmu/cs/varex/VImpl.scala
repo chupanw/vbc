@@ -10,7 +10,7 @@ import edu.cmu.cs.varex.mtbdd.{MTBDD, MTBDDFactory}
 import scala.collection.immutable.Queue
 
 
-class VImpl[T] (val values: MTBDD[T]) extends V[T] {
+class MTBDDVImpl[T] (val values: MTBDD[T]) extends V[T] {
 
   override def getOne: T = {
     val allValues = MTBDDFactory.valueIterator(values)
@@ -20,20 +20,20 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
   }
 
   override def map[U](fun: function.Function[_ >: T, _ <: U]): V[_ <: U] = {
-    VImpl.mapCnt += 1
-    if (values == NOVALUE) new VImpl[U](NOVALUE) else new VImpl[U](values.map(x => fun.apply(x)))
+    MTBDDVImpl.mapCnt += 1
+    if (values == NOVALUE) new MTBDDVImpl[U](NOVALUE) else new MTBDDVImpl[U](values.map(x => fun.apply(x)))
   }
 
   //perf: hopefully faster now?
   override def map[U](fun: BiFunction[FeatureExpr, _ >: T, _ <: U]): V[_ <: U] = {
-    VImpl.mapCtxCnt += 1
-    if (values == NOVALUE) new VImpl[U](NOVALUE) else new VImpl[U](values.map(x => fun.apply(new BDDFeatureExpr(values.whenCondition(y => y == x)), x)))
+    MTBDDVImpl.mapCtxCnt += 1
+    if (values == NOVALUE) new MTBDDVImpl[U](NOVALUE) else new MTBDDVImpl[U](values.map(x => fun.apply(new BDDFeatureExpr(values.whenCondition(y => y == x)), x)))
   }
 //  override def map[U](fun: BiFunction[FeatureExpr, _ >: T, _ <: U]): V[_ <: U] = new VImpl[U](mapValueWithContext(values, fun))
 
   override def flatMap[U](fun: function.Function[_ >: T, V[_ <: U]]): V[_ <: U] = {
-    VImpl.flatMapCnt += 1
-    if (values == NOVALUE) new VImpl[U](NOVALUE) else new VImpl[U](values.flatMap(x => fun.apply(x).asInstanceOf[VImpl[U]].values))
+    MTBDDVImpl.flatMapCnt += 1
+    if (values == NOVALUE) new MTBDDVImpl[U](NOVALUE) else new MTBDDVImpl[U](values.flatMap(x => fun.apply(x).asInstanceOf[MTBDDVImpl[U]].values))
   }
 
   //perf
@@ -41,12 +41,12 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
 //    if (values == NOVALUE) new VImpl[U](NOVALUE) else new VImpl[U](values.flatMap(x => fun.apply(new BDDFeatureExpr(values.whenCondition(y => y == x)), x).asInstanceOf[VImpl[U]].values))
 //  }
   override def flatMap[U](fun: BiFunction[FeatureExpr, _ >: T, V[_ <: U]]): V[_ <: U] = {
-    VImpl.flatMapCtxCnt += 1
-    if (values == NOVALUE) new VImpl[U](NOVALUE) else flatMapWithContext[U](this.values, fun)
+    MTBDDVImpl.flatMapCtxCnt += 1
+    if (values == NOVALUE) new MTBDDVImpl[U](NOVALUE) else flatMapWithContext[U](this.values, fun)
   }
 
   override def foreach(fun: Consumer[T]): Unit = {
-    VImpl.foreachCnt += 1
+    MTBDDVImpl.foreachCnt += 1
     if (values != NOVALUE) MTBDDFactory.foreachValue[T](values, x => fun.accept(x))
   }
 
@@ -54,7 +54,7 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
 //  override def foreach(fun: BiConsumer[FeatureExpr, T]): Unit =
 //    {VImpl.foreachCtxCnt += 1;if (values != NOVALUE) MTBDDFactory.foreachValue[T](values, x => fun.accept(new BDDFeatureExpr(values.whenCondition(y => y == x)), x))}
   override def foreach(fun: BiConsumer[FeatureExpr, T]): Unit = {
-    VImpl.foreachCtxCnt += 1
+    MTBDDVImpl.foreachCtxCnt += 1
     foreachWithContext(this.values, fun)
   }
 
@@ -69,7 +69,7 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
   override def select(configSpace: FeatureExpr): V[T] = reduce(configSpace)
 
   override def reduce(reducedConfigSpace: FeatureExpr): V[T] =
-    if (values == NOVALUE) new VImpl[T](NOVALUE) else new VImpl[T](values.select(reducedConfigSpace.bdd))
+    if (values == NOVALUE) new MTBDDVImpl[T](NOVALUE) else new MTBDDVImpl[T](values.select(reducedConfigSpace.bdd))
 
   override def getConfigSpace: FeatureExpr = new BDDFeatureExpr(values.configSpace)
 
@@ -85,7 +85,7 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
 
   override def restrictInteractionDegree(): V[T] = ???
 
-  def getOneValue(): One[T] = ???
+  def getOneValue(): MTBDDOne[T] = ???
 
   /**
     * Similar to the mapValue private function in [[MTBDDFactory]], but provide context
@@ -114,10 +114,10 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
     var result: MTBDD[U] = null
     for (oldValueNode <- oldValueNodes; if oldValueNode != NOVALUE) {
       val ctx = bdd.whenCondition(_ == oldValueNode.value)
-      val newValue = fun.apply(new BDDFeatureExpr(ctx), oldValueNode.value).asInstanceOf[VImpl[U]].values
+      val newValue = fun.apply(new BDDFeatureExpr(ctx), oldValueNode.value).asInstanceOf[MTBDDVImpl[U]].values
       result = if (result == null) newValue.select(ctx) else result union newValue.select(ctx)
     }
-    new VImpl[U](result)
+    new MTBDDVImpl[U](result)
   }
 
   private def foreachWithContext[T](bdd: MTBDD[T], fun: BiConsumer[FeatureExpr, T]): Unit = {
@@ -155,10 +155,10 @@ class VImpl[T] (val values: MTBDD[T]) extends V[T] {
   override def toString: String = values.toString
 }
 
-object VImpl {
-  def choice[T](context: FeatureExpr, a: T, b: T): VImpl[T] = new VImpl[T](MTBDDFactory.createChoice(context.bdd, a, b))
-  def choiceV[T](context: FeatureExpr, a: V[T], b: V[T]): VImpl[T] =
-    new VImpl[T](MTBDDFactory.createChoice(context.bdd, a.asInstanceOf[VImpl[T]].values, b.asInstanceOf[VImpl[T]].values))
+object MTBDDVImpl {
+  def choice[T](context: FeatureExpr, a: T, b: T): MTBDDVImpl[T] = new MTBDDVImpl[T](MTBDDFactory.createChoice(context.bdd, a, b))
+  def choiceV[T](context: FeatureExpr, a: V[T], b: V[T]): MTBDDVImpl[T] =
+    new MTBDDVImpl[T](MTBDDFactory.createChoice(context.bdd, a.asInstanceOf[MTBDDVImpl[T]].values, b.asInstanceOf[MTBDDVImpl[T]].values))
   var mapCtxCnt = 0
   var mapCnt = 0
   var foreachCtxCnt = 0
@@ -167,6 +167,6 @@ object VImpl {
   var flatMapCtxCnt = 0
 }
 
-class One[T] (val value: MTBDD[T]) extends VImpl[T](value) {
+class MTBDDOne[T] (val value: MTBDD[T]) extends MTBDDVImpl[T](value) {
   def this(context: FeatureExpr, v: T) = this(MTBDDFactory.createValue(v).select(context.bdd))
 }
