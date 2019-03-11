@@ -325,9 +325,9 @@ object MTBDDFactory {
   def mapPair[A, B, C](a: MTBDD[A], b: MTBDD[B], f: (A, B) => C): MTBDD[C] =
     apply[A, B, C]((aa, bb) => createValue[C](f(aa.value, bb.value)), a, b)
 
-  private var features: mutable.Map[String, Int] = mutable.Map()
-  private var featureIDs: mutable.Map[Int, String] = mutable.Map()
-  private def lookupVarName(id: Int): String = featureIDs.getOrElseUpdate(id, {
+  var features: mutable.Map[String, Int] = mutable.Map()
+  var featureIDs: mutable.Map[Int, String] = mutable.Map()
+  def lookupVarName(id: Int): String = featureIDs.getOrElseUpdate(id, {
     val varNameOpt = features.find(_._2 == id)
     assert(varNameOpt.isDefined, s"Unknown variable id: $id")
     varNameOpt.get._1
