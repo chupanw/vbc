@@ -83,7 +83,7 @@ object MTBDDFactory {
     lazy val hash: Int = v + 31 * (if (low eq null) 0 else low.hashCode) + 27 * (if (high eq null) 0 else high.hashCode)
 
     override def equals(that: Any): Boolean = that match {
-      case that: NodeImpl[T] => (this.v == that.v) && (this.low == that.low) && (this.high == that.high)
+      case that: NodeImpl[T] => (this.v == that.v) && (this.low eq that.low) && (this.high eq that.high)
       case _ => false
     }
 
