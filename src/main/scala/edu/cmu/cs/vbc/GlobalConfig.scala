@@ -13,7 +13,7 @@ object GlobalConfig {
   val printContext = false
   val printExpandArrayWarnings = false
   val printTestResults = true
-  val writeBDDs = true
+  val writeBDDs = false
   val blockCounting = true
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
@@ -25,7 +25,7 @@ object GlobalConfig {
     *   degree((A & B) | (C & D)) = 2
     *   degree((A & B) | C) = 1
     */
-  val maxInteractionDegree = 1000
+  private[cs] var maxInteractionDegree = 3
   /**
     * Maximum number of VBlocks we can execute before throwing an exception
     *
