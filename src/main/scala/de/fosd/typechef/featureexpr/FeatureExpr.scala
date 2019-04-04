@@ -8,10 +8,15 @@ trait FeatureExpr {
   def isContradiction(): Boolean
   def equivalentTo(that: FeatureExpr): Boolean
   def and(that: FeatureExpr): FeatureExpr
+  def &(that: FeatureExpr): FeatureExpr
+  def |(that: FeatureExpr): FeatureExpr
+  def unary_!(): FeatureExpr
   def or(that: FeatureExpr): FeatureExpr
   def not(): FeatureExpr
   def implies(that: FeatureExpr): FeatureExpr
   def isSatisfiable(): Boolean
+  def getAllSolutions: java.util.List[String]
+  def getAllSolutionsScala: List[String]
 
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])]
   def collectDistinctFeatureObjects: Set[SingleFeatureExpr]
