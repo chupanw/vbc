@@ -1,5 +1,7 @@
 package edu.cmu.cs.varex.mtbdd
 
+import edu.cmu.cs.vbc.GlobalConfig
+
 import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.ref.WeakReference
@@ -67,6 +69,70 @@ object MTBDDFactory {
     * @param high Subtree if this variable is true
     */
   private class NodeImpl[+T](val v: Int, val low: MTBDD[T], val high: MTBDD[T]) extends MTBDDImpl[T] with Node[T] {
+    /**
+      * Used for debugging or testing, no paths contain more than [[GlobalConfig.maxInteractionDegree]] true edges
+      */
+    def checkDegree: Boolean = {
+      def go(n: MTBDD[T], degree: Int): Boolean = {
+        n match {
+          case n: NodeImpl[T] => degree <= GlobalConfig.maxInteractionDegree && go(n.low, degree) && go(n.high, degree + 1)
+          case v: ValueImpl[T] => if (degree <= GlobalConfig.maxInteractionDegree) true else !v.value.asInstanceOf[Boolean]
+        }
+      }
+      go(this, 0)
+    }
+
+    /**
+      * @todo Not used
+      */
+    lazy val degree: Int = maxHighDegree
+
+    /**
+      * Maximum number of high edges among all paths.
+      *
+      * This is also how bounding is done right now in [[BooleanNode.boundedApplyBoolean()]]
+      */
+    lazy val maxHighDegree: Int = (low, high) match {
+      case (l: NodeImpl[Boolean], h: NodeImpl[Boolean]) => Math.max(low.degree, high.degree + 1)
+      case (l: ValueImpl[Boolean], h: ValueImpl[Boolean]) => if (h.value) 1 else 0
+      case (l: NodeImpl[Boolean], h: ValueImpl[Boolean]) => if (h.value) Math.max(l.degree, 1) else low.degree
+      case (l: ValueImpl[Boolean], h: NodeImpl[Boolean]) => h.degree + 1
+      case _ => throw new RuntimeException("Only support bounding on MTBDD[Boolean]")
+    }
+
+    /**
+      * Minimum number of high edges toward TRUE
+      *
+      * Not sure if this definition is useful.
+      * This allows complicated paths toward FALSE. Those paths are unlikely unnecessary, as we do not
+      * care about configuration spaces that need more than [[GlobalConfig.maxInteractionDegree]] options.
+      *
+      * Work only for MTBDD[Boolean]
+      */
+    lazy val min2TrueDegree: Int = (low, high) match {
+      case (l: NodeImpl[Boolean], h: NodeImpl[Boolean]) => Math.min(low.degree, high.degree + 1)
+      case (l: ValueImpl[Boolean], h: ValueImpl[Boolean]) => if (h.value) 1 else 0
+      case (l: NodeImpl[Boolean], h: ValueImpl[Boolean]) => if (h.value) Math.min(l.degree, 1) else low.degree
+      case (l: ValueImpl[Boolean], h: NodeImpl[Boolean]) => if (l.value) 0 else high.degree + 1
+      case _ => throw new RuntimeException("Only support bounding on MTBDD[Boolean]")
+    }
+
+    /**
+      * Maximum number of high edges among all paths
+      */
+    def maxHighEdges(mtbdd: MTBDD[Boolean]) : Int = {
+      def go(n: MTBDD[Boolean], degree: Int): Int = {
+        n match {
+          case n: NodeImpl[Boolean] => Math.max(go(n.low, degree), go(n.high, degree + 1))
+          case v: ValueImpl[Boolean] =>
+            // it's okay if the last high edges point to FALSE, that's how bounding works
+            if (!v.value) degree - 1 else degree
+        }
+      }
+      go(mtbdd, 0)
+    }
+
+//    assert(degree <= GlobalConfig.maxInteractionDegree, "True degree exceeded")
     override def union[U >: T](that: MTBDD[U]): MTBDD[U] = that match {
       case that: Value[U] => throw new RuntimeException("Not suppose to call union on VValue")
       case that: Node[U] =>
@@ -115,22 +181,97 @@ object MTBDDFactory {
     override def hashCode: Int = hash
   }
 
+  object BooleanNode {
+    private val andCache: mutable.WeakHashMap[(MTBDD[Boolean], MTBDD[Boolean], Int), MTBDD[Boolean]] = mutable.WeakHashMap()
+    private val andOp = (a: Value[Boolean], b: Value[Boolean]) => if (a.value && b.value) TRUE else FALSE
+    private val orCache: mutable.WeakHashMap[(MTBDD[Boolean], MTBDD[Boolean], Int), MTBDD[Boolean]] = mutable.WeakHashMap()
+    private val orOp = (a: Value[Boolean], b: Value[Boolean]) => if (a.value || b.value) TRUE else FALSE
+    private val internalNotCache: mutable.WeakHashMap[(MTBDD[Boolean], Int), MTBDD[Boolean]] = mutable.WeakHashMap()
+  }
+
   class BooleanNode(val s: MTBDD[Boolean]) {
-    def not: MTBDD[Boolean] = lookupCache(notCache, s, map[Boolean, Boolean](s, x => !x))
+    import BooleanNode._
+
+    def not: MTBDD[Boolean] = lookupCache(notCache, s, boundedNot(s))
 
     def and(that: MTBDD[Boolean]): MTBDD[Boolean] =
-      lookupCache(boolOpCache, ("AND", s, that), {
-        apply[Boolean, Boolean, Boolean]((a, b) => if (a.value && b.value) TRUE else FALSE, s, that)
-      })
+      lookupCache(boolOpCache, ("AND", s, that), { boundedApplyBoolean(true, s, that) })
 
     def or(that: MTBDD[Boolean]): MTBDD[Boolean] =
-      lookupCache(boolOpCache, ("OR", s, that), {
-        apply[Boolean, Boolean, Boolean]((a, b) => if (a.value || b.value) TRUE else FALSE, s, that)
-      })
+      lookupCache(boolOpCache, ("OR", s, that), { boundedApplyBoolean(false, s, that) })
 
     override def toString: String = s match {
       case n: NodeImpl[Boolean] => n.toMap(TRUE)
       case v: ValueImpl[Boolean] => v.toString
+    }
+
+    def boundedNot(mtbdd: MTBDD[Boolean]): MTBDD[Boolean] = {
+      val cache = internalNotCache
+
+      def go(n: MTBDD[Boolean], degree: Int): MTBDD[Boolean] =
+        if (cache.contains((n, degree))) cache((n, degree))
+        else if (degree > GlobalConfig.maxInteractionDegree) FALSE
+        else {
+          val newNode = n match {
+            case nt: Node[Boolean] => mk(nt.v, go(nt.low, degree), go(nt.high, degree + 1))
+            case t: Value[Boolean] => createValue(!t.value)
+          }
+          cache += ((n, degree) -> newNode)
+          newNode
+        }
+
+      go(mtbdd, 0)
+    }
+
+
+    def boundedApplyBoolean(isAnd: Boolean, left: MTBDD[Boolean], right: MTBDD[Boolean]): MTBDD[Boolean] = {
+      val (cache, op) = if (isAnd) (andCache, andOp) else (orCache, orOp)
+
+      def app(u1: MTBDD[Boolean], u2: MTBDD[Boolean], degree: Int): MTBDD[Boolean] = {
+        val cached = cache.get((u1, u2, degree))
+        if (cached.nonEmpty)
+          return cached.get
+
+        if (degree > GlobalConfig.maxInteractionDegree) FALSE
+        else {
+          val u = (u1, u2) match {
+            case (u1: Value[Boolean], u2: Value[Boolean]) => op(u1, u2)
+            case (u1: Node[Boolean], u2: Value[Boolean]) => mk(u1.v, app(u1.low, u2, degree), app(u1.high, u2, degree + 1))
+            case (u1: Value[Boolean], u2: Node[Boolean]) => mk(u2.v, app(u1, u2.low, degree), app(u1, u2.high, degree + 1))
+            case (u1: Node[Boolean], u2: Node[Boolean]) =>
+              if (u1.v < u2.v) mk(u1.v, app(u1.low, u2, degree), app(u1.high, u2, degree + 1))
+              else if (u1.v > u2.v) mk(u2.v, app(u1, u2.low, degree), app(u1, u2.high, degree + 1))
+              else mk(u1.v, app(u1.low, u2.low, degree), app(u1.high, u2.high, degree + 1))
+          }
+          cache += ((u1, u2, degree) -> u)
+          u
+        }
+      }
+
+      app(left, right, 0)
+    }
+
+    /**
+      * Get all bounded solutions, including variables that do not appear in the BDD
+      *
+      * We might get too many solutions this way, especially if there are a lot of unused variables
+      */
+    def allSat: List[String] = {
+      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > GlobalConfig.maxInteractionDegree) Nil else r match {
+        case v: Value[Boolean] =>
+          if (currentV == varNum)
+            if (v.value) List(enabled.map(lookupVarName).toList) else Nil
+          else
+            go(r, enabled, currentV + 1) ::: go(r, enabled enqueue currentV, currentV + 1)
+        case n: Node[Boolean] =>
+          if (n.v == currentV)
+            go(n.low, enabled, currentV + 1) ::: go(n.high, enabled enqueue n.v, currentV + 1)
+          else
+            go(n, enabled, currentV + 1) ::: go(n, enabled enqueue currentV, currentV + 1)
+      }
+      val res = go(s, Queue(), 0)
+      val sorted = res.sortBy(_.size).map(_.mkString("{", "&", "}"))
+      sorted
     }
   }
 

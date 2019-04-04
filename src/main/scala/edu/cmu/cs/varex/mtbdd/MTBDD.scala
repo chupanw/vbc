@@ -6,6 +6,7 @@ package edu.cmu.cs.varex.mtbdd
   * Covariance so that we can use MTBDD[Nothing] to represent non-existing values
   */
 trait MTBDD[+T] {
+  val degree: Int
   def configSpace: MTBDD[Boolean]
   /**
     * Restrict to a partial configuration space
@@ -44,6 +45,7 @@ trait MTBDD[+T] {
   */
 trait Node[+T] extends MTBDD[T] {
   val v: Int
+  val degree: Int
   def low: MTBDD[T]
   def high: MTBDD[T]
 }
@@ -54,5 +56,6 @@ trait Node[+T] extends MTBDD[T] {
   * @todo should all VValues have the config space of TRUE?
   */
 trait Value[+T] extends MTBDD[T] {
+  val degree: Int = 0
   val value: T
 }

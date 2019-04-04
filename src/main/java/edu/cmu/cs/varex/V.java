@@ -305,7 +305,8 @@ public interface V<T> {
 //            }
 //        }
 //        return enabled.toString();
-        return "<NOT IMPLEMENTED>";
+//        return "<NOT IMPLEMENTED>";
+        return fe.getAllSolutions().get(0);
     }
 
     static String getAllLowDegreeSolutions(FeatureExpr fe) {
@@ -345,7 +346,14 @@ public interface V<T> {
 //        sb.append("\n\tUnrelated options:");
 //        for (String s : unrelated) sb.append(" " + s);
 //        return sb.toString();
-        return "<NOT IMPLEMENTED>";
+//        return "<NOT IMPLEMENTED>";
+        List<String> all = fe.getAllSolutions();
+        StringBuilder sb = new StringBuilder();
+        for (String s : all) {
+            if (sb.length() == 0) sb.append(s);
+            else sb.append(", " + s);
+        }
+        return sb.toString();
     }
 
     static List<String> intersect(List<String> base, List<String> l) {
