@@ -290,6 +290,15 @@ object MTBDDFactory {
       val sorted = res.sortBy(_.size).map(_.mkString("{", "&", "}"))
       sorted
     }
+
+    def evaluate(enabled: Set[String]): Boolean = {
+      def go(mtbdd: MTBDD[Boolean]): Boolean = mtbdd match {
+        case TRUE => true
+        case FALSE => false
+        case node: Node[Boolean] => if (enabled contains lookupVarName(node.v)) go(node.high) else go(node.low)
+      }
+      go(s)
+    }
   }
 
   implicit def boolOps(s: MTBDD[Boolean]): BooleanNode = new BooleanNode(s)
@@ -484,7 +493,7 @@ object MTBDDFactory {
     apply[A, B, C]((aa, bb) => createValue[C](f(aa.value, bb.value)), a, b)
 
   var features: mutable.Map[String, Int] = mutable.Map()
-  var featureIDs: mutable.Map[Int, String] = mutable.Map()
+  private val featureIDs: mutable.Map[Int, String] = mutable.Map()
   def lookupVarName(id: Int): String = featureIDs.getOrElseUpdate(id, {
     val varNameOpt = features.find(_._2 == id)
     assert(varNameOpt.isDefined, s"Unknown variable id: $id")

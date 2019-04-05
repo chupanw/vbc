@@ -25,8 +25,8 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])] = ???
   def collectDistinctFeatureObjects: Set[SingleFeatureExpr] = ???
   def simplify(fe: FeatureExpr): FeatureExpr = ???
-  def toTextExpr: String = "<NOT IMPLEMENTED>"
-  def evaluate(o: Set[String]): Boolean = ???
+  def toTextExpr: String = toString
+  def evaluate(enabledOptions: Set[String]): Boolean = bdd.evaluate(enabledOptions)
 
   /* Debugging */
   override def toString: String = boolOps(bdd).toString

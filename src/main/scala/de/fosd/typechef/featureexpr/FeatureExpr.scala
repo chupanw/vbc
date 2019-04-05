@@ -22,5 +22,5 @@ trait FeatureExpr {
   def collectDistinctFeatureObjects: Set[SingleFeatureExpr]
   def simplify(fe: FeatureExpr): FeatureExpr
   def toTextExpr: String
-  def evaluate(o: Set[String]): Boolean
+  def evaluate(enabledOptions: Set[String]): Boolean
 }

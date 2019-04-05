@@ -65,7 +65,7 @@ trait DiffLaunchTestInfrastructure {
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/String;)V"), _) => List(InstrPOP(), InstrPOP())
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/Object;)V"), _) => List(InstrPOP(), InstrPOP())
         case InstrINVOKEVIRTUAL(Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(I)V"), _) => List(InstrPOP(), InstrPOP())
-        case instr => List(instr)
+        case i => List(i)
       }
       ).flatten, block.exceptionHandlers, block.exceptions
     )
@@ -74,11 +74,11 @@ trait DiffLaunchTestInfrastructure {
 
   def instrumentCustomInit(block: Block): Block =
     Block(
-      (for (instr <- block.instr) yield instr match {
+      for (instr <- block.instr) yield instr match {
         //replace initialization of conditional fields
         case InstrINIT_CONDITIONAL_FIELDS() => vbc.TraceInstr_ConfigInit()
-        case instr => instr
-      }), block.exceptionHandlers, block.exceptions
+        case i => i
+      }, block.exceptionHandlers, block.exceptions
     )
 
 
@@ -98,7 +98,7 @@ trait DiffLaunchTestInfrastructure {
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(testCrashLoader)
     val testCrash = testCrashLoader.loadClass(classname)
-    VBCLauncher.invokeMain(testCrash, new Array[String](0))
+    VBCLauncher.invokeLiftedMain(testCrash, new Array[String](0))
 
     //test instrumented version, executed variationally
     TestTraceOutput.trace = Nil
@@ -107,7 +107,7 @@ trait DiffLaunchTestInfrastructure {
     VBCClassLoader.clearCache()
     Thread.currentThread().setContextClassLoader(vloader)
     val vcls: Class[_] = vloader.loadClass(classname)
-    VBCLauncher.invokeMain(vcls, new Array[String](0))
+    VBCLauncher.invokeLiftedMain(vcls, new Array[String](0))
 
     val vtrace = TestTraceOutput.trace
     val usedOptions = TraceConfig.options.map(_.feature)
@@ -124,7 +124,7 @@ trait DiffLaunchTestInfrastructure {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
-        VBCLauncher.invokeMain(cls, new Array[String](0))
+        VBCLauncher.invokeUnliftedMain(cls, new Array[String](0))
         val atrace = TestTraceOutput.trace
 
         //get the trace from the v execution relevant for this config and compare
@@ -211,7 +211,7 @@ trait DiffLaunchTestInfrastructure {
       TraceConfig.config = Map()
     } measure {
       //      Profiler.reset()
-      VBCLauncher.invokeMain(testVClass, new Array[String](0))
+      VBCLauncher.invokeLiftedMain(testVClass, new Array[String](0))
       //      Profiler.report()
     }
     //        println(s"Total time V: $time")
@@ -235,7 +235,7 @@ trait DiffLaunchTestInfrastructure {
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
       } measure {
-        VBCLauncher.invokeMain(testClass, new Array[String](0))
+        VBCLauncher.invokeUnliftedMain(testClass, new Array[String](0))
       }
 
 

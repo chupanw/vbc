@@ -32,19 +32,32 @@ object VBCLauncher extends RelaunchExceptionHandler {
     VERuntime.classloader = Some(loader)
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
-    invokeMain(cls, args)
+    invokeLiftedMain(cls, args)
 //        if (liftBytecode) Statistics.printStatistics()
 //    Profiler.report()
   }
 
-  def invokeMain(cls: Class[_], args: Array[String]): Unit = {
+  def invokeLiftedMain(cls: Class[_], args: Array[String]): Unit = {
     try {
       val mtd: Method = cls.getMethod("main__Array_Ljava_lang_String__V", classOf[V[_]], classOf[FeatureExpr])
       val modifiers = mtd.getModifiers
       if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers))
         executeOnce(None, mtd, Array(processArgs(args)), FeatureExprFactory.True)
     } catch {
-      case e: NoSuchMethodException => println("No main method found in $classname, aborting...")
+      case _: NoSuchMethodException => println(s"No lifted main method found in ${cls.getName}, aborting...")
+      case e => e.printStackTrace()
+    }
+  }
+
+  def invokeUnliftedMain(cls: Class[_], args: Array[String]): Unit = {
+    try {
+      val m = cls.getMethod("main", classOf[Array[String]])
+      val modifiers = m.getModifiers
+      if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers) && m.getReturnType.getName == "void")
+        m.invoke(null, args)
+    } catch {
+      case _: NoSuchMethodException => println(s"No unlifted main method found in ${cls.getName}, aborting")
+      case e => e.printStackTrace()
     }
   }
 
