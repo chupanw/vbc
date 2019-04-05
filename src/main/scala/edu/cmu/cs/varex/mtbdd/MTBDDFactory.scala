@@ -15,6 +15,18 @@ object MTBDDFactory {
   private val notCache: mutable.WeakHashMap[MTBDD[Boolean], WeakReference[MTBDD[Boolean]]] = new mutable.WeakHashMap()
   private val boolOpCache: mutable.WeakHashMap[(String, MTBDD[Boolean], MTBDD[Boolean]), WeakReference[MTBDD[Boolean]]] = new mutable.WeakHashMap()
 
+  /**
+    * Clear all cache of BDDs
+    *
+    * Need to clear cache after changing [[GlobalConfig.maxInteractionDegree]] at runtime, which
+    * should not happen in most cases. Mainly useful for testing.
+    */
+  private[cs] def clearCache(): Unit = {
+    notCache.clear()
+    boolOpCache.clear()
+    BooleanNode.clearCache()
+  }
+
   abstract class MTBDDImpl[+T] extends MTBDD[T] {
 
     override def select(ctx: MTBDD[Boolean]): MTBDD[T] = apply[Boolean, T, T]((ctx, v) => ctx match {
@@ -171,7 +183,7 @@ object MTBDDFactory {
           val highMap = go(n.high, enabled + n.v, ordered2)
           lowMap ++ highMap.map {case (key, value) => key -> {
             val x = lowMap.get(key)
-            if (x.isDefined) x.get + "||" + value else value
+            if (x.isDefined) x.get + "|" + value else value
           }}
       }
       go(this, Set(), Queue())
@@ -187,6 +199,11 @@ object MTBDDFactory {
     private val orCache: mutable.WeakHashMap[(MTBDD[Boolean], MTBDD[Boolean], Int), MTBDD[Boolean]] = mutable.WeakHashMap()
     private val orOp = (a: Value[Boolean], b: Value[Boolean]) => if (a.value || b.value) TRUE else FALSE
     private val internalNotCache: mutable.WeakHashMap[(MTBDD[Boolean], Int), MTBDD[Boolean]] = mutable.WeakHashMap()
+    private[cs] def clearCache(): Unit = {
+      andCache.clear()
+      orCache.clear()
+      internalNotCache.clear()
+    }
   }
 
   class BooleanNode(val s: MTBDD[Boolean]) {
