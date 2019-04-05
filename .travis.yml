@@ -10,13 +10,13 @@ before_cache:
     - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
     - find $HOME/.sbt -name "*.lock" -delete
 env:
-  - TEST="test-only edu.cmu.cs.vbc.analysis.*Test edu.cmu.cs.vbc.utils.*Test edu.cmu.cs.vbc.vbytecode.*Test"
-  - TEST="test-only edu.cmu.cs.vbc.prog.SmallExampleTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.BankAccountTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.ElevatorTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.EmailTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.GPLTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.PrevaylerTest"
-  - TEST="test-only edu.cmu.cs.vbc.prog.QuEvalTest"
+  - TEST="testOnly edu.cmu.cs.vbc.analysis.*Test edu.cmu.cs.vbc.utils.*Test edu.cmu.cs.vbc.vbytecode.*Test"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.SmallExampleTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.BankAccountTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.ElevatorTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.EmailTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.GPLTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.PrevaylerTest"
+  - TEST="testOnly edu.cmu.cs.vbc.prog.QuEvalTest"
 script:
   - sbt ++$TRAVIS_SCALA_VERSION "$TEST"
