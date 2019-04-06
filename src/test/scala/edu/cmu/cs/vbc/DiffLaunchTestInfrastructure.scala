@@ -84,6 +84,16 @@ trait DiffLaunchTestInfrastructure {
 
 //  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
 
+  /**
+    * Runtime changes relevant to switching class loaders
+    * @param loader the new classloader
+    */
+  def changeClassLoader(loader: ClassLoader): Unit = {
+    VBCClassLoader.clearCache()
+    Thread.currentThread().setContextClassLoader(loader)
+    VERuntime.classloader = Some(loader)
+  }
+
   def testMain(clazz: Class[_],
                compareTraceAgainstBruteForce: Boolean = true,
                runBenchmark: Boolean = true,
@@ -95,8 +105,7 @@ trait DiffLaunchTestInfrastructure {
     val origClassLoader = this.getClass.getClassLoader
     //VBCLauncher.launch(classname)
     val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, avoidOutput, configFile = configFile, useModel = useModel)
-    VBCClassLoader.clearCache()
-    Thread.currentThread().setContextClassLoader(testCrashLoader)
+    changeClassLoader(testCrashLoader)
     val testCrash = testCrashLoader.loadClass(classname)
     VBCLauncher.invokeLiftedMain(testCrash, new Array[String](0))
 
@@ -104,8 +113,7 @@ trait DiffLaunchTestInfrastructure {
     TestTraceOutput.trace = Nil
     TraceConfig.options = Set()
     val vloader: VBCClassLoader = new VBCClassLoader(origClassLoader, true, rewriter = instrumentMethod, configFile = configFile, useModel = useModel)
-    VBCClassLoader.clearCache()
-    Thread.currentThread().setContextClassLoader(vloader)
+    changeClassLoader(vloader)
     val vcls: Class[_] = vloader.loadClass(classname)
     VBCLauncher.invokeLiftedMain(vcls, new Array[String](0))
 
@@ -116,8 +124,7 @@ trait DiffLaunchTestInfrastructure {
 
     if (compareTraceAgainstBruteForce) {
       val loader: VBCClassLoader = new VBCClassLoader(origClassLoader, false, instrumentMethod, toFileDebugging = false, configFile = configFile, useModel = useModel)
-      VBCClassLoader.clearCache()
-      Thread.currentThread().setContextClassLoader(loader)
+      changeClassLoader(loader)
       val cls: Class[_] = loader.loadClass(classname)
       //run against brute force instrumented execution and compare traces
       for ((sel, desel) <- explode(usedOptions.toList) if fm(configToMap((sel, desel)))) {
@@ -199,8 +206,7 @@ trait DiffLaunchTestInfrastructure {
     import org.scalameter._
 
     //measure V execution
-    VBCClassLoader.clearCache()
-    Thread.currentThread().setContextClassLoader(vloader)
+    changeClassLoader(vloader)
     val testVClass: Class[_] = vloader.loadClass(classname)
     val vtime = config(
       Key.exec.benchRuns -> 20
@@ -217,8 +223,7 @@ trait DiffLaunchTestInfrastructure {
     //        println(s"Total time V: $time")
 
 
-    VBCClassLoader.clearCache()
-    Thread.currentThread().setContextClassLoader(loader)
+    changeClassLoader(loader)
     lazy val testClass: Class[_] = loader.loadClass(classname)
     //measure brute-force execution
     val configs =
