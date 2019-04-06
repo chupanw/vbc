@@ -15,7 +15,7 @@ object Rewrite {
 
 
   def rewrite(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
-    initializeConditionalFields(m, cls)
+    initializeConditionalFields(removeVExceptionHandler(m), cls)
 
   def rewriteV(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
     if (m.body.blocks.nonEmpty) {
@@ -230,5 +230,13 @@ object Rewrite {
     }
     val newBlocks = m.body.blocks.zipWithIndex.map(x => Block(x._1.instr, x._1.exceptionHandlers, eb(x._2).toList.distinct))
     m.copy(body = CFG(newBlocks))
+  }
+
+  /**
+    * Remove placeholder VException handler for unlifted code, used in diff. testing
+    */
+  private def removeVExceptionHandler(m: VBCMethodNode): VBCMethodNode = {
+    val blocks = m.body.blocks.map(b => b.copy(exceptionHandlers = b.exceptionHandlers.filterNot(_.exceptionType == "edu/cmu/cs/vbc/VException")))
+    m.copy(body = CFG(blocks))
   }
 }

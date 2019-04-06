@@ -25,7 +25,7 @@ object GlobalConfig {
     *   degree((A & B) | (C & D)) = 2
     *   degree((A & B) | C) = 1
     */
-  private[cs] var maxInteractionDegree = 3
+  private[cs] var maxInteractionDegree = 100
   /**
     * Maximum number of VBlocks we can execute before throwing an exception
     *
