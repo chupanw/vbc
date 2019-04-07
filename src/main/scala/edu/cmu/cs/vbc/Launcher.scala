@@ -32,7 +32,7 @@ object VBCLauncher extends RelaunchExceptionHandler {
     VERuntime.classloader = Some(loader)
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
-    invokeLiftedMain(cls, args)
+    if (liftBytecode) invokeLiftedMain(cls, args) else invokeUnliftedMain(cls, args)
 //        if (liftBytecode) Statistics.printStatistics()
 //    Profiler.report()
   }

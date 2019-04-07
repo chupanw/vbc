@@ -137,6 +137,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         logger.info(s"lifting $name")
         clazz.toByteCode(cv, rewriter)
       }
+      val cr2 = new ClassReader(cw.toByteArray)
+      cr2.accept(getCheckClassAdapter(getTraceClassVisitor(null)), 0)
     } catch {
       case e: Throwable =>
         println("Exception thrown in ASM: ")
@@ -156,8 +158,6 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
         System.exit(1)
     }
 
-    val cr2 = new ClassReader(cw.toByteArray)
-    cr2.accept(getCheckClassAdapter(getTraceClassVisitor(null)), 0)
     // for debugging
     if (toFileDebugging)
       toFile(name, cw)
