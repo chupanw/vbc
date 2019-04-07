@@ -5,7 +5,7 @@ package edu.cmu.cs.varex.mtbdd
   *
   * Covariance so that we can use MTBDD[Nothing] to represent non-existing values
   */
-trait MTBDD[+T] {
+trait MTBDD[+T] extends Serializable {
   val degree: Int
   def configSpace: MTBDD[Boolean]
   /**

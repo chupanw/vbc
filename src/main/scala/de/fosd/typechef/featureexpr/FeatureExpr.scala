@@ -2,7 +2,7 @@ package de.fosd.typechef.featureexpr
 
 import edu.cmu.cs.varex.mtbdd.MTBDD
 
-trait FeatureExpr {
+trait FeatureExpr extends Serializable {
   val bdd: MTBDD[Boolean]
   def isTautology(): Boolean
   def isContradiction(): Boolean
