@@ -13,6 +13,8 @@ import java.util.function.*;
  */
 class VImpl<T> implements V<T>, Serializable {
 
+    static int expensiveWarningThreshold = 1024;
+
     static <U> V<? extends U> choice(FeatureExpr condition, U a, U b) {
         Map<U, FeatureExpr> result = new HashMap<>(2);
         if (VCache.isSatisfiable(condition))
@@ -39,8 +41,9 @@ class VImpl<T> implements V<T>, Serializable {
 
     private VImpl(Map<T, FeatureExpr> values) {
         this.values = values;
-        if (values.size() > 1000) {
+        if (values.size() > expensiveWarningThreshold) {
             System.err.println("Too many alternatives, potentially expensive: " + this.values.size());
+            expensiveWarningThreshold = values.size();
         }
         assert checkInvariant() : "invariants violated";
     }
