@@ -38,7 +38,8 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
   test("static fields with clinit") {
     testMain(classOf[edu.cmu.cs.vbc.prog.StaticFieldsWithClinit])
   }
-test("conditional field assignment") {
+
+  test("conditional field assignment") {
     testMain(classOf[edu.cmu.cs.vbc.prog.FieldTest])
   }
 
@@ -78,7 +79,7 @@ test("conditional field assignment") {
     testMain(classOf[ArrayListExample], configFile = Some("util.conf"))
   }
 
-  ignore("LongExample") {
+  test("LongExample") {
     testMain(classOf[LongExample])
   }
 
@@ -94,8 +95,12 @@ test("conditional field assignment") {
     testMain(classOf[TryCatchExample], configFile = Some("default.conf"))
   }
 
+  /**
+    * Unlifted mode does not work because of circular class definition of VBlockAnalysisTest.
+    * See [[edu.cmu.cs.vbc.utils.MyClassWriter.computeCommonSuperClass()]] for more detail
+    */
   test("VBlockAnalysisTest") {
-    testMain(classOf[VBlockAnalysisTest])
+    testMain(classOf[VBlockAnalysisTest], compareTraceAgainstBruteForce = false, runBenchmark = false)
   }
 
   test("HashMapExample") {
@@ -114,31 +119,19 @@ test("conditional field assignment") {
     testMain(classOf[MultiArrayExample], configFile = Some("default.conf"))
   }
 
-  /**
-    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
-    */
-  ignore("SortArray-No-Model") {
+  test("SortArray-No-Model") {
     testMain(classOf[SortArray], configFile = Some("util.conf"), useModel = false)
   }
 
-  /**
-    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
-    */
-  ignore("SortArray-Model") {
+  test("SortArray-Model") {
     testMain(classOf[SortArray], configFile = Some("util-model.conf"), useModel = true)
   }
 
-  /**
-    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
-    */
   test("SortLinkedList") {
     testMain(classOf[SortLinkedList], configFile = Some("util.conf"), useModel = false)
   }
 
-  /**
-    * Ignore, until we remove Arrays class from [[edu.cmu.cs.vbc.utils.VBCModel]]
-    */
-  ignore("SortLinkedList-Model") {
+  test("SortLinkedList-Model") {
     testMain(classOf[SortLinkedList], configFile = Some("util-model.conf"), useModel = true)
   }
 

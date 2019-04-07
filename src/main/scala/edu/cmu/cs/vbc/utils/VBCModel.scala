@@ -267,7 +267,16 @@ class MyClassWriter(flag: Int, loader: ClassLoader) extends ClassWriter(flag) {
         c.getName.replace('.', '/')
       }
     } catch {
-      case e: Throwable => throw new RuntimeException(e.toString)
+      /*
+       * Using our VBCClassloader this way can cause java.lang.ClassCircularityError.
+       * For instance, if either type1 or type2 is the class we are trying to transform now.
+       * This happens in VBlockAnalysisTest when transforming in unlifted mode. It didn't cause
+       * problems in lifted mode because types are mostly V.
+       */
+      case c: ClassCircularityError =>
+        System.err.println(s"Circle detected while loading $cs1 or $cs2")
+        throw c
+      case e: Throwable => throw new RuntimeException(e)
     }
   }
 }
