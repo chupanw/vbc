@@ -30,4 +30,8 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
 
   /* Debugging */
   override def toString: String = boolOps(bdd).toString
+  override def equals(obj: Any): Boolean = obj match {
+    case that: BDDFeatureExpr => this.bdd eq that.bdd
+    case _ => false
+  }
 }
