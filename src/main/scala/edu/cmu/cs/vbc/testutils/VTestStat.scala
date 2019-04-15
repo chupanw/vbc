@@ -40,8 +40,8 @@ object VTestStat {
     classes.toList.sortWith((x, y) => x._1.compare(y._1) < 0).unzip._2.foreach(_.print2Console())
     skippedClasses foreach printlnAndLog
     val overallPassingCond = classes.values.map(_.getOverallPassingCondition).foldLeft(FeatureExprFactory.True)(_.and(_))
-//    printOneSolution(overallPassingCond)
-    printAllSolutions(overallPassingCond)
+    printOneSolution(overallPassingCond)
+//    printAllSolutions(overallPassingCond)
   }
 
   def toMarkdown(version: String, removePrefix: String): Unit = {

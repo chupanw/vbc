@@ -20,6 +20,7 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
 
   override def getAllSolutions: java.util.List[String] = bdd.allSat
   override def getAllSolutionsScala: List[String] = bdd.allSat
+  override def getOneSolution(): String = bdd.oneSat
 
   /* Unimplemented */
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])] = ???

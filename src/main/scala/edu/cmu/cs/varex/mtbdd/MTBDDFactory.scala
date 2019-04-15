@@ -291,6 +291,20 @@ object MTBDDFactory {
       sorted
     }
 
+    def oneSat: String = {
+      def go(cur: MTBDD[Boolean], enabled: Queue[Int]): Option[String] = {
+        if (enabled.size > GlobalConfig.maxInteractionDegree) None
+        else cur match {
+          case v: Value[Boolean] => if (v.value) Some(enabled.map(lookupVarName).mkString("{", "&", "}")) else None
+          case n: Node[Boolean] =>
+            val low = go(n.low, enabled)
+            if (low.isDefined) low
+            else go(n.high, enabled enqueue n.v)
+        }
+      }
+      if (s eq FALSE) "<NO_SOLUTION>" else go(s, Queue()).get
+    }
+
     def evaluate(enabled: Set[String]): Boolean = {
       def go(mtbdd: MTBDD[Boolean]): Boolean = mtbdd match {
         case TRUE => true

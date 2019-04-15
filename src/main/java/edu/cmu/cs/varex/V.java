@@ -266,19 +266,7 @@ public interface V<T> {
     V<T> restrictInteractionDegree();
 
     static boolean isDegreeTooHigh(FeatureExpr fe) {
-//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-//        if (sats.size() == 0) throw new RuntimeException("Not satisfiable: " + fe);
-//        for (Object sat : sats) {
-//            int current = 0;
-//            byte[] bytes = (byte[]) sat;
-//            for (int i = 0; i < bytes.length; i++) {
-//                if (bytes[i] > 0) current++;
-//            }
-//            if (current <= GlobalConfig.maxInteractionDegree())
-//                return false;
-//        }
-//        return true;
-//        return !((BDDFeatureExpr) fe).bdd().minsat(GlobalConfig.maxInteractionDegree());
+        // With the new BDD impl., all BDDs have low degree solutions by construction
         return false;
     }
 
@@ -288,65 +276,10 @@ public interface V<T> {
      * Ideally we should get the minimal solution from BDD directly
      */
     static String getOneLowDegreeSolution(FeatureExpr fe) {
-//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-//        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
-//        List<String> enabled = new LinkedList<>();
-//        for (Object sat : sats) {
-//            int current = 0;
-//            byte[] bytes = (byte[]) sat;
-//            for (int i = 0; i < bytes.length; i++) {
-//                if (bytes[i] > 0) current++;
-//            }
-//            if (current <= GlobalConfig.maxInteractionDegree()) {
-//                for (int i = 0; i < bytes.length; i++) {
-//                    if (bytes[i] > 0) enabled.add(FExprBuilder.lookupFeatureName(i));
-//                }
-//                break;
-//            }
-//        }
-//        return enabled.toString();
-//        return "<NOT IMPLEMENTED>";
-        return fe.getAllSolutions().get(0);
+        return fe.getOneSolution();
     }
 
     static String getAllLowDegreeSolutions(FeatureExpr fe) {
-//        List sats = ((BDDFeatureExpr) fe).bdd().allsat();
-////        List sats = ((BDDFeatureExpr) fe).bdd().satOne().allsat();
-//        List<String> enabled = new LinkedList<>();
-//        List<String> unrelated = null;
-//        List<String> unrelatedTmp = new LinkedList<>();
-//        StringBuilder sb = new StringBuilder();
-//        for (Object sat : sats) {
-//            enabled.clear();
-//            unrelatedTmp.clear();
-//            int current = 0;
-//            byte[] bytes = (byte[]) sat;
-//            for (int i = 0; i < bytes.length; i++) {
-//                /* 1 - enabled, 0 - disabled, -1 - unrelated, or unknown */
-//                if (bytes[i] > 0) current++;
-//            }
-//            if (current <= GlobalConfig.maxInteractionDegree()) {
-//                for (int i = 0; i < bytes.length; i++) {
-//                    if (bytes[i] > 0) enabled.add(FExprBuilder.lookupFeatureName(i));
-//                    else if (bytes[i] < 0) {
-//                        String n = FExprBuilder.lookupFeatureName(i);
-//                        if (!n.equalsIgnoreCase("unknown")) {
-//                            unrelatedTmp.add(n);
-//                        }
-//                    }
-//                }
-//                if (unrelated == null)
-//                    unrelated = unrelatedTmp;
-//                else
-//                    unrelated = intersect(unrelated, unrelatedTmp);
-//                if (sb.toString().equals("")) sb.append(enabled.toString());
-//                else sb.append(" or " + enabled.toString());
-//            }
-//        }
-//        sb.append("\n\tUnrelated options:");
-//        for (String s : unrelated) sb.append(" " + s);
-//        return sb.toString();
-//        return "<NOT IMPLEMENTED>";
         List<String> all = fe.getAllSolutions();
         StringBuilder sb = new StringBuilder();
         for (String s : all) {
