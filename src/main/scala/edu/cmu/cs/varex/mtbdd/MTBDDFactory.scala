@@ -25,6 +25,9 @@ object MTBDDFactory {
     notCache.clear()
     boolOpCache.clear()
     BooleanNode.clearCache()
+    bddTable.clear()
+    features.clear()
+    featureIDs.clear()
   }
 
   abstract class MTBDDImpl[+T] extends MTBDD[T] {
