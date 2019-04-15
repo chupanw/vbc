@@ -25,7 +25,7 @@ object TestLauncher extends App {
   val testClasspath = s"$repository$version/target/test-classes/"
   val mainClasspath = s"$repository$version/target/classes/"
 
-  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, mainClasspath, testClasspath, useModel = false)
+  val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader, mainClasspath, testClasspath, useModel = true)
   VERuntime.classloader = Some(testLoader)
 
 //  val allTests = testLoader.findTestClassFiles()
