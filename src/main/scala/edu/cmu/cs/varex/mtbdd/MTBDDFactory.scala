@@ -236,7 +236,8 @@ object MTBDDFactory {
           else mk(v, low, high)
         }
 
-        if (cache.contains((degree, n))) cache((degree, n))
+        val reuse = cache.get((degree, n))
+        if (reuse.isDefined) reuse.get
         else {
           val newNode = n match {
             case nt: Node[Boolean] => _mk(nt.v, go(nt.low, degree), go(nt.high, degree + 1))
@@ -286,7 +287,8 @@ object MTBDDFactory {
 
 
     def reduceDegree(bdd: MTBDD[Boolean], degree: Int): MTBDD[Boolean] = {
-      if (reduceCache contains (degree, bdd)) reduceCache((degree, bdd))
+      val reuse = reduceCache.get((degree, bdd))
+      if (reuse.isDefined) reuse.get
       else {
         val ret = bdd match {
           case value: Value[Boolean] => value
