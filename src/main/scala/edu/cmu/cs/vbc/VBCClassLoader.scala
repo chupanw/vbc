@@ -155,7 +155,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 //        val output = Process("dot -Tpdf -O bug.gv").lineStream
 //        println("Output from dot: " + output)
         TestStat.printToConsole()
-        System.exit(1)
+//        System.exit(1)
+      throw e
     }
 
     // for debugging

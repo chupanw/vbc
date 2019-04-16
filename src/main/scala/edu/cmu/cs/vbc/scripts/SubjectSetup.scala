@@ -42,7 +42,7 @@ object SubjectSetup extends App {
   def createRelevantTests(project: String): Unit = {
     val pd = project.substring(0, project.init.lastIndexOf("/") + 1)
     val version = project.substring(pd.length, project.length - 1)
-    val rtDir = new File(base + pd + "RelevantTests")
+    val rtDir = new File(baseVBC + pd + "RelevantTests")
     if (!rtDir.exists()) rtDir.mkdir()
     val writer = new FileWriter(new File(rtDir.getPath + "/" + version + ".txt"))
     println(s"Generating ${rtDir.getPath}/$version.txt")
