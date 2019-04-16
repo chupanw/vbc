@@ -52,5 +52,12 @@ class BoundingSpec extends FlatSpec {
     val f = (A & C) | (A & !C & D)
     assert(f.getAllSolutions.size() == 6) // {A, B, C}, {A, C, D}, {A, C}, {A, D}, {A, B, D}, {A, B, C, D}
   }
+
+  "Bounding" should "yield canonical BDDs" in {
+    changeDegree(1)
+    val x = !B
+    val y = A | (!A & !B)
+    assert(x.bdd eq y.bdd)
+  }
 }
 
