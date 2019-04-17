@@ -26,7 +26,6 @@ object MTBDDFactory {
     notCache.clear()
     boolOpCache.clear()
     BooleanNode.clearCache()
-    bddTable.clear()
   }
 
   abstract class MTBDDImpl[+T] extends MTBDD[T] {
@@ -174,7 +173,7 @@ object MTBDDFactory {
       *
       * @return mapping of concrete values to conditions
       */
-    def toMap[U >: T]: Map[Value[U], String] = {
+    def toMapForm[U >: T]: Map[Value[U], String] = {
       def go(r: MTBDD[T], enabled: Set[Int], ordered: Queue[Int]): Map[Value[U], String] = r match {
         case v: Value[T] =>
           val cond = ordered.map(x => if (enabled contains x) lookupVarName(x) else "!" + lookupVarName(x)) mkString "&"
@@ -191,7 +190,7 @@ object MTBDDFactory {
       go(this, Set(), Queue())
     }
 
-    override def toString: String = toMap[T].toString
+    override def toString: String = toMapForm[T].toString
     override def hashCode: Int = hash
   }
 
@@ -222,7 +221,7 @@ object MTBDDFactory {
       lookupCache(boolOpCache, ("OR", s, that), { boundedApplyBoolean(false, s, that) })
 
     override def toString: String = s match {
-      case n: NodeImpl[Boolean] => n.toMap(TRUE)
+      case n: NodeImpl[Boolean] => n.toMapForm(TRUE)
       case v: ValueImpl[Boolean] => v.toString
     }
 
@@ -233,7 +232,10 @@ object MTBDDFactory {
 
         def _mk(v: Int, low: MTBDD[Boolean], high: MTBDD[Boolean]): MTBDD[Boolean] = {
           if (degree >= GlobalConfig.maxInteractionDegree) low
-          else mk(v, low, high)
+          else {
+            val rLow = reduceDegree(low, degree + 1)
+            if (rLow eq high) low else mk(v, low, high)
+          }
         }
 
         val reuse = cache.get((degree, n))
@@ -298,9 +300,9 @@ object MTBDDFactory {
               val low = reduceDegree(node.low, degree)
               val high = reduceDegree(node.high, degree + 1)
               val rLow = reduceDegree(node.low, degree + 1)
-              if ((low eq node.low) && (high eq node.high)) node
-              else if (high eq rLow) low
-              else mk(node.v, reduceDegree(node.low, degree), reduceDegree(node.high, degree + 1))
+              if (high eq rLow) low
+              else if ((low eq node.low) && (high eq node.high)) node
+              else mk(node.v, low, high)
             }
         }
         reduceCache.put((degree, bdd), ret)
@@ -327,7 +329,32 @@ object MTBDDFactory {
             go(n, enabled, currentV + 1) ::: go(n, enabled enqueue currentV, currentV + 1)
       }
       val res = go(s, Queue(), 0)
-      val sorted = res.sortBy(_.size).map(_.mkString("{", "&", "}"))
+      res.map(_.mkString("{", "&", "}"))
+    }
+
+    def allSatSorted: List[String] = {
+      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > GlobalConfig.maxInteractionDegree) Nil else r match {
+        case v: Value[Boolean] =>
+          if (currentV == varNum)
+            if (v.value) List(enabled.map(lookupVarName).toList) else Nil
+          else
+            go(r, enabled, currentV + 1) ::: go(r, enabled enqueue currentV, currentV + 1)
+        case n: Node[Boolean] =>
+          if (n.v == currentV)
+            go(n.low, enabled, currentV + 1) ::: go(n.high, enabled enqueue n.v, currentV + 1)
+          else
+            go(n, enabled, currentV + 1) ::: go(n, enabled enqueue currentV, currentV + 1)
+      }
+      def lt(x: List[String], y: List[String]): Boolean = {
+        if (x.size != y.size) x.size < y.size
+        else {
+          val xv = features(x.head)
+          val yv = features(y.head)
+          if (xv != yv) xv < yv else lt(x.tail, y.tail)
+        }
+      }
+      val res = go(s, Queue(), 0)
+      val sorted = res.sortWith(lt).map(_.mkString("{", "&", "}"))
       sorted
     }
 
