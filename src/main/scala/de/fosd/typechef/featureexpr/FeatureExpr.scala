@@ -16,7 +16,9 @@ trait FeatureExpr extends Serializable {
   def implies(that: FeatureExpr): FeatureExpr
   def isSatisfiable(): Boolean
   def getAllSolutions: java.util.List[String]
+  def getAllSolutionsSorted: java.util.List[String]
   def getAllSolutionsScala: List[String]
+  def getAllSolutionsSortedScala: List[String]
   def getOneSolution(): String
 
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])]

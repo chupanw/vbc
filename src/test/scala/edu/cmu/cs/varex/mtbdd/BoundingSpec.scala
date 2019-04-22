@@ -16,6 +16,20 @@ class BoundingSpec extends FlatSpec {
     MTBDDFactory.clearCache()
   }
 
+  "Bounding with degree 1" should "work for some trivial cases" in {
+    val False = FeatureExprFactory.False
+    changeDegree(1)
+    assert((A & B).bdd eq False.bdd)
+    assert((A | B).bdd eq ((A & !B) | (!A & B)).bdd)
+
+    val x1 = (A & B) | (!A & B)
+    assert(x1.bdd eq B.bdd)
+
+    val x2 = A | B | C
+    val y2 = (A & !B & !C) | (!A & B & !C) | (!A & !B & C)
+    assert(x2.bdd eq y2.bdd)
+  }
+
   "Bounding with degree 2" should "turn (A & C & !D) & (A & B) into FALSE" in {
     changeDegree(2)
     val left = A.and(C).and(D.not()).and(A.and(B))
@@ -51,6 +65,13 @@ class BoundingSpec extends FlatSpec {
     changeDegree(4)
     val f = (A & C) | (A & !C & D)
     assert(f.getAllSolutions.size() == 6) // {A, B, C}, {A, C, D}, {A, C}, {A, D}, {A, B, D}, {A, B, C, D}
+  }
+
+  "Bounding" should "yield canonical BDDs" in {
+    changeDegree(1)
+    val x = !B
+    val y = A | (!A & !B)
+    assert(x.bdd eq y.bdd)
   }
 }
 
