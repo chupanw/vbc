@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
 object GenProg extends App {
 
   val tmpConfigPath = "/tmp/tmp.config"
-  val maxAttempts: Int = 10
+  val maxAttempts: Int = 1
   val osBase = args(0) // "Users" for the Mac and "home" for the Linux
   /**
     * Tuples of project path (e.g., median/0cea42f9/003/) and name of the main class
@@ -41,30 +41,30 @@ object GenProg extends App {
     //    "median/c716ee61/000/", // no pos test
     //    "median/c716ee61/001/", // no pos test
     //    "median/fcf701e8/000/", // no pos test
-    "median/1c2bb3a4/000/",
-    "median/2c155667/000/",
-    "median/317aa705/000/",
-    "median/317aa705/002/",
-    "median/317aa705/003/",
-    "median/36d8008b/000/",
-    "median/3b2376ab/003/",
-    "median/3b2376ab/006/",
-    "median/3cf6d33a/007/",
-    "median/48b82975/000/",
-    "median/6aaeaf2f/000/",
-    "median/6e464f2b/003/",
-    "median/89b1a701/003/",
-    "median/89b1a701/007/",
-    "median/89b1a701/010/",
-    "median/90834803/010/",
-    "median/90834803/015/",
-    "median/90a14c1a/000/",
-    "median/93f87bf2/010/",
-    "median/93f87bf2/012/",
-    "median/93f87bf2/015/",
-    "median/9c9308d4/003/",
-    "median/9c9308d4/007/",
-    "median/9c9308d4/012/",
+//    "median/1c2bb3a4/000/",
+//    "median/2c155667/000/", // cannot fix
+//    "median/317aa705/000/", // todo: something wrong
+//    "median/317aa705/002/",
+//    "median/317aa705/003/",
+//    "median/36d8008b/000/",
+//    "median/3b2376ab/003/",
+//    "median/3b2376ab/006/",
+//    "median/3cf6d33a/007/",
+//    "median/48b82975/000/",
+//    "median/6aaeaf2f/000/",
+//    "median/6e464f2b/003/",
+//    "median/89b1a701/003/",
+//    "median/89b1a701/007/",
+//    "median/89b1a701/010/",
+//    "median/90834803/010/",
+//    "median/90834803/015/",
+//    "median/90a14c1a/000/",
+//    "median/93f87bf2/010/",
+//    "median/93f87bf2/012/",
+//    "median/93f87bf2/015/",
+//    "median/9c9308d4/003/",
+//    "median/9c9308d4/007/",
+//    "median/9c9308d4/012/",
     "median/aaceaf4a/003/",
     "median/af81ffd4/004/",
     "median/af81ffd4/007/",
@@ -86,7 +86,7 @@ object GenProg extends App {
   )
   val logger = LoggerFactory.getLogger("genprog")
 
-  programs.foreach(x => go(x, 0))
+  programs.foreach(x => go(x, 1))
 
 
   def go(project: String, i: Int): Unit = {
@@ -151,7 +151,7 @@ object GenProg extends App {
     val template =
       s"""
         |javaVM = /usr/bin/java
-        |popsize = 500
+        |popsize = 1000
         |seed = $seed
         |classTestFolder = target/test-classes
         |workingDir = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/$project
