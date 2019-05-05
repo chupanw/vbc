@@ -27,7 +27,7 @@ object GenProgVarexC extends App {
     */
   val programs: List[String] = List(
 //    "median/0cea42f9/003/"  // fixed
-//    "median/0cdfa335/003/"  // fixed
+//    "median/0cdfa335/003/",  // fixed
 //    "median/15cb07a7/003/"  // filtered, no positive tests
 //    "median/1b31fa5c/000/"  // fixed by GenProg
 //    "median/1bf73a9c/000/", // filtered, no positive tests
@@ -42,29 +42,29 @@ object GenProgVarexC extends App {
     //    "median/c716ee61/001/", // no pos test
     //    "median/fcf701e8/000/", // no pos test
 //    "median/1c2bb3a4/000/",
-    "median/2c155667/000/" // cannot fix
+//    "median/2c155667/000/" // cannot fix
 //    "median/317aa705/000/", // todo: something wrong
 //    "median/317aa705/002/",
 //    "median/317aa705/003/",
 //    "median/36d8008b/000/",
-//    "median/3b2376ab/003/",
-//    "median/3b2376ab/006/",
+//    "median/3b2376ab/003/", // fixed
+//    "median/3b2376ab/006/", // fixed, (300, 3, 1)
 //    "median/3cf6d33a/007/",
 //    "median/48b82975/000/",
 //    "median/6aaeaf2f/000/",
 //    "median/6e464f2b/003/",
 //    "median/89b1a701/003/",
 //    "median/89b1a701/007/",
-//    "median/89b1a701/010/",
-//    "median/90834803/010/",
+    "median/89b1a701/010/" // fixed, (300, 3, 1)
+//    "median/90834803/010/", // fixed, (300, 3, 1)
 //    "median/90834803/015/",
-//    "median/90a14c1a/000/",
+//    "median/90a14c1a/000/"  // method code too large sometimes
 //    "median/93f87bf2/010/",
 //    "median/93f87bf2/012/",
 //    "median/93f87bf2/015/",
 //    "median/9c9308d4/003/",
 //    "median/9c9308d4/007/",
-//    "median/9c9308d4/012/",
+//    "median/9c9308d4/012/"  // fixed, (300, 5, 1)
 //    "median/aaceaf4a/003/",
 //    "median/af81ffd4/004/",
 //    "median/af81ffd4/007/",
@@ -79,7 +79,7 @@ object GenProgVarexC extends App {
 //    "median/d4aae191/000/",
 //    "median/e9c6206d/000/",
 //    "median/e9c6206d/001/",
-//    "median/fcf701e8/002/",
+//    "median/fcf701e8/002/", // stuck for some reasons
 //    "median/fcf701e8/003/",
 //    "median/fe9d5fb9/000/",
 //    "median/fe9d5fb9/002/"
@@ -151,7 +151,7 @@ object GenProgVarexC extends App {
     val template =
       s"""
         |javaVM = /usr/bin/java
-        |popsize = 500
+        |popsize = 300
         |seed = $seed
         |classTestFolder = target/test-classes
         |workingDir = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/$project
