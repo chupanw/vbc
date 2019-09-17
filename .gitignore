@@ -5,3 +5,4 @@ lifted/
 *.result
 passingCond/
 out/
+logs/

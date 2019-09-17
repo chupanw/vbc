@@ -6,9 +6,9 @@
         </encoder>
     </appender>
 
-    <timestamp key="bySecond" datePattern="yyyyMMdd@HHmmss"/>
+    <timestamp key="bySecond" datePattern="MM-dd-yyyy@HH:mm:ss"/>
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>genprog-${bySecond}.log</file>
+        <file>logs/genprog-${bySecond}.log</file>
         <append>true</append>
         <immediateFlush>true</immediateFlush>
         <encoder>
