@@ -4,10 +4,11 @@ import java.io.{File, FileWriter}
 
 /**
   * To setup a project
-  *   1. Record project name and main class name in the programs field
-  *   2. Create pos.tests and neg.tests for the project
-  *   3. Create the RelevantTest file for VarexC
-  *   4. Copy varexc.jar (for the annotation) and modify the build file
+  *   1. Record project name and main class name in the programs field  (automatic, see [[ProjectLister]])
+  *   2.1 Change the number of black and white tests below (manual)
+  *   2.2 Create pos.tests and neg.tests for the project (automatic)
+  *   3. Create the RelevantTest file for VarexC  (automatic)
+  *   4. Copy varexc.jar (for the annotation) and modify the build file (i.e., add dependency and change to JDK 8)
   */
 object SubjectSetup extends App {
 
@@ -15,13 +16,15 @@ object SubjectSetup extends App {
   val base = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
   val baseVBC = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/"
 
+  val projects = Nil
+
   /**
     * Unless we have a better way to get passing tests
     *
-    * The following only works for median projects
+    * The following only works for IntroClass projects, need to tweak the number of black/white tests though
     */
-  val blackTests = (1 to 7).toList
-  val whiteTests = (1 to 6).toList
+  val blackTests = (1 to 6).toList
+  val whiteTests = (1 to 10).toList
   def getPosFromNeg(project: String, neg: List[String]): List[String] = {
     val blackClass = getBlackTestClass(project)
     val whiteClass = getWhiteTestClass(project)
@@ -53,61 +56,6 @@ object SubjectSetup extends App {
 
   var failed: List[String] = Nil
   var skipped: List[String] = Nil
-  /**
-    * Configurable
-    */
-  val projects = List(
-    "median/2c155667/000/"
-//    "median/317aa705/000/",
-//    "median/317aa705/002/",
-//    "median/317aa705/003/",
-//    "median/36d8008b/000/",
-//    "median/3b2376ab/003/",
-//    "median/3b2376ab/006/",
-//    "median/3cf6d33a/007/",
-//    "median/48b82975/000/",
-//    "median/68eb0bb0/000/",
-//    "median/6aaeaf2f/000/",
-//    "median/6e464f2b/003/",
-//    "median/89b1a701/003/",
-//    "median/89b1a701/007/",
-//    "median/89b1a701/010/",
-//    "median/9013bd3b/000/",
-//    "median/90834803/003/",
-//    "median/90834803/010/",
-//    "median/90834803/015/",
-//    "median/90a14c1a/000/",
-//    "median/93f87bf2/010/",
-//    "median/93f87bf2/012/",
-//    "median/93f87bf2/015/",
-//    "median/95362737/000/",
-//    "median/95362737/003/",
-//    "median/9c9308d4/003/",
-//    "median/9c9308d4/007/",
-//    "median/9c9308d4/012/",
-//    "median/aaceaf4a/003/",
-//    "median/af81ffd4/004/",
-//    "median/af81ffd4/007/",
-//    "median/b6fd408d/000/",
-//    "median/b6fd408d/001/",
-//    "median/c716ee61/000/",
-//    "median/c716ee61/001/",
-//    "median/c716ee61/002/",
-//    "median/cd2d9b5b/010/",
-//    "median/d009aa71/000/",
-//    "median/d120480a/000/",
-//    "median/d2b889e1/000/",
-//    "median/d43d3207/000/",
-//    "median/d4aae191/000/",
-//    "median/e9c6206d/000/",
-//    "median/e9c6206d/001/",
-//    "median/fcf701e8/000/",
-//    "median/fcf701e8/002/",
-//    "median/fcf701e8/003/",
-//    "median/fe9d5fb9/000/",
-//    "median/fe9d5fb9/002/"
-  )
-
 
   run()
 
@@ -199,4 +147,38 @@ object SubjectSetup extends App {
     }
   }
 
+}
+
+object ProjectLister extends App {
+  val datasetDir = "/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
+  val project = "syllables"
+
+  /**
+    * Assume the project structure like this: .../dataset/digit/07045530/000
+    * @return a list of versions used in [[SubjectSetup]] and [[GenProgVarexC]]
+    */
+  def listProjects: List[String] = {
+    val dir = new File(datasetDir + project)
+    (for (d <- dir.listFiles().toList if d.isDirectory && d.getName != "ref") yield {
+      d.listFiles().toList.filter(_.isDirectory).map(x => "\"" + s"$project/${d.getName}/${x.getName}/" + "\"")
+    }).flatten
+  }
+
+  println(listProjects.mkString("List(\n  ", ",\n  ", "\n)"))
+}
+
+object ProjectRenamer extends App {
+  val datasetDir = "/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/"
+  val project = "syllables"
+
+  def rename(): Unit = {
+    val dir = new File(datasetDir + project)
+    for (d <- dir.listFiles() if d.isDirectory && d.getName.length > 8) {
+      import scala.sys.process._
+      println(s"Renaming $project ${d.getName}")
+      Process(s"git mv ${d.getName} ${d.getName.substring(0, 8)}", dir).!!
+    }
+  }
+
+  rename()
 }
