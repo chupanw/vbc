@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.scripts
 
 object Median {
-  val all = List(
+  private val all = List(
     "median/0cea42f9/003/", // fixed
     "median/0cdfa335/003/", // fixed
     "median/15cb07a7/003/", // filtered, no positive tests
@@ -63,7 +63,7 @@ object Median {
 }
 
 object Checksum {
-  val all = List(
+  private val all = List(
     "checksum/08c7ea4a/006/",
     "checksum/08c7ea4a/007/",
     "checksum/08c7ea4a/010/",
@@ -76,10 +76,11 @@ object Checksum {
     "checksum/e23b96b6/005/",
     "checksum/e9c74e27/000/"
   )
+  val runnable: List[String] = all
 }
 
 object Digits {
-  val all = List(
+  private val all = List(
     "digits/ca94e375/000/",
     "digits/ca94e375/002/",
     "digits/f227ed28/000/",
@@ -156,10 +157,23 @@ object Digits {
     "digits/f2997e14/000/",
     "digits/f2997e14/002/"
   )
+  private val noPosSkip = List(
+    "digits/d120480a/000/",
+    "digits/313d572e/000/",
+    "digits/1391c9b1/002/",
+    "digits/1391c9b1/000/",
+    "digits/98d873cd/000/",
+    "digits/bfad6d21/000/",
+    "digits/f227ed28/000/"
+  )
+  val runnable: List[String] = all.filterNot(x => noPosSkip contains x)
+  val debug: List[String] = List(
+    "digits/c5d8f924/003/"
+  )
 }
 
-object grade {
-  val all = List(
+object Grade {
+  private val all = List(
     "grade/ca94e375/000/",
     "grade/317aa705/000/",
     "grade/317aa705/001/",
@@ -250,10 +264,23 @@ object grade {
     "grade/90834803/010/",
     "grade/b6fd408d/000/"
   )
+  private val noPosSkip = List(
+    "grade/9013bd3b/000/",
+    "grade/9c9308d4/003/",
+    "grade/9c9308d4/000/",
+    "grade/9c9308d4/007/",
+    "grade/30074a0e/004/",
+    "grade/0cea42f9/002/",
+    "grade/0cea42f9/001/",
+    "grade/0cea42f9/000/",
+    "grade/cd2d9b5b/003/",
+    "grade/387be36e/000/"
+  )
+  val runnable: List[String] = all filterNot (x => noPosSkip contains x)
 }
 
 object Smallest {
-  val all = List(
+  private val all = List(
     "smallest/818f8cf4/003/",
     "smallest/818f8cf4/002/",
     "smallest/ea67b841/003/",
@@ -307,10 +334,22 @@ object Smallest {
     "smallest/f2997e14/000/",
     "smallest/84602125/007/"
   )
+  private val noPosSkip = List(
+    "smallest/6aaeaf2f/000/",
+    "smallest/346b1d3c/002/",
+    "smallest/3b2376ab/003/",
+    "smallest/3b2376ab/006/",
+    "smallest/88394fc0/007/",
+    "smallest/30074a0e/000/",
+    "smallest/5a568359/000/",
+    "smallest/95362737/009/",
+    "smallest/48b82975/000/"
+  )
+  val runnable: List[String] = all filterNot (x => noPosSkip contains x)
 }
 
 object Syllables {
-  val all = List(
+  private val all = List(
     "syllables/818f8cf4/007/",
     "syllables/38eb99ca/003/",
     "syllables/38eb99ca/004/",
@@ -325,4 +364,6 @@ object Syllables {
     "syllables/d5059e2b/000/",
     "syllables/b6fd408d/000/"
   )
+  private val noPosSkip = List("syllables/48925325/007/")
+  val runnable: List[String] = all filterNot (x => noPosSkip contains x)
 }
