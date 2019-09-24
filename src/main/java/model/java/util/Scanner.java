@@ -40,6 +40,50 @@ public class Scanner {
         return ret;
     }
 
+    public V<? extends Float> nextFloat____F(FeatureExpr ctx) {
+        V<? extends MyPair> pairs = vActual.smap(ctx, (fe, actual) -> {
+            java.util.Scanner scanner = new java.util.Scanner(actual);
+            String ret = String.valueOf(scanner.nextFloat());
+            int index = readPositionField(scanner);
+            String res = actual.substring(index);
+            return new MyPair(ret, res);
+        });
+        V<? extends String> res = pairs.smap(ctx, (fe, pair) -> pair.res);
+        vActual = V.choice(ctx, res, vActual);
+        V<? extends Float> ret = pairs.smap(ctx, (fe, pair) -> Float.valueOf(pair.ret));
+        return ret;
+    }
+
+    public V<? extends String> next____Ljava_lang_String(FeatureExpr ctx) {
+        V<? extends MyPair> pairs = vActual.smap(ctx, (fe, actual) -> {
+            java.util.Scanner scanner = new java.util.Scanner(actual);
+            String ret = scanner.next();
+            int index = readPositionField(scanner);
+            String res = actual.substring(index);
+            return new MyPair(ret, res);
+        });
+        V<? extends String> res = pairs.smap(ctx, (fe, pair) -> pair.res);
+        vActual = V.choice(ctx, res, vActual);
+        V<? extends String> ret = pairs.smap(ctx, (fe, pair) -> pair.ret);
+        return ret;
+    }
+
+    public V<? extends String> findInLine__Ljava_lang_String__Ljava_lang_String(V<? extends String> vS, FeatureExpr ctx) {
+        V<? extends MyPair> pairs = vActual.sflatMap(ctx, (fe, actual) -> {
+            return vS.smap(fe, (fe2, s) -> {
+                java.util.Scanner scanner = new java.util.Scanner(actual);
+                String ret = scanner.findInLine(s);
+                int index = readPositionField(scanner);
+                String res = actual.substring(index);
+                return new MyPair(ret, res);
+            });
+        });
+        V<? extends String> res = pairs.smap(ctx, (fe, pair) -> pair.res);
+        vActual = V.choice(ctx, res, vActual);
+        V<? extends String> ret = pairs.smap(ctx, (fe, pair) -> pair.ret);
+        return ret;
+    }
+
     private int readPositionField(java.util.Scanner scanner) {
         try {
             Field field = scanner.getClass().getDeclaredField("position");
