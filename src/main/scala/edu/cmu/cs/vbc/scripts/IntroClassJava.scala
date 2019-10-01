@@ -60,6 +60,13 @@ object Median {
     "median/fe9d5fb9/000/",
     "median/fe9d5fb9/002/"
   )
+  private val noPosSkip = List(
+    "median/fcf701e8/000/", "median/c716ee61/001/", "median/c716ee61/000/",
+    "median/95362737/003/", "median/95362737/000/", "median/90834803/003/",
+    "median/9013bd3b/000/", "median/68eb0bb0/000/", "median/30074a0e/000/",
+    "median/1bf73a9c/000/", "median/15cb07a7/003/"
+  )
+  val runnable: List[String] = all filterNot (x => noPosSkip contains x)
 }
 
 object Checksum {
@@ -168,7 +175,7 @@ object Digits {
   )
   val runnable: List[String] = all.filterNot(x => noPosSkip contains x)
   val debug: List[String] = List(
-    "digits/c5d8f924/003/"
+    "digits/295afd89/003/"
   )
 }
 
@@ -277,6 +284,7 @@ object Grade {
     "grade/387be36e/000/"
   )
   val runnable: List[String] = all filterNot (x => noPosSkip contains x)
+  val debug: List[String] = List("grade/d009aa71/003/")
 }
 
 object Smallest {

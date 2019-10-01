@@ -1,15 +1,24 @@
 package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
-import java.util.concurrent.{FutureTask, TimeUnit}
+import java.util.concurrent.{Executors, FutureTask, TimeUnit}
 
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
 import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.testutils.{TestLauncher, VTestStat}
 import org.slf4j.LoggerFactory
+import scala.sys.process._
 
 import scala.concurrent.TimeoutException
+
+object ScriptConfig {
+  // Configurable stuff
+  val tmpConfigPath = "/tmp/tmp.config"
+  val maxAttempts: Int = 1
+  val popSize = 300
+  val timeout: Long = 10 // in seconds
+}
 
 /**
   * Automate the process of using VarexC to find GenProg patches
@@ -20,22 +29,11 @@ import scala.concurrent.TimeoutException
   *   3. Create the RelevantTest file for VarexC
   *   4. Copy varexc.jar (for the annotation) and modify the build file
   */
-object GenProgVarexC extends App {
-
-  // Configurable stuff
-  val tmpConfigPath = "/tmp/tmp.config"
-  val maxAttempts: Int = 1
+object GenProgVarexCSingle extends App {
   val osBase = args(0) // "Users" for the Mac and "home" for the Linux
-  val popSize = 300
-  val timeoutDigit: Long = -1
-  val timeoutUnit: TimeUnit = TimeUnit.MINUTES
-
   val logger = LoggerFactory.getLogger("genprog")
 
-  val programs: List[String] = Digits.debug
-
-  programs.foreach(x => go(x, 1))
-
+  go(args(1), ScriptConfig.maxAttempts)
 
   def go(project: String, i: Int): Unit = {
     val mainClass = "introclassJava." + project.init.replace('/', '_')
@@ -51,7 +49,7 @@ object GenProgVarexC extends App {
     runGenProg()
     logger.info("Running VarexC")
     val succeeded = runVarexC(project)
-    if (!succeeded && i < maxAttempts) go(project, i + 1)
+    if (!succeeded && i < ScriptConfig.maxAttempts) go(project, i + 1)
   }
 
   def cleanUp(): Unit = {
@@ -62,17 +60,15 @@ object GenProgVarexC extends App {
   }
 
   def runGenProg(): Unit = {
-    import scala.sys.process._
     val baseDir = s"/$osBase/chupanw/Projects/genprog4java"
     val serCache = new File("testcache.ser")
     assert(!serCache.exists() || serCache.delete() == true)
     val jar = baseDir + "/target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
     val jvmOps = s"-ea -Dlog4j.configuration=/$osBase/chupanw/Projects/genprog4java/src/log4j.properties"
-    assert(s"java $jvmOps -jar $jar $tmpConfigPath".! == 0)
+    assert(s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".! == 0)
   }
 
   def runVarexC(project: String): Boolean = {
-    import scala.sys.process._
     def getLastVariant(path: String): File = {
       val dir = new File(path)
       dir.listFiles().filter(
@@ -91,15 +87,19 @@ object GenProgVarexC extends App {
       case x: RuntimeException if x.getMessage.contains("Nonzero exit code") => // we expect maven test to fail
     }
     val args = destProject.splitAt(destProject.init.lastIndexOf('/'))
-    if (timeoutDigit > 0) {
+    if (ScriptConfig.timeout > 0) {
       try {
+        val executor = Executors.newFixedThreadPool(1)
         val res = new FutureTask[Boolean](new Runnable {
           override def run(): Unit = TestLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
         }, true)
-        res.get(timeoutDigit, timeoutUnit)
+        executor.submit(res)
+        val ret = res.get(ScriptConfig.timeout, TimeUnit.SECONDS)
+        executor.shutdown()
+        ret
       } catch {
         case _: TimeoutException =>
-          logger.info(s"Terminating after $timeoutDigit $timeoutUnit...")
+          logger.info(s"Terminating after ${ScriptConfig.timeout} ${TimeUnit.SECONDS}...")
           false
         case e => throw e
       }
@@ -113,7 +113,7 @@ object GenProgVarexC extends App {
     val template =
       s"""
         |javaVM = /usr/bin/java
-        |popsize = $popSize
+        |popsize = ${ScriptConfig.popSize}
         |seed = $seed
         |classTestFolder = target/test-classes
         |workingDir = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/$project
@@ -134,9 +134,19 @@ object GenProgVarexC extends App {
         |regenPaths = true
       """.stripMargin
 
-    val writer = new FileWriter(new File(tmpConfigPath))
+    val writer = new FileWriter(new File(ScriptConfig.tmpConfigPath))
     writer.write(template)
     writer.close()
   }
 }
 
+object GenProgVarexCBatch extends App {
+  val exit = "sbt assembly".!
+  assert(exit == 0, "Something wrong with sbt assembly")
+
+  val baseDir = args(0)
+
+  for (p <- Syllables.runnable) {
+    s"timelimit -t${ScriptConfig.timeout} -T${10} java -cp target/scala-2.11/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.GenProgVarexCSingle $baseDir $p".!
+  }
+}

@@ -50,3 +50,12 @@ unmanagedJars in Compile ~= {uj =>
 // for benchmarking
 fork := true
 (fullClasspath in Runtime) := (fullClasspath in Runtime).value ++ (fullClasspath in Test).value
+
+// assembly
+test in assembly := {}
+assemblyMergeStrategy in assembly := {
+  case PathList("org", "objectweb", "asm", xs @ _*) => MergeStrategy.first
+  case x =>
+    val default = (assemblyMergeStrategy in assembly).value
+    default(x)
+}
