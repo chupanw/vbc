@@ -6,10 +6,10 @@ import java.util.concurrent.{Executors, FutureTask, TimeUnit}
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
 import edu.cmu.cs.vbc.VBCClassLoader
-import edu.cmu.cs.vbc.testutils.{TestLauncher, VTestStat}
+import edu.cmu.cs.vbc.testutils.{IntroClassLauncher, TestLauncher, VTestStat}
 import org.slf4j.LoggerFactory
-import scala.sys.process._
 
+import scala.sys.process._
 import scala.concurrent.TimeoutException
 
 object ScriptConfig {
@@ -17,7 +17,7 @@ object ScriptConfig {
   val tmpConfigPath = "/tmp/tmp.config"
   val maxAttempts: Int = 1
   val popSize = 300
-  val timeout: Long = 10 // in seconds
+  val timeout: Long = 3600 // in seconds
 }
 
 /**
@@ -91,7 +91,7 @@ object GenProgVarexCSingle extends App {
       try {
         val executor = Executors.newFixedThreadPool(1)
         val res = new FutureTask[Boolean](new Runnable {
-          override def run(): Unit = TestLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
+          override def run(): Unit = IntroClassLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
         }, true)
         executor.submit(res)
         val ret = res.get(ScriptConfig.timeout, TimeUnit.SECONDS)
@@ -104,7 +104,7 @@ object GenProgVarexCSingle extends App {
         case e => throw e
       }
     } else {
-      TestLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
+      IntroClassLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
       VTestStat.hasOverallSolution
     }
   }
@@ -146,7 +146,7 @@ object GenProgVarexCBatch extends App {
 
   val baseDir = args(0)
 
-  for (p <- Syllables.runnable) {
-    s"timelimit -t${ScriptConfig.timeout} -T${10} java -cp target/scala-2.11/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.GenProgVarexCSingle $baseDir $p".!
+  for (p <- Checksum.runnable) {
+    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.11/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.GenProgVarexCSingle $baseDir $p".!
   }
 }
