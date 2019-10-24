@@ -6,10 +6,10 @@ pipeline {
         sh 'sbt compile'
       }
     }
-    stage('Test') {
+    stage('Small Test') {
       steps {
-        sh 'sbt testOnly edu.cmu.cs.vbc.analysis.*Test'
-        sh 'sbt testOnly edu.cmu.cs.vbc.utils.*Test'
+        sh 'sbt "testOnly edu.cmu.cs.vbc.analysis.*Test"'
+        sh 'sbt "testOnly edu.cmu.cs.vbc.utils.*Test"'
       }
     }
   }
