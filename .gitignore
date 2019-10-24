@@ -7,3 +7,10 @@ lifted/
 passingCond/
 out/
 logs/
+
+# GenProg stuff
+coverage.path.neg
+coverage.path.pos
+FaultyStmtsAndWeights.txt
+jacoco.exec
+testcache.ser
