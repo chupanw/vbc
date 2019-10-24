@@ -8,8 +8,8 @@ pipeline {
     }
     stage('Test') {
       steps {
-        sh '''sbt testOnly edu.cmu.cs.vbc.analysis.*Test
-sbt testOnly edu.cmu.cs.vbc.utils.*Test'''
+        sh 'sbt testOnly edu.cmu.cs.vbc.analysis.*Test'
+        sh 'sbt testOnly edu.cmu.cs.vbc.utils.*Test'
       }
     }
   }
