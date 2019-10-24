@@ -168,7 +168,7 @@ class TestClass(c: Class[_]) {
     getTestCases.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     if (!isParameterized)
       for (x <- getTestCases if !isSkipped(x)) {
-        executeOnce(None, x, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+        executeOnce(None, x, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
         writeBDD(c.getName, x.getName)
       }
     else
@@ -176,7 +176,7 @@ class TestClass(c: Class[_]) {
         x <- getParameters;
         y <- getTestCases if !isSkipped(y)
       ) {
-        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+        executeOnce(Some(x.asInstanceOf[Array[V[_]]]), y, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
         writeBDD(c.getName, y.getName)
       }
 
@@ -185,7 +185,7 @@ class TestClass(c: Class[_]) {
   def executeOnce(params: Option[Array[V[_]]],  // test case parameters, in case of parameterized test
                   x: Method,  // test case to be executed
                   context: FeatureExpr, // current context
-                  accCtx: mutable.ArrayBuffer[FeatureExpr]  // used to filter examined contexts
+                  accCtx: mutable.ListBuffer[FeatureExpr]  // used to filter examined contexts
                  ): Unit = {
     /**
       * Helper function to analyze contexts that could cause VExceptions but were caught internally
@@ -240,7 +240,16 @@ class TestClass(c: Class[_]) {
 
   def isSkipped(x: Method): Boolean = x.getName.contains("testSerial") || x.getName.toLowerCase().contains("serialization")
 
-  def verifyException(t: Throwable, m: Method, expCtx: FeatureExpr, context: FeatureExpr, accCtxs: mutable.ArrayBuffer[FeatureExpr]): Boolean = {
+  /**
+    * Verify if the caught exception is expected by the test case
+    * @param t  the Throwable
+    * @param m  test case method
+    * @param expCtx exception context
+    * @param context  current execution context
+    * @param accCtxs  accumulated execution contexts
+    * @return true if it is expected
+    */
+  def verifyException(t: Throwable, m: Method, expCtx: FeatureExpr, context: FeatureExpr, accCtxs: mutable.ListBuffer[FeatureExpr]): Boolean = {
     def checkAndLog(e: FeatureExpr, c: FeatureExpr): Unit =
       if (e.equivalentTo(c) && VERuntime.getHiddenContextsOtherThan(e).isEmpty) {
         VTestStat.fail(className, m.getName, e)

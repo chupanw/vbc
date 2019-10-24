@@ -24,12 +24,12 @@ class ForkTestCase(c: Class[_], mName: String) extends TestClass(c) {
     val m = getTestCases.find(x => x.getName.equals(mName))
     if (m.isDefined && !isSkipped(m.get)) {
       if (!isParameterized) {
-        executeOnce(None, m.get, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+        executeOnce(None, m.get, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
         writeBDD(c.getName, m.get.getName)
       }
       else
         for (x <- getParameters) {
-          executeOnce(Some(x.asInstanceOf[Array[V[_]]]), m.get, FeatureExprFactory.True, mutable.ArrayBuffer[FeatureExpr]())
+          executeOnce(Some(x.asInstanceOf[Array[V[_]]]), m.get, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
         }
 //      writePassingConditionToFile()
       writeOneSolutionToFile()
