@@ -13,10 +13,8 @@ import org.objectweb.asm.util.{CheckClassAdapter, Textifier, TraceClassVisitor}
 import org.objectweb.asm.{ClassReader, ClassVisitor, ClassWriter}
 
 import scala.collection.mutable
-import scala.sys.process.Process
 
-/**
-  * Custom class loader to modify bytecode before loading the class.
+/** Custom class loader to modify bytecode before loading the class.
   *
   * the @param rewriter parameter allows the user of the classloader to
   * perform additional instrumentation as a last step before calling
@@ -29,7 +27,9 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                      toFileDebugging: Boolean = true,
                      configFile: Option[String] = None,
                      useModel: Boolean = true,
-                     reuseLifted: Boolean = false) extends ClassLoader(parentClassLoader) with LazyLogging {
+                     reuseLifted: Boolean = false)
+    extends ClassLoader(parentClassLoader)
+    with LazyLogging {
 
   val loader = new Loader()
   if (configFile.isDefined) {
@@ -38,29 +38,35 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
   }
 
   override def loadClass(name: String): Class[_] = {
-    VBCClassLoader.loadedClasses.getOrElseUpdate(name, {
-      if (name.startsWith(VBCModel.prefix)) {
-        val model = new VBCModel(name, useModel)
-        val bytes = model.getModelClassBytes(isLift)
-        if (shouldLift(name)) {
-          val clazz = loader.loadClass(bytes)
-          liftClass(name, clazz)
-        }
-        else {
-          defineClass(name, bytes, 0, bytes.length)
-        }
+    VBCClassLoader.loadedClasses.getOrElseUpdate(
+      name, {
+        if (name.startsWith(VBCModel.prefix)) {
+          val model = new VBCModel(name, useModel)
+          val bytes = model.getModelClassBytes(isLift)
+          if (shouldLift(name)) {
+            val clazz = loader.loadClass(bytes)
+            liftClass(name, clazz)
+          } else {
+            defineClass(name, bytes, 0, bytes.length)
+          }
+        } else if (shouldLift(name))
+          findClass(name)
+        else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name
+                   .startsWith("org.eclipse.jetty") && !name.startsWith(
+                   "org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
+          loadClassAndUseModelClasses(name)
+        else if (name.startsWith("org.apache.commons.validator") || name.startsWith(
+                   "org.apache.commons.clivbc") || name.startsWith(
+                   "edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith(
+                   "org.apache.commons.math") || name.startsWith("antlr") || name.startsWith(
+                   "org.eclipse.jetty.util.log")) // todo: do this more systematically
+          loadClassWithoutChanges(name) // avoid LinkageError
+        else if (name.startsWith("org.apache.commons.digester"))
+          loadClassAndReplaceCalls(name)
+        else
+          super.loadClass(name)
       }
-      else if (shouldLift(name))
-        findClass(name)
-      else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
-        loadClassAndUseModelClasses(name)
-      else if (name.startsWith("org.apache.commons.validator") || name.startsWith("org.apache.commons.clivbc") || name.startsWith("edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith("org.apache.commons.math") || name.startsWith("antlr") || name.startsWith("org.eclipse.jetty.util.log")) // todo: do this more systematically
-        loadClassWithoutChanges(name) // avoid LinkageError
-      else if (name.startsWith("org.apache.commons.digester"))
-        loadClassAndReplaceCalls(name)
-      else
-        super.loadClass(name)
-    })
+    )
   }
 
   override def findClass(name: String): Class[_] = {
@@ -111,8 +117,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       val cw = new ClassWriter(0)
       cr.accept(cw, 0)
       Some(defineClass(name, cw.toByteArray, 0, cw.toByteArray.length))
-    }
-    else {
+    } else {
       System.err.println(s"Could not find existing $name, lifting it...")
       None
     }
@@ -132,8 +137,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       if (isLift) {
         logger.info(s"lifting $name")
         clazz.toVByteCode(cv, rewriter)
-      }
-      else {
+      } else {
         logger.info(s"lifting $name")
         clazz.toByteCode(cv, rewriter)
       }
@@ -143,7 +147,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       case e: Throwable =>
         println("Exception thrown in ASM: ")
         println(e.getClass + ": " + e.getMessage)
-        println(e.getStackTrace.toList mkString("\t", "\n\t", "\n"))
+        println(e.getStackTrace.toList mkString ("\t", "\n\t", "\n"))
 //        println("Please check bug.gv and bug.txt")
 //        val writer = new PrintWriter(new File("bug.gv"))
 //        writer.write(dotifier.textBuf.mkString(""))
@@ -156,7 +160,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 //        println("Output from dot: " + output)
         TestStat.printToConsole()
 //        System.exit(1)
-      throw e
+        throw e
     }
 
     // for debugging
@@ -181,8 +185,8 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     * @param name (partial) name of the class
     * @return true if the class needs to be lifted
     */
-  private def shouldLift(name: String): Boolean = LiftingPolicy.shouldLiftClass(Owner(name.replace('.', '/')))
-
+  private def shouldLift(name: String): Boolean =
+    LiftingPolicy.shouldLiftClass(Owner(name.replace('.', '/')))
 
   def toFile(name: String, cw: ClassWriter) = {
     val replaced = name.replace(".", "/")

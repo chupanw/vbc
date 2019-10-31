@@ -1,9 +1,8 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import javax.lang.model.SourceVersion
-
 import edu.cmu.cs.vbc.utils.LiftUtils._
 import edu.cmu.cs.vbc.utils.{LiftingPolicy, VBCModel}
+import javax.lang.model.SourceVersion
 import org.objectweb.asm.Type
 
 /**
@@ -22,17 +21,16 @@ case class Owner(name: String) extends TypeVerifier {
   require(isValidInternalName(name), s"Invalid Owner name: $name")
 
   override def equals(obj: scala.Any): Boolean = obj match {
-    case o: Owner => name == o.name
+    case o: Owner  => name == o.name
     case s: String => name == s
-    case _ => false
+    case _         => false
   }
 
   def isValidInternalName(s: String): Boolean = {
     if (s.startsWith("[")) {
       // array type
       isValidType(s.tail)
-    }
-    else {
+    } else {
       // Not array type, then it should be class
       // Should be a valid Java class name
       // Fully qualified name should be separated by "/" instead of "."
@@ -65,33 +63,33 @@ case class Owner(name: String) extends TypeVerifier {
 object Owner {
   implicit def ownerToString(owner: Owner): String = owner.name
 
-  def getInt = Owner("java/lang/Integer")
-  def getShort = Owner("java/lang/Short")
-  def getByte = Owner("java/lang/Byte")
-  def getBoolean = Owner("java/lang/Boolean")
-  def getString = Owner("java/lang/String")
-  def getLong = Owner("java/lang/Long")
+  def getInt       = Owner("java/lang/Integer")
+  def getShort     = Owner("java/lang/Short")
+  def getByte      = Owner("java/lang/Byte")
+  def getBoolean   = Owner("java/lang/Boolean")
+  def getString    = Owner("java/lang/String")
+  def getLong      = Owner("java/lang/Long")
   def getException = Owner("java/lang/Exception")
-  def getFloat = Owner("java/lang/Float")
-  def getDouble = Owner("java/lang/Double")
-  def getArrayOps = Owner("edu/cmu/cs/varex/ArrayOps")
-  def getVOps = Owner("edu/cmu/cs/varex/VOps")
-  def getChar = Owner("java/lang/Character")
-  def getSystem = Owner("java/lang/System")
-  def getRuntime = Owner("java/lang/Runtime")
+  def getFloat     = Owner("java/lang/Float")
+  def getDouble    = Owner("java/lang/Double")
+  def getArrayOps  = Owner("edu/cmu/cs/varex/ArrayOps")
+  def getVOps      = Owner("edu/cmu/cs/varex/VOps")
+  def getChar      = Owner("java/lang/Character")
+  def getSystem    = Owner("java/lang/System")
+  def getRuntime   = Owner("java/lang/Runtime")
 }
-
 
 /**
   * Wrapper for method name
   */
 case class MethodName(name: String) {
-  require(name == "<init>" || name == "<clinit>" || SourceVersion.isIdentifier(name), s"Invalid method name: $name")
+  require(name == "<init>" || name == "<clinit>" || SourceVersion.isIdentifier(name),
+          s"Invalid method name: $name")
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case MethodName(s) => s == name
-    case s: String => s == name
-    case _ => false
+    case s: String     => s == name
+    case _             => false
   }
 
   override def toString: String = name
@@ -101,23 +99,22 @@ case class MethodName(name: String) {
     name match {
       case "<init>" | "<clinit>" | "___clinit___" | "______clinit______" => this
       case _ =>
-        val args = desc.getArgs.map(_.toModel)
+        val args       = desc.getArgs.map(_.toModel)
         val argsString = replace(args.mkString("__", "_", "__"))
-        val retString = replace(desc.getReturnType.map(_.toModel).map(_.toString).getOrElse("V"))
+        val retString  = replace(desc.getReturnType.map(_.toModel).map(_.toString).getOrElse("V"))
         MethodName(name + argsString + retString)
     }
   }
 
   def liftCLINIT: MethodName = name match {
     case "<clinit>" => MethodName("______clinit______")
-    case _ => this
+    case _          => this
   }
 }
 
 object MethodName {
   implicit def methodNameToString(m: MethodName): String = m.name
 }
-
 
 /**
   * Wrapper for field name
@@ -127,8 +124,8 @@ case class FieldName(name: String) {
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case FieldName(f) => f == name
-    case s: String => name == s
-    case _ => false
+    case s: String    => name == s
+    case _            => false
   }
 
   override def toString: String = name
@@ -137,7 +134,6 @@ case class FieldName(name: String) {
 object FieldName {
   implicit def fieldNameToString(f: FieldName): String = f.name
 }
-
 
 /**
   * Wrapper for method descriptor
@@ -149,8 +145,8 @@ case class MethodDesc(descString: String) extends TypeVerifier {
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case MethodDesc(md) => md == descString
-    case s: String => descString == s
-    case _ => false
+    case s: String      => descString == s
+    case _              => false
   }
 
   def getArgCount: Int = mt.getArgumentTypes.size
@@ -160,13 +156,15 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * @return
     * None if void
     */
-  def getReturnType: Option[TypeDesc] = if (isReturnVoid) None else Some(TypeDesc(Type.getReturnType(descString).getDescriptor))
+  def getReturnType: Option[TypeDesc] =
+    if (isReturnVoid) None else Some(TypeDesc(Type.getReturnType(descString).getDescriptor))
 
   def getReturnTypeSort: Int = mt.getReturnType.getSort
 
   def isReturnVoid: Boolean = Type.getReturnType(descString).getDescriptor == "V"
 
-  def getArgs: Array[TypeDesc] = Type.getMethodType(descString).getArgumentTypes.map(t => TypeDesc(t.getDescriptor))
+  def getArgs: Array[TypeDesc] =
+    Type.getMethodType(descString).getArgumentTypes.map(t => TypeDesc(t.getDescriptor))
 
   override def toString: String = descString
 
@@ -176,23 +174,23 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * transformed MethodDesc
     */
   def appendFE: MethodDesc = {
-    val args = Type.getArgumentTypes(descString) :+ Type.getType(fexprclasstype)
+    val args       = Type.getArgumentTypes(descString) :+ Type.getType(fexprclasstype)
     val argsString = args.map(_.getDescriptor).mkString("(", "", ")")
-    val retString = Type.getReturnType(descString).getDescriptor
+    val retString  = Type.getReturnType(descString).getDescriptor
     MethodDesc(argsString + retString)
   }
 
   def prependPrintStream: MethodDesc = {
-    val args = Type.getType("Ljava/io/PrintStream;") +: Type.getArgumentTypes(descString)
+    val args       = Type.getType("Ljava/io/PrintStream;") +: Type.getArgumentTypes(descString)
     val argsString = args.map(_.getDescriptor).mkString("(", "", ")")
-    val retString = Type.getReturnType(descString).getDescriptor
+    val retString  = Type.getReturnType(descString).getDescriptor
     MethodDesc(argsString + retString)
   }
 
   def prepend(t: TypeDesc): MethodDesc = {
-    val args = Type.getType(t) +: Type.getArgumentTypes(descString)
+    val args       = Type.getType(t) +: Type.getArgumentTypes(descString)
     val argsString = args.map(_.getDescriptor).mkString("(", "", ")")
-    val retString = Type.getReturnType(descString).getDescriptor
+    val retString  = Type.getReturnType(descString).getDescriptor
     MethodDesc(argsString + retString)
   }
 
@@ -207,7 +205,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     val args = getArgs.map(_.toModel)
     assert(!args.exists(_.contentEquals(vclasstype)), "could not append V argument types")
     val argsString = (toVs.appendFE.getArgs ++ args).mkString("(", "", ")")
-    val retString = "V" // because this is <init>
+    val retString  = "V" // because this is <init>
     MethodDesc(argsString + retString)
   }
 
@@ -218,7 +216,8 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     */
   def toObjects: MethodDesc = {
     val args = Type.getArgumentTypes(descString)
-    val argsString: String = args.map(t => TypeDesc(t.getDescriptor).toObject).mkString("(", "", ")")
+    val argsString: String =
+      args.map(t => TypeDesc(t.getDescriptor).toObject).mkString("(", "", ")")
     val retString: String = if (isReturnVoid) "V" else getReturnType.get.toObject
     MethodDesc(argsString + retString)
   }
@@ -229,9 +228,9 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * transformed MethodDesc
     */
   def toVs: MethodDesc = {
-    val args = Type.getArgumentTypes(descString)
+    val args               = Type.getArgumentTypes(descString)
     val argsString: String = "(" + vclasstype * args.length + ")"
-    val retString: String = if (isReturnVoid) "V" else vclasstype
+    val retString: String  = if (isReturnVoid) "V" else vclasstype
     MethodDesc(argsString + retString)
   }
 
@@ -239,7 +238,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     * Only arguments are transformed to V type
     */
   def toVArguments: MethodDesc = {
-    val args = Type.getArgumentTypes(descString)
+    val args               = Type.getArgumentTypes(descString)
     val argsString: String = "(" + vclasstype * args.length + ")"
     MethodDesc(argsString + getReturnType.map(_.toString).getOrElse("V"))
   }
@@ -252,7 +251,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     val args = Type.getArgumentTypes(descString)
     assert(!args.exists(_.getDescriptor == vclasstype), "Arguments are already V types")
     val argsString: String = args.map(t => TypeDesc(t.getDescriptor).toModel).mkString("(", "", ")")
-    val retString: String = if (isReturnVoid) "V" else getReturnType.get.toModel
+    val retString: String  = if (isReturnVoid) "V" else getReturnType.get.toModel
     MethodDesc(argsString + retString)
   }
 
@@ -263,30 +262,28 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     */
   def toVReturnTypeIfReturningVoid: MethodDesc = {
     if (isReturnVoid) {
-      val args = Type.getArgumentTypes(descString)
+      val args               = Type.getArgumentTypes(descString)
       val argsString: String = args.map(_.toString).mkString("(", "", ")")
-      val retString: String = vclasstype
+      val retString: String  = vclasstype
       MethodDesc(argsString + retString)
-    }
-    else
+    } else
       this
   }
 
   def toVReturnType: MethodDesc = {
 //    assume(getReturnType.isDefined, "trying to transform void return type to V")
-    val args = Type.getArgumentTypes(descString)
+    val args               = Type.getArgumentTypes(descString)
     val argsString: String = args.map(_.toString).mkString("(", "", ")")
-    val retString: String = vclasstype
+    val retString: String  = vclasstype
     MethodDesc(argsString + retString)
   }
 
   def toVArrayReturnType: MethodDesc = {
-    val args = Type.getArgumentTypes(descString)
+    val args               = Type.getArgumentTypes(descString)
     val argsString: String = args.map(_.toString).mkString("(", "", ")")
-    val retString: String = "[" + vclasstype
+    val retString: String  = "[" + vclasstype
     MethodDesc(argsString + retString)
   }
-
 
   /**
     * Given local variable index, return the index of this parameter in the parameter list (0-based)
@@ -298,8 +295,7 @@ case class MethodDesc(descString: String) extends TypeVerifier {
     if (!isStatic) assert(localVarIndex != 0, "Not a parameter")
     val staticOffset: Int = if (isStatic) 0 else 1
     val expandedArgs: List[(TypeDesc, Int)] = getArgs.toList.zipWithIndex.flatMap(pair =>
-      if (pair._1.is64Bit) List(pair, (TypeDesc.getSecondSlotType, pair._2)) else List(pair)
-    )
+      if (pair._1.is64Bit) List(pair, (TypeDesc.getSecondSlotType, pair._2)) else List(pair))
     val (resType, resIndex) = expandedArgs(localVarIndex - staticOffset)
     if (resType.isSecondSlot)
       throw new RuntimeException("Indexing the second slot of long or double")
@@ -311,7 +307,6 @@ object MethodDesc {
   implicit def methodDescToString(md: MethodDesc): String = md.descString
 }
 
-
 /**
   * Wrapper for field descriptor
   */
@@ -320,16 +315,17 @@ case class TypeDesc(desc: String) extends TypeVerifier {
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case t: TypeDesc => desc == t.desc
-    case s: String => desc == s
-    case _ => false
+    case s: String   => desc == s
+    case _           => false
   }
 
-  def isPrimitive: Boolean = desc == "Z" || desc == "C" || desc == "B" || desc == "S" || desc == "I" || desc == "F" ||
-    desc == "J" || desc == "D"
+  def isPrimitive: Boolean =
+    desc == "Z" || desc == "C" || desc == "B" || desc == "S" || desc == "I" || desc == "F" ||
+      desc == "J" || desc == "D"
 
   def is64Bit: Boolean = desc match {
     case "J" | "D" => true
-    case _ => false
+    case _         => false
   }
 
   def isSecondSlot: Boolean = desc == "Ledu/cmu/cs/vbc/SecondSlotOfLongOrDouble;"
@@ -343,7 +339,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case "F" => TypeDesc("Ljava/lang/Float;")
     case "J" => TypeDesc("Ljava/lang/Long;")
     case "D" => TypeDesc("Ljava/lang/Double;")
-    case _ => this
+    case _   => this
   }
 
   def castInt: TypeDesc = this match {
@@ -351,7 +347,7 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     case TypeDesc("C") => TypeDesc("I")
     case TypeDesc("S") => TypeDesc("I")
     case TypeDesc("B") => TypeDesc("I")
-    case _ => this
+    case _             => this
   }
 
   def toV: TypeDesc = TypeDesc("Ledu/cmu/cs/varex/V;")
@@ -363,7 +359,8 @@ case class TypeDesc(desc: String) extends TypeVerifier {
     TypeDesc(desc.tail)
   }
 
-  def getMultiArrayBaseType: TypeDesc = if (isArray) TypeDesc(desc.tail).getMultiArrayBaseType else this
+  def getMultiArrayBaseType: TypeDesc =
+    if (isArray) TypeDesc(desc.tail).getMultiArrayBaseType else this
 
   /** Get the owner (if exists) of this type.
     *
@@ -402,15 +399,15 @@ case class TypeDesc(desc: String) extends TypeVerifier {
 object TypeDesc {
   implicit def typeDescToString(td: TypeDesc): String = td.desc
 
-  def getInt: TypeDesc = TypeDesc("Ljava/lang/Integer;")
-  def getString: TypeDesc = TypeDesc("Ljava/lang/String;")
-  def getLong: TypeDesc = TypeDesc("Ljava/lang/Long;")
+  def getInt: TypeDesc       = TypeDesc("Ljava/lang/Integer;")
+  def getString: TypeDesc    = TypeDesc("Ljava/lang/String;")
+  def getLong: TypeDesc      = TypeDesc("Ljava/lang/Long;")
   def getException: TypeDesc = TypeDesc("Ljava/lang/Exception;")
-  def getObject: TypeDesc = TypeDesc("Ljava/lang/Object;")
-  def getChar: TypeDesc = TypeDesc("Ljava/lang/Character;")
-  def getBoolean: TypeDesc = TypeDesc("Ljava/lang/Boolean;")
-  def getDouble: TypeDesc = TypeDesc("Ljava/lang/Double;")
-  def getFloat: TypeDesc = TypeDesc("Ljava/lang/Float;")
+  def getObject: TypeDesc    = TypeDesc("Ljava/lang/Object;")
+  def getChar: TypeDesc      = TypeDesc("Ljava/lang/Character;")
+  def getBoolean: TypeDesc   = TypeDesc("Ljava/lang/Boolean;")
+  def getDouble: TypeDesc    = TypeDesc("Ljava/lang/Double;")
+  def getFloat: TypeDesc     = TypeDesc("Ljava/lang/Float;")
   // a special type to represent the second slot of double and long
   def getSecondSlotType: TypeDesc = TypeDesc("Ledu/cmu/cs/vbc/SecondSlotOfLongOrDouble;")
 }
@@ -418,17 +415,18 @@ object TypeDesc {
 trait TypeVerifier {
 
   def isValidType(s: String): Boolean = s.size match {
-    case 1 => s == "Z" || s == "C" || s == "B" || s == "S" || s == "I" || s == "F" || s == "J" || s == "D"
-    case o if s.startsWith("L") && s.endsWith(";") => SourceVersion.isName(s.init.tail.replace('/', '.'))
+    case 1 =>
+      s == "Z" || s == "C" || s == "B" || s == "S" || s == "I" || s == "F" || s == "J" || s == "D"
+    case o if s.startsWith("L") && s.endsWith(";") =>
+      SourceVersion.isName(s.init.tail.replace('/', '.'))
     case array if s.startsWith("[") => isValidType(s.tail)
-    case _ => false
+    case _                          => false
   }
 
   def isValidParameterList(prefix: String, s: String): Boolean = {
     if (s.isEmpty) {
       prefix.isEmpty
-    }
-    else {
+    } else {
       if (isValidType(prefix + s.head))
         isValidParameterList("", s.tail)
       else
@@ -440,7 +438,6 @@ trait TypeVerifier {
     if (s.startsWith("(") && s.contains(")")) {
       val split = s.tail.split(')')
       split.size == 2 && isValidParameterList("", split(0)) && (isValidType(split(1)) || split(1) == "V")
-    }
-    else
+    } else
       false
 }
