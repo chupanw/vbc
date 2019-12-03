@@ -14,7 +14,7 @@ libraryDependencies += "com.storm-enroute" %% "scalameter" % "0.7" % "test"
 libraryDependencies += "com.google.code.findbugs" % "jsr305" % "3.0.1"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
-libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.7"
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
 parallelExecution in Test := false
 

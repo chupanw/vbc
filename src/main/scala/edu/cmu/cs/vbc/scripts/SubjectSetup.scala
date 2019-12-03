@@ -1,6 +1,7 @@
 package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
+import java.net.URLClassLoader
 
 /**
   * To setup a project
@@ -181,4 +182,48 @@ object ProjectRenamer extends App {
   }
 
   rename()
+}
+
+object MathSetup extends App {
+
+  val relevantTestsPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-VarexC/RelevantTests/Math-6b.txt"
+  val relTestClasses = io.Source.fromFile(relevantTestsPath).getLines().toList
+
+  val allTestsPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/test-classes/"
+  val allClassesPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/classes/"
+  val classLoader = new URLClassLoader(Array(allClassesPath, allTestsPath).map(new File(_).toURI.toURL))
+
+  val testReportPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/test-reports/"
+
+  val outputDir = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/"
+
+  def parseJUnitReportForNeg(testReportDir: String, relTestClasses: List[String]): List[String] = {
+    relTestClasses.flatMap(x => {
+      val filePath = testReportDir + "TEST-" + x + ".txt"
+      val file = io.Source.fromFile(filePath)
+      val tests = file.getLines().filter(_.contains("FAILED")).map(s => s.substring(s.indexOf(':') + 1, s.indexOf('(')).trim).toList
+      tests.map(t => x + "::" + t)
+    })
+  }
+
+  def genPos(cl: ClassLoader, relTests: List[String], neg: List[String]): List[String] = {
+    val allTests = relTests.flatMap(x => {
+      val cls = cl.loadClass(x)
+      val tests = cls.getMethods.filter(m => m.isAnnotationPresent(classOf[org.junit.Test])).map(_.getName)
+      tests.map(t => x + "::" + t)
+    })
+    allTests.diff(neg)
+  }
+
+  val neg = parseJUnitReportForNeg(testReportPath, relTestClasses)
+  val pos = genPos(classLoader, relTestClasses, neg)
+
+  val posFile = new FileWriter(new File(outputDir + "pos.tests"))
+  posFile.write(pos.mkString("\n"))
+
+  val negFile = new FileWriter(new File(outputDir + "neg.tests"))
+  negFile.write(neg.mkString("\n"))
+
+  posFile.close()
+  negFile.close()
 }
