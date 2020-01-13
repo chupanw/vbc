@@ -16,6 +16,7 @@ object Settings {
   val printTestResults: Boolean         = config.getBoolean("printing.printTestResults")
   val writeBDDs: Boolean                = config.getBoolean("logging.writeBDDs")
   val blockCounting: Boolean            = config.getBoolean("misc.blockCounting")
+  val earlyFail: Boolean                = config.getBoolean("earlyFail")
 
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
@@ -44,6 +45,7 @@ object Settings {
                |**********************************************************************
                |maxInteractionDegree: $maxInteractionDegree
                |maxBlockCount: $maxBlockCount
+               |earlyFail: $earlyFail
                |blockCounting: $blockCounting
                |detectComplexLoop: $detectComplexLoop
                |printContext: $printContext

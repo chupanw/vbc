@@ -183,6 +183,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       for (x <- allTests if !isSkipped(x)) {
         executeOnce(None, x, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
         writeBDD(c.getName, x.getName)
+        checkAbort()
       } else
       for (x <- getParameters;
            y <- allTests if !isSkipped(y)) {
@@ -191,8 +192,21 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
                     FeatureExprFactory.True,
                     mutable.ListBuffer[FeatureExpr]())
         writeBDD(c.getName, y.getName)
+        checkAbort()
       }
 
+  }
+
+  def checkAbort(): Unit = {
+    if (Settings.earlyFail) {
+      val fe = VTestStat.getOverallPassingCond
+      if (!fe.isSatisfiable()) {
+        // print the results so far and abort
+        println("-------------------- Abort --------------------")
+        VTestStat.printToConsole()
+        System.exit(-1)
+      }
+    }
   }
 
   def executeOnce(
