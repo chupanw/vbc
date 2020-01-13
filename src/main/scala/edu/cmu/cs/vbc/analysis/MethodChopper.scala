@@ -1,6 +1,7 @@
 package edu.cmu.cs.vbc.analysis
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.cmu.cs.vbc.config.Settings
 import edu.cmu.cs.vbc.vbytecode.{MethodDesc, TypeDesc}
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree._
@@ -21,7 +22,7 @@ class MethodChopper(val owner: String, val mn: MethodNode) extends LazyLogging {
     * Maximum number of instructions we allow in the original method
     *
     * todo: need to experiment on a reasonable value
-    * todo: should this go into [[edu.cmu.cs.vbc.GlobalConfig]]?
+    * todo: should this go into [[Settings]]?
     */
   val limit = 2000  // triangle had 5259 and failed
 

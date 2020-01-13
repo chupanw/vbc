@@ -4,7 +4,7 @@ import java.io.File
 
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExprParser}
 import edu.cmu.cs.varex.V
-import edu.cmu.cs.vbc.{GlobalConfig, VERuntime}
+import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 
 object MonopoliTestLoader {
 //  val main = "/Users/chupanw/Projects/mutationtest-varex/code-ut/jars/monopoli100.jar"
@@ -67,7 +67,7 @@ object MonopoliTestLauncher extends App {
     testClass.runTests()
   }
 
-  if (GlobalConfig.printTestResults) VTestStat.printToConsole()
+  if (Settings.printTestResults) VTestStat.printToConsole()
 }
 
 

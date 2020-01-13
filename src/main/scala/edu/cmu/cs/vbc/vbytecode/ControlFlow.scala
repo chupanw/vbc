@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.vbytecode
 
-import edu.cmu.cs.vbc.GlobalConfig
+import edu.cmu.cs.vbc.config.Settings
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
@@ -45,7 +45,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
     mv.visitLabel(env.getBlockLabel(this))
 
     if (isUniqueFirstBlock(env)) {
-      if (GlobalConfig.logTrace && env.loopDetector.hasComplexLoop) {
+      if (Settings.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -60,7 +60,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
       vblockSkipIfCtxContradition(mv, env)
       doBlockCounting(mv, env)
       loadUnbalancedStackVariables(mv, env)
-      if (GlobalConfig.logTrace && env.loopDetector.hasComplexLoop) {
+      if (Settings.logTrace && env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn("B" + env.vblocks.indexOf(env.getVBlock(this)))
         loadCurrentCtx(mv, env, this)
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
@@ -70,7 +70,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
 
     checkVException(mv, env)
 
-    if (GlobalConfig.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
+    if (Settings.logTrace && instr.exists(_.isReturnInstr) && env.loopDetector.hasComplexLoop) {
       mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logEnd", "(Ljava/lang/String;)V", false)
     }
@@ -199,7 +199,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
   }
 
   private def doBlockCounting(mv: MethodVisitor, env: VMethodEnv): Unit = {
-    if (GlobalConfig.blockCounting) {
+    if (Settings.blockCounting) {
       loadFExpr(mv, env, env.getVBlockVar(this))
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkBlockCount"), MethodDesc(s"($fexprclasstype)V"), false)
     }
@@ -419,7 +419,7 @@ case class CFG(blocks: List[Block]) {
     mv.visitVarInsn(ALOAD, env.getVarIdx(env.ctxParameter))
     mv.visitVarInsn(ASTORE, env.getVarIdx(env.getVBlockVar(blocks.head)))
 
-    if (GlobalConfig.logTrace) {
+    if (Settings.logTrace) {
       if (env.loopDetector.hasComplexLoop) {
         mv.visitLdcInsn(env.clazz.name + " " + env.method.name + env.method.desc)
         mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "logStart", "(Ljava/lang/String;)V", false)

@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc.utils
 
-import edu.cmu.cs.vbc.ModelConfig
+import edu.cmu.cs.vbc.config.ModelConfig
 import edu.cmu.cs.vbc.vbytecode._
 
 /**

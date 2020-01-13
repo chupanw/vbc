@@ -4,6 +4,7 @@ import java.lang.reflect.{Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.{MTBDDVImpl, V, VImpl}
+import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 import edu.cmu.cs.vbc.utils.Statistics
 
 /**
@@ -14,6 +15,7 @@ import edu.cmu.cs.vbc.utils.Statistics
   *         Provide the main class as a parameter
   */
 object Launcher extends App {
+  Settings.printSettings()
   val start = System.currentTimeMillis()
   if (args.size < 1)
     throw new RuntimeException("provide main class as parameter")

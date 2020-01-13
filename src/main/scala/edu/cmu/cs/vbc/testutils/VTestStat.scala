@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, BDDFeatureModel}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, SingleFeatureExpr}
 import edu.cmu.cs.varex.V
-import edu.cmu.cs.vbc.GlobalConfig
+import edu.cmu.cs.vbc.config.Settings
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -57,7 +57,7 @@ object VTestStat {
   }
 
   /**
-    * Print one solution that has a degree lower than [[GlobalConfig.maxInteractionDegree]]
+    * Print one solution that has a degree lower than [[Settings.maxInteractionDegree]]
     *
     * We assume that [[de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr.getSatisfiableAssignment()]] can give us the
     * smallest solution.
@@ -67,7 +67,7 @@ object VTestStat {
     if (hasLDSolution)
       printlnAndLog(s"All test cases can pass if, for example, : ${V.getOneLowDegreeSolution(fe)}")
     else
-      printlnAndLog(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
+      printlnAndLog(s"To pass all test cases, no solution within ${Settings.maxInteractionDegree} mutations")
   }
 
   def printAllSolutions(fe: FeatureExpr): Unit = {
@@ -76,7 +76,7 @@ object VTestStat {
     if (hasLDSolution)
       printlnAndLog(s"All test cases can pass if: ${V.getAllLowDegreeSolutions(fe)}")
     else
-      printlnAndLog(s"To pass all test cases, no solution within ${GlobalConfig.maxInteractionDegree} mutations")
+      printlnAndLog(s"To pass all test cases, no solution within ${Settings.maxInteractionDegree} mutations")
   }
 }
 
@@ -100,7 +100,7 @@ case class VTestStatClass(c: String) {
   def getOverallPassingConditionExcludingHigherD(): FeatureExpr = failedMethods.values.map(_.getPassingContextExcludingHighD).foldLeft(FeatureExprFactory.True)(_.and(_))
 
   /**
-    * Print one solution that has a degree lower than [[GlobalConfig.maxInteractionDegree]]
+    * Print one solution that has a degree lower than [[Settings.maxInteractionDegree]]
     *
     * We assume that [[de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr.getSatisfiableAssignment()]] can give us the
     * smallest solution.
@@ -110,7 +110,7 @@ case class VTestStatClass(c: String) {
     if (hasLDSolution)
       printlnAndLog(s"$c can be fixed if, for example : ${V.getOneLowDegreeSolution(fe)}\n")
     else
-      printlnAndLog(s"$c cannot be fixed with ${GlobalConfig.maxInteractionDegree} mutations\n")
+      printlnAndLog(s"$c cannot be fixed with ${Settings.maxInteractionDegree} mutations\n")
   }
 
   /**
@@ -175,7 +175,7 @@ case class VTestStatMethod(m: String) {
     if (hasLDSolution)
       s" pass if, for example : ${V.getOneLowDegreeSolution(fe)}\n"
     else
-      s" cannot pass with ${GlobalConfig.maxInteractionDegree} mutations\n"
+      s" cannot pass with ${Settings.maxInteractionDegree} mutations\n"
   }
 
   /**
@@ -223,7 +223,7 @@ case class VTestStatMethod(m: String) {
     if (FeatureExprFactory.True.equivalentTo(fe) || FeatureExprFactory.False.equivalentTo(fe)) fe
     else {
       val allSat: Set[Solution] = getAllSats(fe, fe.collectDistinctFeatureObjects, Set())
-      val invalidSat = allSat.filter(x => x._1.size > GlobalConfig.maxInteractionDegree)
+      val invalidSat = allSat.filter(x => x._1.size > Settings.maxInteractionDegree)
       invalidSat.foldLeft(fe)((soFar, next) => soFar.and(construct(next._1, next._2).not()))
     }
   }

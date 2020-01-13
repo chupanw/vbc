@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc
 import java.io.{File, FileWriter}
 
 import edu.cmu.cs.vbc
+import edu.cmu.cs.vbc.config.VERuntime
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 

@@ -3,6 +3,8 @@ package edu.cmu.cs.vbc
 import java.lang.reflect.{InvocationTargetException, Method}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import edu.cmu.cs.vbc.config.{Settings, VERuntime}
+import edu.cmu.cs.vbc.config.VERuntime
 
 trait RelaunchExceptionHandler {
 
@@ -43,6 +45,6 @@ trait RelaunchExceptionHandler {
 case class VException(e: Throwable, ctx: FeatureExpr) extends RuntimeException {
   VERuntime.logVException(ctx)
 
-  override def toString: String = s"[VException ${if (GlobalConfig.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
+  override def toString: String = s"[VException ${if (Settings.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
   def getTracesAsString: String = e.getStackTrace.toList mkString("[VException]\t", "\n[VException]\t", "\n")
 }

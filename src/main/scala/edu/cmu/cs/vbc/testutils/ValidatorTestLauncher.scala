@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.testutils
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import edu.cmu.cs.vbc.{GlobalConfig, VERuntime}
+import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 
 object ValidatorTestLoader {
 //  val main = "/Users/chupanw/Projects/mutationtest-varex/code-ut/jars/commons-validator.jar"
@@ -111,5 +111,5 @@ object ValidatorTestLauncher extends App {
     testClass.runTests()
   }
 
-  if (GlobalConfig.printTestResults) VTestStat.printToConsole()
+  if (Settings.printTestResults) VTestStat.printToConsole()
 }

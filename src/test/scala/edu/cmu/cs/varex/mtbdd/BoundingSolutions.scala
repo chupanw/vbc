@@ -1,7 +1,7 @@
 package edu.cmu.cs.varex.mtbdd
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.vbc.GlobalConfig
+import edu.cmu.cs.vbc.config.Settings
 import org.scalatest.FunSuite
 
 /**
@@ -26,7 +26,7 @@ class BoundingSolutions extends FunSuite {
   )
 
   def changeDegree(d: Int): Unit = {
-    GlobalConfig.maxInteractionDegree = d
+    Settings.maxInteractionDegree = d
     MTBDDFactory.clearCache()
   }
 

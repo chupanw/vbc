@@ -4,7 +4,7 @@ import java.io.File
 
 import de.fosd.typechef.featureexpr.{FeatureExprFactory, FeatureExprParser}
 import edu.cmu.cs.varex.V
-import edu.cmu.cs.vbc.{GlobalConfig, VERuntime}
+import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 
 object CLITestLoader {
   val main = "/Users/chupanw/Projects/Data/mutated-cli/bin/"
@@ -56,7 +56,7 @@ object CLITestLauncher extends App {
     testClass.runTests()
   }
 
-  if (GlobalConfig.printTestResults) VTestStat.printToConsole()
+  if (Settings.printTestResults) VTestStat.printToConsole()
 }
 
 /**

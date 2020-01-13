@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc
 import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.cmu.cs.vbc.config.ModelConfig
 import edu.cmu.cs.vbc.loader.Loader
 import edu.cmu.cs.vbc.testutils.TestStat
 import edu.cmu.cs.vbc.utils._

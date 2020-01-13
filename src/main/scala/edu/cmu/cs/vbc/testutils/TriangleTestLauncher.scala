@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.testutils
 
 import de.fosd.typechef.featureexpr.FeatureExprFactory
-import edu.cmu.cs.vbc.VERuntime
+import edu.cmu.cs.vbc.config.VERuntime
 
 object TriangleTestLauncher extends App {
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)

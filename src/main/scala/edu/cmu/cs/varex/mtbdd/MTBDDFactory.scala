@@ -1,6 +1,7 @@
 package edu.cmu.cs.varex.mtbdd
 
-import edu.cmu.cs.vbc.GlobalConfig
+
+import edu.cmu.cs.vbc.config.Settings
 
 import scala.collection.immutable.Queue
 import scala.collection.mutable
@@ -19,7 +20,7 @@ object MTBDDFactory {
   /**
     * Clear all cache of BDDs
     *
-    * Need to clear cache after changing [[GlobalConfig.maxInteractionDegree]] at runtime, which
+    * Need to clear cache after changing [[Settings.maxInteractionDegree]] at runtime, which
     * should not happen in most cases. Mainly useful for testing.
     */
   private[cs] def clearCache(): Unit = {
@@ -86,13 +87,13 @@ object MTBDDFactory {
     */
   private class NodeImpl[+T](val v: Int, val low: MTBDD[T], val high: MTBDD[T]) extends MTBDDImpl[T] with Node[T] {
     /**
-      * Used for debugging or testing, no paths contain more than [[GlobalConfig.maxInteractionDegree]] true edges
+      * Used for debugging or testing, no paths contain more than [[Settings.maxInteractionDegree]] true edges
       */
     def checkDegree: Boolean = {
       def go(n: MTBDD[T], degree: Int): Boolean = {
         n match {
-          case n: NodeImpl[T] => degree <= GlobalConfig.maxInteractionDegree && go(n.low, degree) && go(n.high, degree + 1)
-          case v: ValueImpl[T] => if (degree <= GlobalConfig.maxInteractionDegree) true else !v.value.asInstanceOf[Boolean]
+          case n: NodeImpl[T] => degree <= Settings.maxInteractionDegree && go(n.low, degree) && go(n.high, degree + 1)
+          case v: ValueImpl[T] => if (degree <= Settings.maxInteractionDegree) true else !v.value.asInstanceOf[Boolean]
         }
       }
       go(this, 0)
@@ -234,7 +235,7 @@ object MTBDDFactory {
       def go(n: MTBDD[Boolean], degree: Int): MTBDD[Boolean] = {
 
         def _mk(v: Int, low: MTBDD[Boolean], high: MTBDD[Boolean]): MTBDD[Boolean] = {
-          if (degree >= GlobalConfig.maxInteractionDegree) low
+          if (degree >= Settings.maxInteractionDegree) low
           else {
             val rLow = reduceDegree(low, degree + 1)
             if (rLow eq high) low else mk(v, low, high)
@@ -263,7 +264,7 @@ object MTBDDFactory {
       def app(u1: MTBDD[Boolean], u2: MTBDD[Boolean], degree: Int): MTBDD[Boolean] = {
 
         def _mk(v: Int, low: MTBDD[Boolean], high: MTBDD[Boolean]): MTBDD[Boolean] = {
-          if (degree >= GlobalConfig.maxInteractionDegree) low
+          if (degree >= Settings.maxInteractionDegree) low
           else {
             val rl = reduceDegree(low, degree + 1)
             if (rl eq high) low else mk(v, low, high)
@@ -298,7 +299,7 @@ object MTBDDFactory {
         val ret = bdd match {
           case value: Value[Boolean] => value
           case node: Node[Boolean] =>
-            if (degree >= GlobalConfig.maxInteractionDegree) reduceDegree(node.low, degree)
+            if (degree >= Settings.maxInteractionDegree) reduceDegree(node.low, degree)
             else {
               val low = reduceDegree(node.low, degree)
               val high = reduceDegree(node.high, degree + 1)
@@ -319,7 +320,7 @@ object MTBDDFactory {
       * We might get too many solutions this way, especially if there are a lot of unused variables
       */
     def allSat: List[String] = {
-      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > GlobalConfig.maxInteractionDegree) Nil else r match {
+      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > Settings.maxInteractionDegree) Nil else r match {
         case v: Value[Boolean] =>
           if (currentV == varNum)
             if (v.value) List(enabled.map(lookupVarName).toList) else Nil
@@ -336,7 +337,7 @@ object MTBDDFactory {
     }
 
     def allSatSorted: List[String] = {
-      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > GlobalConfig.maxInteractionDegree) Nil else r match {
+      def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > Settings.maxInteractionDegree) Nil else r match {
         case v: Value[Boolean] =>
           if (currentV == varNum)
             if (v.value) List(enabled.map(lookupVarName).toList) else Nil
@@ -363,7 +364,7 @@ object MTBDDFactory {
 
     def oneSat: String = {
       def go(cur: MTBDD[Boolean], enabled: Queue[Int]): Option[String] = {
-        if (enabled.size > GlobalConfig.maxInteractionDegree) None
+        if (enabled.size > Settings.maxInteractionDegree) None
         else cur match {
           case v: Value[Boolean] => if (v.value) Some(enabled.map(lookupVarName).mkString("{", "&", "}")) else None
           case n: Node[Boolean] =>

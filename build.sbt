@@ -41,7 +41,7 @@ libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.3"
 libraryDependencies += "org.apache.ant" % "ant" % "1.7.0"
 
 // config
-libraryDependencies += "com.typesafe" % "config" % "1.3.1"
+libraryDependencies += "com.typesafe" % "config" % "1.4.0"
 
 unmanagedJars in Compile ~= {uj =>
   Seq(Attributed.blank(file(System.getProperty("java.home").dropRight(3) + "lib/tools.jar"))) ++ uj

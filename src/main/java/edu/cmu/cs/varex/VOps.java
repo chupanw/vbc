@@ -2,8 +2,8 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
-import edu.cmu.cs.vbc.GlobalConfig;
-import edu.cmu.cs.vbc.VERuntime;
+import edu.cmu.cs.vbc.config.Settings;
+import edu.cmu.cs.vbc.config.VERuntime;
 import edu.cmu.cs.vbc.VException;
 import edu.cmu.cs.vbc.vbytecode.Owner;
 import model.java.lang.StringBuilder;
@@ -459,49 +459,49 @@ public class VOps {
     // Special println that prints configuration as well
     //////////////////////////////////////////////////
     public static void println(PrintStream out, String s, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(s + " [" + ctx + "]");
         else
             out.println(s + " [hidden context]");
     }
     public static void println(PrintStream out, int i, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(i + " [" + ctx + "]");
         else
             out.println(i + " [hidden context]");
     }
     public static void println(PrintStream out, long l, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(l + " [" + ctx + "]");
         else
             out.println(l + " [hidden context]");
     }
     public static void println(PrintStream out, double d, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(d + " [" + ctx + "]");
         else
             out.println(d + " [hidden context]");
     }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(o + " [" + ctx + "]");
         else
             out.println(o + " [hidden context]");
     }
     public static void println(PrintStream out, char c, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(c + " [" + ctx + "]");
         else
             out.println(c + " [hidden context]");
     }
     public static void println(PrintStream out, boolean b, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(b + " [" + ctx + "]");
         else
             out.println(b + " [hidden context]");
     }
     public static void println(PrintStream out, FeatureExpr ctx) {
-        if (GlobalConfig.printContext())
+        if (Settings.printContext())
             out.println(" [" + ctx + "]");
         else
             out.println(" [hidden context]");
@@ -998,7 +998,7 @@ public class VOps {
     public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
-        if (VERuntime.curBlockCount() == GlobalConfig.maxBlockCount()) {
+        if (VERuntime.curBlockCount() == Settings.maxBlockCount()) {
             throw new VException(new Error("Max block exceeded, potential infinite loop"), ctx);
         }
     }

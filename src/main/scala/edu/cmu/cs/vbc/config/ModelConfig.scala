@@ -1,6 +1,5 @@
-package edu.cmu.cs.vbc
+package edu.cmu.cs.vbc.config
 
-import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config._
 
 import scala.collection.JavaConversions._

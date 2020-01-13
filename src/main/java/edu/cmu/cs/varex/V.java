@@ -1,9 +1,6 @@
 package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
-import de.fosd.typechef.featureexpr.bdd.BDDFeatureExpr;
-import de.fosd.typechef.featureexpr.bdd.FExprBuilder;
-import edu.cmu.cs.vbc.GlobalConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
