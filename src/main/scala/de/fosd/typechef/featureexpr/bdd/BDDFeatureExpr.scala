@@ -6,7 +6,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, SingleFeatureExpr}
 import edu.cmu.cs.varex.mtbdd.{MTBDD, MTBDDFactory}
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory.boolOps
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   def isTautology(): Boolean = bdd == MTBDDFactory.TRUE
@@ -21,10 +21,10 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   def implies(that: FeatureExpr): FeatureExpr = new BDDFeatureExpr(this.bdd.not.or(that.bdd))
   def isSatisfiable(): Boolean = !(this.bdd == MTBDDFactory.FALSE)
 
-  override def getAllSolutions: java.util.List[String] = bdd.allSat
+  override def getAllSolutions: java.util.List[String] = bdd.allSat.asJava
   override def getAllSolutionsScala: List[String] = bdd.allSat
   override def getOneSolution(): String = bdd.oneSat
-  override def getAllSolutionsSorted: util.List[String] = bdd.allSatSorted
+  override def getAllSolutionsSorted: util.List[String] = bdd.allSatSorted.asJava
   override def getAllSolutionsSortedScala: List[String] = bdd.allSatSorted
 
   /* Unimplemented */

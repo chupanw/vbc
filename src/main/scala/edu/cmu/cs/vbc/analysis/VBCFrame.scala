@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc.analysis
 import edu.cmu.cs.vbc.analysis.VBCFrame.FrameEntry
 import edu.cmu.cs.vbc.vbytecode.Variable
 import edu.cmu.cs.vbc.vbytecode.instructions._
+import scala.language.postfixOps
 
 object VBCFrame {
   // an entry consists of the type of the entry and the previous instructions that are responsible for

@@ -4,7 +4,7 @@ import edu.cmu.cs.vbc.vbytecode.VBCHandler
 import org.objectweb.asm.tree._
 import org.objectweb.asm.tree.analysis.{Analyzer, BasicInterpreter, BasicValue}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.SortedSet
 
 
@@ -72,7 +72,7 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
     * split into additional blocks for exception handlers
     */
   def analyzeExceptions(): Unit = {
-    for (tryCatchBlock <- mn.tryCatchBlocks) {
+    for (tryCatchBlock <- mn.tryCatchBlocks.asScala) {
       blocks += instructions.indexOf(tryCatchBlock.start)
       blocks += instructions.indexOf(tryCatchBlock.end)
       blocks += instructions.indexOf(tryCatchBlock.handler)
@@ -121,11 +121,11 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
     val handlers = getHandlers(instrIdx)
     if (handlers == null) Nil
     else {
-      val hs: List[VBCHandler] = handlers.toList.map(h =>
+      val hs: List[VBCHandler] = handlers.asScala.toList.map(h =>
         VBCHandler(h.`type`,
           instructionIdxToBlockIdx(instructions.indexOf(h.handler)),
-          if (h.visibleTypeAnnotations == null) Nil else h.visibleTypeAnnotations.toList,
-          if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.toList))
+          if (h.visibleTypeAnnotations == null) Nil else h.visibleTypeAnnotations.asScala.toList,
+          if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.asScala.toList))
       assume(hs.last.exceptionType == "java/lang/Throwable")
       val vExp = VBCHandler("edu/cmu/cs/vbc/VException", -1, Nil, Nil)  // this will get translated in Rewrite.addFakeHandlerBlocks()
       val hasException = hs.init.exists(_.exceptionType == "java/lang/Exception")

@@ -129,7 +129,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
       val existing = loadExistingLiftedClass(name)
       if (existing.isDefined) return existing.get
     }
-    import scala.collection.JavaConversions._
+    import scala.jdk.CollectionConverters._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
     val dotifier = new Dotifier()
     val textifier = new Textifier()
@@ -155,7 +155,7 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 //        writer.write("}")
 //        writer.close()
         val writer2 = new PrintWriter(new File("bug.txt"))
-        writer2.write(textifier.text.mkString(""))
+        writer2.write(textifier.text.asScala.mkString(""))
         writer2.close()
 //        val output = Process("dot -Tpdf -O bug.gv").lineStream
 //        println("Output from dot: " + output)

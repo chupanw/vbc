@@ -1,4 +1,4 @@
-scalaVersion := "2.11.7"
+scalaVersion := "2.13.1"
 
 //libraryDependencies += "org.ow2.asm" % "asm" % "5.0.4"
 
@@ -6,14 +6,16 @@ scalaVersion := "2.11.7"
 
 //libraryDependencies += "de.fosd.typechef" % "conditionallib_2.11" % "0.4.1"
 
-libraryDependencies += "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
-libraryDependencies += "org.pegdown" % "pegdown" % "1.6.0" % "test"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.0"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.0" % "test"
 
-libraryDependencies += "com.storm-enroute" %% "scalameter" % "0.7" % "test"
+resolvers += "Sonatype OSS Snapshots" at
+  "https://oss.sonatype.org/content/repositories/releases"
+libraryDependencies += "com.storm-enroute" %% "scalameter" % "0.19" % "test"
 
 libraryDependencies += "com.google.code.findbugs" % "jsr305" % "3.0.1"
 
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
 parallelExecution in Test := false

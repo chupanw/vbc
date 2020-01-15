@@ -6,7 +6,7 @@ import org.objectweb.asm.{Label, Opcodes}
 import org.objectweb.asm.tree._
 import org.objectweb.asm.tree.analysis.{Analyzer, SourceInterpreter, SourceValue}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**
@@ -28,7 +28,7 @@ object InitRewriter {
     * We need to extract Object creation sequence and put them to the beginning.
     * We cannot keep the original instruction order because our lifting of PUTFIELD would call
     * GETFIELD, which would cause problems if current object is not initialized.
-    * [[edu.cmu.cs.vbc.prog.LinkedListExample]] is an example of this, where in the original
+    * edu.cmu.cs.vbc.prog.LinkedListExample is an example of this, where in the original
     * bytecode, there is a PUTFIELD before Object.init() (PUTFIELD before object initialization
     * is allowed in JVM).
     *
@@ -80,7 +80,7 @@ class InitAnalyzer(cn: ClassNode, mn: MethodNode) extends SourceInterpreter {
       val methodInsnIndex = mn.instructions.indexOf(insn)
       if (methodInsn.getOpcode == Opcodes.INVOKESPECIAL && methodInsn.name == "<init>") {
         val ref = values.get(0)
-        val refSources = ref.insns.toSet.filter(i => i.isInstanceOf[VarInsnNode] && i.getOpcode == Opcodes.ALOAD && i.asInstanceOf[VarInsnNode].`var` == 0)
+        val refSources = ref.insns.asScala.filter(i => i.isInstanceOf[VarInsnNode] && i.getOpcode == Opcodes.ALOAD && i.asInstanceOf[VarInsnNode].`var` == 0)
         val sourceIndexes = refSources.map(mn.instructions.indexOf(_))
         if (methodInsn.owner == cn.superName)
           sourceIndexes.foreach(aloadIdx => InvokeSpecialOfSuperClss.add((aloadIdx, methodInsnIndex)))

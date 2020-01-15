@@ -9,7 +9,7 @@ import org.objectweb.asm.tree._
 import org.objectweb.asm.util.TraceClassVisitor
 import org.objectweb.asm.{ClassReader, ClassWriter, Handle, Type}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 /** Create model class for JDK classes
   *
@@ -95,7 +95,7 @@ class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLo
   def rewriteMethodDesc(m: String): String = MethodDesc(m).toModels
 
   def transformClass(cn: ClassNode): Unit = {
-    cn.interfaces = cn.interfaces.map(rename)
+    cn.interfaces = cn.interfaces.asScala.map(rename).asJava
     cn.name = rename(cn.name)
     cn.sourceFile = null
     cn.superName = rename(cn.superName)
@@ -103,11 +103,11 @@ class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLo
     if (cn.outerClass != null) cn.outerClass = rename(cn.outerClass)
     if (cn.outerMethodDesc != null) cn.outerMethodDesc = MethodDesc(cn.outerMethodDesc).toModels
     // fields
-    cn.fields.foreach(transformField)
+    cn.fields.asScala.foreach(transformField)
     // methods
-    cn.methods.foreach(transformMethod)
+    cn.methods.asScala.foreach(transformMethod)
     // inner classes
-    cn.innerClasses.foreach(transformInnerClass)
+    cn.innerClasses.asScala.foreach(transformInnerClass)
 
 //    // add additional method to String class
 //    if (cn.name == Owner("java/lang/String").toModel.toString) {
@@ -126,8 +126,8 @@ class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLo
 
   def transformMethod(m: MethodNode): Unit = {
     m.desc = rewriteMethodDesc(m.desc)
-    m.exceptions = m.exceptions.map(rename)
-    if (m.localVariables != null) m.localVariables.foreach(lv => lv.desc = rewriteTypeDesc(lv.desc))
+    m.exceptions = m.exceptions.asScala.map(rename).asJava
+    if (m.localVariables != null) m.localVariables.asScala.foreach(lv => lv.desc = rewriteTypeDesc(lv.desc))
     m.instructions.toArray.foreach(transformInsn)
 //    wrapString(m.instructions)
   }
@@ -197,7 +197,7 @@ class VBCModel(fqName: String, enableModelUtils: Boolean = false) extends LazyLo
     mn.access = ACC_PUBLIC + ACC_STATIC
     mn.name = "valueOf"
     mn.desc = s"(Ljava/lang/String;)${Owner("java/lang/String").toModel.getTypeDesc}"
-    mn.exceptions = List()
+    mn.exceptions = List().asJava
     val instructions: InsnList = new InsnList()
     instructions.add(new TypeInsnNode(NEW, newOwner))
     instructions.add(new InsnNode(DUP))

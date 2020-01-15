@@ -10,8 +10,6 @@ import edu.cmu.cs.vbc.vbytecode.{Block, MethodEnv, VMethodEnv}
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes._
 
-import scala.collection.JavaConversions._
-
 object Config {
 
   var configValues: Map[String, Int] = Map("A" -> 0)

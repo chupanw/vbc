@@ -7,7 +7,8 @@ import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
 import org.objectweb.asm.tree.analysis.{Analyzer, SourceInterpreter, SourceValue}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
+import scala.language.postfixOps
 
 /**
   * Rewrite ternary operators in constructor calls
@@ -115,7 +116,7 @@ class TernaryOperatorAnalyzer(mn: MethodNode) extends SourceInterpreter {
       val methodInsnIndex = mn.instructions.indexOf(insn)
       if (methodInsn.name == "<init>") {
         val ref = values.get(0)
-        val refSources = ref.insns.toSet
+        val refSources = ref.insns.asScala
         assume(refSources.size == 1,
           "Caller of INVOKESPECIAL comes from more than one source")
         val isNEW = !isALOAD0(refSources.head)

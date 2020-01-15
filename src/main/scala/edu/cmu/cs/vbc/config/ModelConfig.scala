@@ -2,7 +2,8 @@ package edu.cmu.cs.vbc.config
 
 import com.typesafe.config._
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
+import scala.language.postfixOps
 /**
   * Project specific configuration file for model classes.
   *
@@ -17,7 +18,7 @@ class ModelConfig(val fileName: String) {
     */
   val jdkNotLiftingClasses: List[String] = {
     try {
-      val classes: List[String] = config.getStringList("jdk-not-lifting").toList
+      val classes: List[String] = config.getStringList("jdk-not-lifting").asScala.toList
       if (defaultConfig.isDefined)
         defaultConfig.get.jdkNotLiftingClasses ::: classes
       else
@@ -32,7 +33,7 @@ class ModelConfig(val fileName: String) {
     */
   val libraryNotLiftingClasses: List[String] = {
     try {
-      config.getStringList("library-not-lifting").toList
+      config.getStringList("library-not-lifting").asScala.toList
     } catch {
       case _: Throwable => List()
     }
@@ -43,7 +44,7 @@ class ModelConfig(val fileName: String) {
     */
   val programNotLiftingClasses: List[String] = {
     try {
-      config.getStringList("program-not-lifting").toList
+      config.getStringList("program-not-lifting").asScala.toList
     } catch {
       case _: Throwable => List()
     }
@@ -59,7 +60,7 @@ class ModelConfig(val fileName: String) {
     */
   val jdkLiftingClasses: List[String] = {
     try {
-      val classes: List[String] = config.getStringList("jdk-lifting").toList
+      val classes: List[String] = config.getStringList("jdk-lifting").asScala.toList
       if (defaultConfig.isDefined)
         defaultConfig.get.jdkLiftingClasses ::: classes
       else
@@ -71,7 +72,7 @@ class ModelConfig(val fileName: String) {
 
   val libraryLiftingClasses: List[String] = {
     try {
-      config.getStringList("library-lifting").toList
+      config.getStringList("library-lifting").asScala.toList
     } catch {
       case _: Throwable => List()
     }

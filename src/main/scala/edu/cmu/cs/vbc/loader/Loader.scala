@@ -9,7 +9,7 @@ import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
 import org.objectweb.asm.{ClassReader, MethodVisitor, Opcodes, Type}
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 /**
   * My class adapter using the tree API
@@ -31,10 +31,10 @@ class Loader {
     cl.name,
     if (cl.signature == null) None else Some(cl.signature),
     cl.superName,
-    if (cl.interfaces == null) Nil else cl.interfaces.toList,
-    if (cl.fields == null) Nil else cl.fields.map(adaptField).toList,
+    if (cl.interfaces == null) Nil else cl.interfaces.asScala.toList,
+    if (cl.fields == null) Nil else cl.fields.asScala.map(adaptField).toList,
     // todo: rewrite this part with trait stacking
-    if (cl.methods == null) Nil else cl.methods.map(
+    if (cl.methods == null) Nil else cl.methods.asScala.map(
 //      m => transformSwitches(LocalVariableTransformer.transform(m))).flatMap(m => new MethodChopper(cl.name, m).chop()).map(m => {
 //        adaptMethod(cl.name,
 //          TryCatchBlock.wrapMethodBody(
@@ -56,12 +56,12 @@ class Loader {
     ).toList,
     if (cl.sourceDebug != null && cl.sourceFile != null) Some(cl.sourceFile, cl.sourceDebug) else None,
     if (cl.outerClass != null) Some(cl.outerClass, cl.outerMethod, cl.outerMethodDesc) else None,
-    if (cl.visibleAnnotations == null) Nil else cl.visibleAnnotations.toList,
-    if (cl.invisibleAnnotations == null) Nil else cl.invisibleAnnotations.toList,
-    if (cl.visibleTypeAnnotations == null) Nil else cl.visibleTypeAnnotations.toList,
-    if (cl.invisibleTypeAnnotations == null) Nil else cl.invisibleTypeAnnotations.toList,
-    if (cl.attrs == null) Nil else cl.attrs.toList,
-    if (cl.innerClasses == null) Nil else cl.innerClasses.map(adaptInnerClass).toList
+    if (cl.visibleAnnotations == null) Nil else cl.visibleAnnotations.asScala.toList,
+    if (cl.invisibleAnnotations == null) Nil else cl.invisibleAnnotations.asScala.toList,
+    if (cl.visibleTypeAnnotations == null) Nil else cl.visibleTypeAnnotations.asScala.toList,
+    if (cl.invisibleTypeAnnotations == null) Nil else cl.invisibleTypeAnnotations.asScala.toList,
+    if (cl.attrs == null) Nil else cl.attrs.asScala.toList,
+    if (cl.innerClasses == null) Nil else cl.innerClasses.asScala.map(adaptInnerClass).toList
   )
 
   /**
@@ -84,7 +84,7 @@ class Loader {
             new VarInsnNode(ILOAD, switchValueIdx),
             new LdcInsnNode(num),
             new InsnNode(ISUB),
-            new JumpInsnNode(IFEQ, table.labels(num - table.min))
+            new JumpInsnNode(IFEQ, table.labels.get(num - table.min))
           )
         })
         List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, table.dflt))
@@ -92,12 +92,12 @@ class Loader {
         val switchValueIdx = m.maxLocals
         m.localVariables.add(new LocalVariableNode(s"switch${util.Random.nextInt()}", "I", "I", null, null, switchValueIdx))
         m.maxLocals += 1
-        val ifs: List[AbstractInsnNode] = (0 until lookup.keys.length).toList.flatMap(index => {
+        val ifs: List[AbstractInsnNode] = (0 until lookup.keys.size()).toList.flatMap(index => {
           List(
             new VarInsnNode(ILOAD, switchValueIdx),
-            new LdcInsnNode(lookup.keys(index)),
+            new LdcInsnNode(lookup.keys.get(index)),
             new InsnNode(ISUB),
-            new JumpInsnNode(IFEQ, lookup.labels(index))
+            new JumpInsnNode(IFEQ, lookup.labels.get(index))
           )
         })
         List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, lookup.dflt))
@@ -137,8 +137,8 @@ class Loader {
     if (!isStatic)
       varCache += (0 -> new Parameter(0, "this", Owner(owner).getTypeDesc))
     if (m.localVariables != null) {
-      val localVarList = m.localVariables.toList
-      for (i <- 0 until localVarList.size()) {
+      val localVarList = m.localVariables.asScala.toList
+      for (i <- localVarList.indices) {
         val lv = localVarList(i)
         if (lv.index < parameterRange)
           varCache += (lv.index -> new Parameter(lv.index, lv.name, TypeDesc(lv.desc), is64Bit = TypeDesc(lv.desc).is64Bit))
@@ -192,19 +192,19 @@ class Loader {
       m.access,
       m.name,
       m.desc,
-      if (m.signature == null) None else Some(m.signature),
-      if (m.exceptions == null) Nil else m.exceptions.toList,
+      Option(m.signature),
+      if (m.exceptions == null) Nil else m.exceptions.asScala.toList,
       new CFG(nonEmptyBlocks.toList),
       varCache.values.toList,
       annotationDefault = m.annotationDefault,
-      invisibleAnnotations = if (m.invisibleAnnotations == null) Nil else m.invisibleAnnotations.toList,
-      invisibleLocalVariableAnnotations = if (m.invisibleLocalVariableAnnotations == null) Nil else m.invisibleLocalVariableAnnotations.toList,
-      invisibleParameterAnnotations = if (m.invisibleParameterAnnotations == null) Array.empty else m.invisibleParameterAnnotations.toArray.map(_.toList),
-      invisibleTypeAnnotations = if (m.invisibleTypeAnnotations == null) Nil else m.invisibleTypeAnnotations.toList,
-      visibleAnnotations = if (m.visibleAnnotations == null) Nil else m.visibleAnnotations.toList,
-      visibleLocalVariableAnnotations = if (m.visibleLocalVariableAnnotations == null) Nil else m.visibleLocalVariableAnnotations.toList,
-      visibleParameterAnnotations = if (m.visibleParameterAnnotations == null) Array.empty else m.visibleParameterAnnotations.toArray.map(_.toList),
-      visibleTypeAnnotations = if (m.visibleTypeAnnotations == null) Nil else m.visibleTypeAnnotations.toList
+      invisibleAnnotations = if (m.invisibleAnnotations == null) Nil else m.invisibleAnnotations.asScala.toList,
+      invisibleLocalVariableAnnotations = if (m.invisibleLocalVariableAnnotations == null) Nil else m.invisibleLocalVariableAnnotations.asScala.toList,
+      invisibleParameterAnnotations = if (m.invisibleParameterAnnotations == null) Array.empty else m.invisibleParameterAnnotations.map(_.asScala.toList),
+      invisibleTypeAnnotations = if (m.invisibleTypeAnnotations == null) Nil else m.invisibleTypeAnnotations.asScala.toList,
+      visibleAnnotations = if (m.visibleAnnotations == null) Nil else m.visibleAnnotations.asScala.toList,
+      visibleLocalVariableAnnotations = if (m.visibleLocalVariableAnnotations == null) Nil else m.visibleLocalVariableAnnotations.asScala.toList,
+      visibleParameterAnnotations = if (m.visibleParameterAnnotations == null) Array.empty else m.visibleParameterAnnotations.map(_.asScala.toList),
+      visibleTypeAnnotations = if (m.visibleTypeAnnotations == null) Nil else m.visibleTypeAnnotations.asScala.toList
     )
   }
 
@@ -514,11 +514,11 @@ class Loader {
     field.desc,
     field.signature,
     field.value,
-    if (field.visibleAnnotations == null) Nil else field.visibleAnnotations.toList,
-    if (field.invisibleAnnotations == null) Nil else field.invisibleAnnotations.toList,
-    if (field.visibleTypeAnnotations == null) Nil else field.visibleTypeAnnotations.toList,
-    if (field.invisibleTypeAnnotations == null) Nil else field.invisibleTypeAnnotations.toList,
-    if (field.attrs == null) Nil else field.attrs.toList
+    if (field.visibleAnnotations == null) Nil else field.visibleAnnotations.asScala.toList,
+    if (field.invisibleAnnotations == null) Nil else field.invisibleAnnotations.asScala.toList,
+    if (field.visibleTypeAnnotations == null) Nil else field.visibleTypeAnnotations.asScala.toList,
+    if (field.invisibleTypeAnnotations == null) Nil else field.invisibleTypeAnnotations.asScala.toList,
+    if (field.attrs == null) Nil else field.attrs.asScala.toList
   )
 
   def adaptInnerClass(m: InnerClassNode): VBCInnerClassNode = new VBCInnerClassNode(

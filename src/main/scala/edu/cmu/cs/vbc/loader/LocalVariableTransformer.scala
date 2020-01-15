@@ -4,7 +4,7 @@ import edu.cmu.cs.vbc.vbytecode.{MethodDesc, TypeDesc}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
 
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 
 /**
   * This object transforms methods to avoid reuse of local variables.
@@ -21,11 +21,11 @@ object LocalVariableTransformer {
   def transform(m: MethodNode): MethodNode = {
     if (m.localVariables == null) return m
     val instructions = m.instructions.toArray
-    val lvIndexes = m.localVariables.map(_.index)
+    val lvIndexes = m.localVariables.asScala.map(_.index)
 
     // avoid accidentally update VarInsnNodes that share the same index
     var lastStoreUpdate = collection.mutable.Map[LV, Int]()
-    m.localVariables.foreach { x => lastStoreUpdate(LV(x.name, x.desc, x.index)) = -1 }
+    m.localVariables.asScala.foreach { x => lastStoreUpdate(LV(x.name, x.desc, x.index)) = -1 }
 
     if (instructions.nonEmpty && lvIndexes.distinct.lengthCompare(m.localVariables.size) < 0) {
       // seems more efficient to use mutable here
@@ -37,7 +37,7 @@ object LocalVariableTransformer {
       val seenLV = collection.mutable.Set[LV]()
       val processedLV = collection.mutable.Map[LV, LV]()
       val usedIndex = collection.mutable.Set[Int]()
-      for (lv <- m.localVariables if lvIndexes.count(_ == lv.index) > 1) {
+      for (lv <- m.localVariables.asScala if lvIndexes.count(_ == lv.index) > 1) {
         val x = LV(lv.name, lv.desc, lv.index)
         if (!seenLV.contains(x)) {
           seenLV add x
