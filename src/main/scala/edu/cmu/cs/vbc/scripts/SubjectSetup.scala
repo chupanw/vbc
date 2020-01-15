@@ -13,8 +13,8 @@ import java.net.URLClassLoader
   */
 object SubjectSetup extends App {
 
-  val osBase = args(0)
-  val base = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
+  val osBase  = args(0)
+  val base    = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
   val baseVBC = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/"
 
   val projects = Nil
@@ -27,12 +27,12 @@ object SubjectSetup extends App {
   val blackTests = (1 to 6).toList
   val whiteTests = (1 to 10).toList
   def getPosFromNeg(project: String, neg: List[String]): List[String] = {
-    val blackClass = getBlackTestClass(project)
-    val whiteClass = getWhiteTestClass(project)
+    val blackClass  = getBlackTestClass(project)
+    val whiteClass  = getWhiteTestClass(project)
     val blackFailed = neg.filter(_.contains("Black")).map(_.split("::")(1).substring(4).toInt)
     val whiteFailed = neg.filter(_.contains("White")).map(_.split("::")(1).substring(4).toInt)
-    val blackPos = for (i <- blackTests if !blackFailed.contains(i)) yield blackClass + s"::test$i"
-    val whitePos = for (i <- whiteTests if !whiteFailed.contains(i)) yield whiteClass + s"::test$i"
+    val blackPos    = for (i <- blackTests if !blackFailed.contains(i)) yield blackClass + s"::test$i"
+    val whitePos    = for (i <- whiteTests if !whiteFailed.contains(i)) yield whiteClass + s"::test$i"
     blackPos ::: whitePos
   }
   def getBlackTestClass(project: String): String = {
@@ -44,9 +44,9 @@ object SubjectSetup extends App {
     "introclassJava." + p + "WhiteboxTest"
   }
   def createRelevantTests(project: String): Unit = {
-    val pd = project.substring(0, project.init.lastIndexOf("/") + 1)
+    val pd      = project.substring(0, project.init.lastIndexOf("/") + 1)
     val version = project.substring(pd.length, project.length - 1)
-    val rtDir = new File(baseVBC + pd + "RelevantTests")
+    val rtDir   = new File(baseVBC + pd + "RelevantTests")
     if (!rtDir.exists()) rtDir.mkdir()
     val writer = new FileWriter(new File(rtDir.getPath + "/" + version + ".txt"))
     println(s"Generating ${rtDir.getPath}/$version.txt")
@@ -55,7 +55,7 @@ object SubjectSetup extends App {
     writer.close()
   }
 
-  var failed: List[String] = Nil
+  var failed: List[String]  = Nil
   var skipped: List[String] = Nil
 
   run()
@@ -73,7 +73,7 @@ object SubjectSetup extends App {
       }
     } catch {
       case a: AssertionError => a.printStackTrace(); failed = current :: failed
-      case e => throw e
+      case e                 => throw e
     }
     println("Failed: ")
     println(failed)
@@ -89,12 +89,12 @@ object SubjectSetup extends App {
     val resultsLineOpt = mavenOutput.find(x => x == "Results :")
     assert(resultsLineOpt.isDefined)
     val restMavenOutput = mavenOutput.dropWhile(_ != resultsLineOpt.get)
-    val statLineOpt = restMavenOutput.find(s => s.startsWith("Tests run: "))
+    val statLineOpt     = restMavenOutput.find(s => s.startsWith("Tests run: "))
     assert(statLineOpt.isDefined, "No stat line when running maven")
     val statLine = statLineOpt.get
     println(statLine)
     val nums = statLine.split(",").map(x => x.substring(x.indexOf(":") + 1).trim).map(_.toInt)
-    assert(nums.length == 4)  // total, failures, errors, skipped
+    assert(nums.length == 4) // total, failures, errors, skipped
     val nPass = nums(0) - nums(1) - nums(2) - nums(3)
     if (nPass == 0) {
       println("No positive test, skipping...")
@@ -102,9 +102,9 @@ object SubjectSetup extends App {
     } else {
       val failLines = restMavenOutput.drop(2).takeWhile(x => x != statLine).init
       val neg = for (l <- failLines) yield {
-        val ll = if (l.startsWith("Failed tests:")) l.substring(13) else l
-        val tC = ll.split(":")(0).trim
-        val testCase = tC.substring(0, tC.indexOf("("))
+        val ll        = if (l.startsWith("Failed tests:")) l.substring(13) else l
+        val tC        = ll.split(":")(0).trim
+        val testCase  = tC.substring(0, tC.indexOf("("))
         val testClass = tC.substring(testCase.length + 1, tC.length - 1)
         testClass + "::" + testCase
       }
@@ -123,10 +123,13 @@ object SubjectSetup extends App {
   private def runMaven(projectPath: String): List[String] = {
     val lines = collection.mutable.ListBuffer[String]()
     try {
-      scala.sys.process.Process(Seq("mvn", "test"), new File(projectPath)).lineStream.foreach(x => lines += x)
+      scala.sys.process
+        .Process(Seq("mvn", "test"), new File(projectPath))
+        .lineStream
+        .foreach(x => lines += x)
     } catch {
       case r: RuntimeException if r.getMessage.contains("Nonzero exit code:") => // do noting, maven returns nonzero exit code when tests fail
-      case e: Exception => throw e
+      case e: Exception                                                       => throw e
     }
     lines.toList
   }
@@ -135,8 +138,8 @@ object SubjectSetup extends App {
     import scala.sys.process._
     val pn = project.substring(0, project.indexOf("/") + 1)
     println("Copying varexc.jar...")
-    val jar = s"${baseVBC}${pn}varexc.jar"
-    val pom = s"${baseVBC}${pn}pom.xml"
+    val jar  = s"${baseVBC}${pn}varexc.jar"
+    val pom  = s"${baseVBC}${pn}pom.xml"
     val dest = s"${baseVBC}${project}"
     assert(s"cp $jar $dest".! == 0)
     val oldPOM = s"${baseVBC}${project}pom.xml"
@@ -152,7 +155,7 @@ object SubjectSetup extends App {
 
 object ProjectLister extends App {
   val datasetDir = "/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
-  val project = "syllables"
+  val project    = "syllables"
 
   /**
     * Assume the project structure like this: .../dataset/digit/07045530/000
@@ -161,7 +164,10 @@ object ProjectLister extends App {
   def listProjects: List[String] = {
     val dir = new File(datasetDir + project)
     (for (d <- dir.listFiles().toList if d.isDirectory && d.getName != "ref") yield {
-      d.listFiles().toList.filter(_.isDirectory).map(x => "\"" + s"$project/${d.getName}/${x.getName}/" + "\"")
+      d.listFiles()
+        .toList
+        .filter(_.isDirectory)
+        .map(x => "\"" + s"$project/${d.getName}/${x.getName}/" + "\"")
     }).flatten
   }
 
@@ -170,7 +176,7 @@ object ProjectLister extends App {
 
 object ProjectRenamer extends App {
   val datasetDir = "/Users/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/"
-  val project = "syllables"
+  val project    = "syllables"
 
   def rename(): Unit = {
     val dir = new File(datasetDir + project)
@@ -184,46 +190,133 @@ object ProjectRenamer extends App {
   rename()
 }
 
+/**
+  * Setup Apache Math projects for VarexGenProg
+  *
+  * Takes two paths of the folders that contain all math projects as parameters, one for GenProg and one for VarexC
+  *
+  * 1. Extract relevant tests from Defects4J
+  * 2. Copy varexc.jar into each project  (expect a varexc.jar in the varexc folder)
+  * 3. Prepare pos and neg tests
+  */
 object MathSetup extends App {
+  import scala.sys.process._
 
-  val relevantTestsPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-VarexC/RelevantTests/Math-6b.txt"
-  val relTestClasses = io.Source.fromFile(relevantTestsPath).getLines().toList
+  assume(args.length == 2 && args(0).endsWith("/") && args(1).endsWith("/"),
+         "Please provide the folder that contains all math projects as parameter")
 
-  val allTestsPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/test-classes/"
-  val allClassesPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/classes/"
-  val classLoader = new URLClassLoader(Array(allClassesPath, allTestsPath).map(new File(_).toURI.toURL))
+  val genprogFolder = args(0)
+  val varexcFolder  = args(1)
 
-  val testReportPath = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/target/test-reports/"
+  // main
+//  writeRelevantTests()
+//  copyVarexCJar()
+//  compileProjects()
+//  extractPosNegTests()
 
-  val outputDir = "/Users/chupanw/Projects/Data/PatchStudy/Math-GenProg/Math-6b/"
+  def listProjects(path: String): List[File] = {
+    val folder = new File(path)
+    folder.listFiles().filter(_.isDirectory).filterNot(_.getName == "RelevantTests").toList
+  }
 
-  def parseJUnitReportForNeg(testReportDir: String, relTestClasses: List[String]): List[String] = {
-    relTestClasses.flatMap(x => {
-      val filePath = testReportDir + "TEST-" + x + ".txt"
-      val file = io.Source.fromFile(filePath)
-      val tests = file.getLines().filter(_.contains("FAILED")).map(s => s.substring(s.indexOf(':') + 1, s.indexOf('(')).trim).toList
-      tests.map(t => x + "::" + t)
-    })
+  def writeRelevantTests(): Unit = {
+    val projects       = listProjects(varexcFolder)
+    val relTestsFolder = new File(varexcFolder + "RelevantTests/")
+    if (!relTestsFolder.exists()) {
+      assert(relTestsFolder.mkdir(), s"failed to create folder: $relTestsFolder")
+    }
+    for (p <- projects) {
+      val fp = new File(relTestsFolder.getAbsolutePath + "/" + p.getName + ".txt")
+      val f  = new FileWriter(fp)
+      println(s"Writing relevant tests to ${fp}")
+      Process(Seq("defects4j", "export", "-p", "tests.relevant"), cwd = Some(p)).lineStream
+        .foreach(l => f.write(l + "\n"))
+      f.close()
+    }
+  }
+
+  def copyVarexCJar(): Unit = {
+    val projects = listProjects(varexcFolder)
+    for (p <- projects) {
+      val libFolder = new File(p.getAbsolutePath + "/lib/")
+      if (!libFolder.exists())
+        assert(libFolder.mkdir(), s"failed to create folder: ${libFolder.getAbsoluteFile}")
+      println(s"Copying varexc.jar to ${libFolder.getAbsolutePath}")
+      val cmd = s"cp ${varexcFolder}/varexc.jar ${libFolder.getAbsolutePath}"
+      assert(cmd.! == 0, s"Error in command: $cmd")
+    }
+  }
+
+  /**
+    * For some reasons this can fail for some bugs if non-ASCII characters are used.
+    *
+    * If that's the case, manually execute `defects4j compile` in console or execute this program in console via sbt
+    */
+  def compileProjects(): Unit = {
+    val projects = listProjects(genprogFolder)
+    for (p <- projects) {
+      println(s"Running defects4j compile in ${p.getAbsolutePath}")
+      assert(Process(Seq("defects4j", "compile"), cwd = Some(p)).! == 0, "Compilation failed")
+    }
+  }
+
+  def extractPosNegTests(): Unit = {
+    val projects = listProjects(genprogFolder)
+    for (p <- projects) {
+      val relevantTestsPath = s"$varexcFolder/RelevantTests/${p.getName}.txt"
+      val relTestClasses    = io.Source.fromFile(relevantTestsPath).getLines().toList
+      val allTestsPath      = s"$genprogFolder/${p.getName}/target/test-classes/"
+      val allClassesPath    = s"$genprogFolder/${p.getName}/target/classes/"
+      val classLoader = new URLClassLoader(
+        Array(allClassesPath, allTestsPath).map(new File(_).toURI.toURL))
+      val outputDir = s"$genprogFolder/${p.getName}/"
+
+      val neg = genNeg(p)
+      val pos = genPos(classLoader, relTestClasses, neg)
+
+      val posFile = new FileWriter(new File(outputDir + "pos.tests"))
+      posFile.write(pos.mkString("\n"))
+
+      val negFile = new FileWriter(new File(outputDir + "neg.tests"))
+      val relTestFile = new FileWriter(new File(s"$varexcFolder/RelevantTests/${p.getName}.txt"),
+                                       true) // used for prioritizing test execution
+      negFile.write(neg.mkString("\n"))
+      relTestFile.write(neg.map(x => "*" + x).mkString("\n"))
+
+      posFile.close()
+      negFile.close()
+      relTestFile.close()
+    }
+  }
+
+  def genNeg(project: File): List[String] = {
+    println(s"Generating neg.tests for ${project.getAbsolutePath}")
+    Process(Seq("defects4j", "export", "-p", "tests.trigger"), cwd = Some(project)).lineStream.toList
   }
 
   def genPos(cl: ClassLoader, relTests: List[String], neg: List[String]): List[String] = {
     val allTests = relTests.flatMap(x => {
       val cls = cl.loadClass(x)
-      val tests = cls.getMethods.filter(m => m.isAnnotationPresent(classOf[org.junit.Test])).map(_.getName)
-      tests.map(t => x + "::" + t)
+      val tests =
+        cls.getMethods.filter(m => m.isAnnotationPresent(classOf[org.junit.Test])).map(_.getName)
+      if (tests.isEmpty) {
+        val junit3Tests = cls.getMethods.filter(m => m.getName.startsWith("test")).map(_.getName)
+        junit3Tests.map(t => x + "::" + t)
+      } else {
+        tests.map(t => x + "::" + t)
+      }
     })
     allTests.diff(neg)
   }
 
-  val neg = parseJUnitReportForNeg(testReportPath, relTestClasses)
-  val pos = genPos(classLoader, relTestClasses, neg)
+  /**
+    * Update compile target to 1.8 and add varexc.jar as dependency
+    */
+//  def modifyAntBuild(): Unit = {
+//    val projects = listProjects(varexcFolder)
+//    for (p <- projects) {
+//      val buildFile = new File
+//    }
+//  }
 
-  val posFile = new FileWriter(new File(outputDir + "pos.tests"))
-  posFile.write(pos.mkString("\n"))
-
-  val negFile = new FileWriter(new File(outputDir + "neg.tests"))
-  negFile.write(neg.mkString("\n"))
-
-  posFile.close()
-  negFile.close()
 }
