@@ -203,19 +203,22 @@ object ProjectRenamer extends App {
 object MathSetup extends App {
   import scala.sys.process._
 
-  assume(args.length == 2 && args(0).endsWith("/") && args(1).endsWith("/"),
+  assume(args.length == 3 && args(0).endsWith("/") && args(1).endsWith("/"),
          "Please provide the folder that contains all math projects as parameter")
 
-  val genprogFolder = args(0)
-  val varexcFolder  = args(1)
+  val genprogFolder     = args(0)
+  val varexcFolder      = args(1)
+  val compileScriptPath = args(2)
 
   // main
 //  writeRelevantTests()
 //  copyVarexCJar()
 //  compileProjects()
 //  extractPosNegTests()
-  restoreAntBuild()
-  modifyAntBuild()
+//  genTargetClasses()
+  setupCompileScript()
+//  restoreAntBuild()
+//  modifyAntBuild()
 
   def listProjects(path: String): List[File] = {
     val folder = new File(path)
@@ -310,6 +313,23 @@ object MathSetup extends App {
       }
     })
     allTests.diff(neg)
+  }
+
+  def genTargetClasses(): Unit = {
+    val projects = listProjects(genprogFolder)
+    for (p <- projects) {
+      Process(Seq("defects4j", "export", "-p", "classes.modified", "-o", "targetClasses.txt"),
+              cwd = Some(p)).lazyLines.foreach(println)
+    }
+  }
+
+  def setupCompileScript(): Unit = {
+    val projects = listProjects(genprogFolder)
+    for (p <- projects) {
+      println(s"Setting up compile script in ${p.getAbsolutePath}")
+      Process(Seq("ln", "-s", "-f", compileScriptPath, "compile.py"), cwd = Some(p)).lazyLines
+        .foreach(println)
+    }
   }
 
   /**
