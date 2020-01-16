@@ -2,6 +2,7 @@ package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
 import java.net.URLClassLoader
+import java.nio.file.{FileSystems, Files, StandardCopyOption}
 
 /**
   * To setup a project
@@ -213,6 +214,8 @@ object MathSetup extends App {
 //  copyVarexCJar()
 //  compileProjects()
 //  extractPosNegTests()
+  restoreAntBuild()
+  modifyAntBuild()
 
   def listProjects(path: String): List[File] = {
     val folder = new File(path)
@@ -312,11 +315,48 @@ object MathSetup extends App {
   /**
     * Update compile target to 1.8 and add varexc.jar as dependency
     */
-//  def modifyAntBuild(): Unit = {
-//    val projects = listProjects(varexcFolder)
-//    for (p <- projects) {
-//      val buildFile = new File
-//    }
-//  }
+  def modifyAntBuild(): Unit = {
+    import scala.xml._
+    val projects = listProjects(varexcFolder)
+    for (p <- projects) {
+      val buildFile = FileSystems.getDefault.getPath(p.getAbsolutePath, "build.xml")
+      val backup    = FileSystems.getDefault.getPath(p.getAbsolutePath, "build.xml.backup")
+      if (!backup.toFile.exists()) {
+        Files.copy(buildFile, backup)
+      }
+      val xml = XML.loadFile(buildFile.toFile)
+      val transChild = xml.child.map {
+        case e: Elem
+            if e.label == "property" && e
+              .attribute("name")
+              .map(_.toString)
+              .contains("compile.target") =>
+          val updatedAttr = new UnprefixedAttribute("value", "1.8", e.attributes.remove("value"))
+          e.copy(attributes = updatedAttr)
+        case e: Elem
+            if e.label == "path" && e
+              .attribute("id")
+              .map(_.toString)
+              .contains("compile.classpath") =>
+          e.copy(
+            child = (e.child :+ <pathelement location="${download.lib.dir}/varexc.jar"/>).distinct)
+        case e => e
+      }
+      val newXMLString = xml.copy(child = transChild).toString
+      println(s"Updating ${buildFile.toFile.getAbsoluteFile}")
+      val writer = new FileWriter(buildFile.toFile)
+      writer.write(newXMLString.replace("http://", "https://"))
+      writer.close()
+    }
+  }
+
+  def restoreAntBuild(): Unit = {
+    val projects = listProjects(varexcFolder)
+    for (p <- projects) {
+      val backup    = FileSystems.getDefault.getPath(p.getAbsolutePath, "build.xml.backup")
+      val buildFile = FileSystems.getDefault.getPath(p.getAbsolutePath, "build.xml")
+      Files.copy(backup, buildFile, StandardCopyOption.REPLACE_EXISTING)
+    }
+  }
 
 }

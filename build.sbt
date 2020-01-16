@@ -18,6 +18,8 @@ libraryDependencies += "com.google.code.findbugs" % "jsr305" % "3.0.1"
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
 
+libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0"
+
 parallelExecution in Test := false
 
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint")
