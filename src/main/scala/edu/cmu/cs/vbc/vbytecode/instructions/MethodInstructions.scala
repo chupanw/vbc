@@ -649,7 +649,7 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
           m.visitMethodInsn(INVOKESTATIC, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
         }
         boxReturnValue(liftedCall.desc, m)
-//        toVArray(liftedCall, m, args.size - 1)  // should be compressed later as part of InvokeDynamic
+        toVArray(liftedCall, m, args.size - 1)
         if (liftedCall.desc.isReturnVoid) {
           m.visitInsn(RETURN)
         }

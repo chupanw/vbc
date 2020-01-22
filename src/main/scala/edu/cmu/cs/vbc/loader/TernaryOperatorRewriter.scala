@@ -119,19 +119,24 @@ class TernaryOperatorAnalyzer(mn: MethodNode) extends SourceInterpreter {
         val refSources = ref.insns.asScala
         assume(refSources.size == 1,
           "Caller of INVOKESPECIAL comes from more than one source")
-        val isNEW = !isALOAD0(refSources.head)
-        val sourceIndex = if (isNEW) mn.instructions.indexOf(refSources.head) - 1 else mn.instructions.indexOf(refSources.head)
-        if (isNEW)
+        val fromNEW = !isALOAD0(refSources.head)  // either ALOAD 0 or NEW
+        val sourceIndex =
+          if (fromNEW && isDUP(refSources.head))
+            mn.instructions.indexOf(refSources.head) - 1
+          else
+            mn.instructions.indexOf(refSources.head)
+        if (fromNEW)
           assume(mn.instructions.get(sourceIndex).getOpcode == Opcodes.NEW,
             "Expecting a NEW, but found " + OpcodePrint.print(mn.instructions.get(sourceIndex).getOpcode))
         if (hasJumpBetween(sourceIndex, methodInsnIndex))
-          invokeSpecialAndNew = Some(InvokeSpecialWithTernary(sourceIndex, methodInsnIndex, isNEW))
+          invokeSpecialAndNew = Some(InvokeSpecialWithTernary(sourceIndex, methodInsnIndex, fromNEW))
       }
     }
     super.naryOperation(insn, values)
   }
 
   private def isALOAD0(i: AbstractInsnNode): Boolean = i.getOpcode == Opcodes.ALOAD && i.asInstanceOf[VarInsnNode].`var` == 0
+  private def isDUP(i: AbstractInsnNode): Boolean = i.getOpcode == Opcodes.DUP
   private def hasJumpBetween(start: Int, end: Int): Boolean = {
     for (i <- Range(start + 1, end)) {
       if (mn.instructions.get(i).isInstanceOf[JumpInsnNode]) return true
