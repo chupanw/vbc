@@ -1,98 +1,127 @@
 package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
+import java.nio.file.{FileSystems, Files, Path, StandardCopyOption}
 import java.util.concurrent.{Executors, FutureTask, TimeUnit}
 
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
 import edu.cmu.cs.vbc.VBCClassLoader
-import edu.cmu.cs.vbc.testutils.{IntroClassLauncher, TestLauncher, VTestStat}
-import org.slf4j.LoggerFactory
+import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassLauncher, VTestStat}
+import org.slf4j.{Logger, LoggerFactory}
 
-import scala.sys.process._
 import scala.concurrent.TimeoutException
+import scala.sys.process._
 
 object ScriptConfig {
-  // Configurable stuff
-  val tmpConfigPath = "/tmp/tmp.config"
+  val tmpConfigPath    = "/tmp/tmp.config"
   val maxAttempts: Int = 1
-  val popSize = 300
-  val timeout: Long = 3600 // in seconds
+  val popSize          = 300
+  val timeout: Long    = 3600 // in seconds
 }
 
 /**
   * Automate the process of using VarexC to find GenProg patches
   *
-  * To setup a project
-  *   1. Record project name and main class name in the programs field
-  *   2. Create pos.tests and neg.tests for the project
-  *   3. Create the RelevantTest file for VarexC
-  *   4. Copy varexc.jar (for the annotation) and modify the build file
+  * Note:
+  *   Run `mvn package` to make sure the GenProg jar is up-to-date
+  *   See below for a list of paths required
   */
-object GenProgVarexCSingle extends App {
-  val osBase = args(0) // "Users" for the Mac and "home" for the Linux
-  val logger = LoggerFactory.getLogger("genprog")
+trait PatchRunner {
+  def genprogPath: String      // e.g., /Users/.../genprog4java/
+  def projects4GenProg: String // e.g., /Users/.../Math-GenProg/
+  def projects4VarexC: String  // e.g., /Users/.../Math-VarexC/
+  def project: String          // e.g., checksum/e9c74e27/000/
+  def launch(args: Array[String]): Unit
+  def compileCMD: Seq[String]
+  def template(project: String, seed: Long): String
 
-  go(args(1), ScriptConfig.maxAttempts)
+  val logger: Logger = LoggerFactory.getLogger("genprog")
 
-  def go(project: String, i: Int): Unit = {
-    val mainClass = "introclassJava." + project.init.replace('/', '_')
+  def go(attempt: Int): Unit = {
     val seed = System.currentTimeMillis()
-    logger.info("Cleaning up...")
-    cleanUp()
     logger.info(s"Project: $project")
-    logger.info(s"Attempt: $i")
+    logger.info(s"Attempt: $attempt")
     logger.info(s"Seed: $seed")
+
+    logger.info("Cleaning up...")
+    step1_CleanUp()
     logger.info("Generating config file for GenProg")
-    generateGenProgConfigFile(project, mainClass, seed)
+    step2_GenerateGenProgConfigFile(seed)
     logger.info("Running GenProg...")
-    runGenProg()
+    step3_RunGenProg()
     logger.info("Running VarexC")
-    val succeeded = runVarexC(project)
-    if (!succeeded && i < ScriptConfig.maxAttempts) go(project, i + 1)
+    val succeeded = step4_RunVarexC()
+    if (!succeeded && attempt < ScriptConfig.maxAttempts) go(attempt + 1)
   }
 
-  def cleanUp(): Unit = {
+  def step1_CleanUp(): Unit = {
     VTestStat.clear()
     VCache.clearAll()
     VBCClassLoader.clearCache()
     MTBDDFactory.clearCache()
   }
 
-  def runGenProg(): Unit = {
-    val baseDir = s"/$osBase/chupanw/Projects/genprog4java"
+  def step2_GenerateGenProgConfigFile(seed: Long): Unit = {
+    val writer = new FileWriter(new File(ScriptConfig.tmpConfigPath))
+    writer.write(template(project, seed))
+    writer.close()
+  }
+
+  def step3_RunGenProg(): Unit = {
     val serCache = new File("testcache.ser")
-    assert(!serCache.exists() || serCache.delete() == true)
-    val jar = baseDir + "/target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
-    val jvmOps = s"-ea -Dlog4j.configuration=/$osBase/chupanw/Projects/genprog4java/src/log4j.properties"
+    assert(!serCache.exists() || serCache.delete())
+    val jar    = genprogPath + "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
+    val jvmOps = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
     assert(s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".! == 0)
   }
 
-  def runVarexC(project: String): Boolean = {
-    def getLastVariant(path: String): File = {
-      val dir = new File(path)
-      dir.listFiles().filter(
+  def mkPath(elems: String*): Path         = FileSystems.getDefault.getPath(elems.head, elems.tail: _*)
+  def mkPathString(elems: String*): String = mkPath(elems: _*).toFile.getAbsolutePath
+
+  def copyMutatedCode(variantFolder: Path /*e.g., tmp/variant999/ */ ): Unit = {
+    def copy(absolute: Path): Unit = {
+      val relative = mkPath(projects4GenProg).resolve(variantFolder).relativize(absolute)
+      val dst      = mkPath(projects4VarexC, "src/main/java").resolve(relative)
+      val folder   = dst.getParent.toFile
+      if (!folder.exists()) folder.mkdirs()
+      logger.info(s"Copying ${absolute} to ${dst}")
+      Files.copy(absolute, dst, StandardCopyOption.REPLACE_EXISTING)
+    }
+    val variantFolderAbsolutePath = mkPath(projects4GenProg).resolve(variantFolder)
+    Files.walk(variantFolderAbsolutePath).forEach(x => if (!x.toFile.isDirectory) copy(x))
+  }
+
+  def getLastVariant(path2Variants: Path): Path = {
+    val dir = path2Variants.toFile
+    val lastVariant: File = dir
+      .listFiles()
+      .filter(
         x => x.isDirectory && x.getName.startsWith("variant")
-      ).sortWith((x, y) => x.getName.substring("variant".length).toInt < y.getName.substring("variant".length).toInt).last
-    }
+      )
+      .sortWith((x, y) =>
+        x.getName.substring("variant".length).toInt < y.getName.substring("variant".length).toInt)
+      .last
+    val lastVariantPath = mkPath(lastVariant.getAbsolutePath)
+    mkPath(projects4GenProg).relativize(lastVariantPath)
+  }
+
+  def step4_RunVarexC(): Boolean = {
     // copy source files to the working directory
-    val variantsPath = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}tmp/"
-    val destProject = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/${project}"
-    val mergedDir = getLastVariant(variantsPath).getAbsolutePath
-    s"cp -r $mergedDir/introclassJava ${destProject}src/main/java/".!
-    s"cp -r $mergedDir/varexc ${destProject}src/main/java/".!
-    try {
-      Process(Seq("mvn", "test"), new File(destProject)).lineStream.foreach(println)
-    } catch {
-      case x: RuntimeException if x.getMessage.contains("Nonzero exit code") => // we expect maven test to fail
-    }
-    val args = destProject.splitAt(destProject.init.lastIndexOf('/'))
+    val variantsPath = mkPath(projects4GenProg, project, "tmp")
+    val destProject  = mkPath(projects4VarexC, project)
+    copyMutatedCode(getLastVariant(variantsPath))
+    Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
     if (ScriptConfig.timeout > 0) {
       try {
         val executor = Executors.newFixedThreadPool(1)
-        val res = new FutureTask[Boolean](new Runnable {
-          override def run(): Unit = IntroClassLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
-        }, true)
+        val res = new FutureTask[Boolean](
+          new Runnable {
+            override def run(): Unit =
+              launch(Array(projects4VarexC, project.substring(0, project.length - 1))) // we assume project ends with '/'
+          },
+          VTestStat.hasOverallSolution
+        )
         executor.submit(res)
         val ret = res.get(ScriptConfig.timeout, TimeUnit.SECONDS)
         executor.shutdown()
@@ -104,40 +133,87 @@ object GenProgVarexCSingle extends App {
         case e => throw e
       }
     } else {
-      IntroClassLauncher.main(Array(args._1 + "/", args._2.init.substring(1)))
+      IntroClassLauncher.main(Array(projects4GenProg, project))
       VTestStat.hasOverallSolution
     }
   }
 
-  def generateGenProgConfigFile(project: String, mainClass: String, seed: Long): Unit = {
-    val template =
-      s"""
-        |javaVM = /usr/bin/java
-        |popsize = ${ScriptConfig.popSize}
-        |seed = $seed
-        |classTestFolder = target/test-classes
-        |workingDir = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/$project
-        |outputDir = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}tmp
-        |cleanUpVariants = true
-        |libs=/$osBase/chupanw/Projects/genprog4java/lib/hamcrest-core-1.3.jar:/$osBase/chupanw/Projects/genprog4java/lib/junit-4.12.jar:/$osBase/chupanw/Projects/genprog4java/lib/junittestrunner.jar:/$osBase/chupanw/Projects/genprog4java/lib/varexc.jar
-        |sanity = yes
-        |sourceDir = src/main/java
-        |positiveTests = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}pos.tests
-        |negativeTests = /$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}neg.tests
-        |jacocoPath = /$osBase/chupanw/Projects/genprog4java/lib/jacocoagent.jar
-        |testClassPath=/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/${project}target/test-classes/
-        |testGranularity = method
-        |targetClassName = $mainClass
-        |sourceVersion=1.8
-        |generations=1
-        |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
-        |regenPaths = true
-      """.stripMargin
+}
 
-    val writer = new FileWriter(new File(ScriptConfig.tmpConfigPath))
-    writer.write(template)
-    writer.close()
+object IntroClassPatchRunner extends App with PatchRunner {
+  assume(args.forall(x => x.endsWith("/")))
+  override def genprogPath: String               = args(0)
+  override def projects4GenProg: String          = args(1)
+  override def projects4VarexC: String           = args(2)
+  override def project: String                   = args(3)
+  override def launch(args: Array[String]): Unit = IntroClassLauncher.main(args)
+
+  override def compileCMD = ???
+
+  go(0)
+
+  def template(project: String, seed: Long) = {
+    val mainClass = "introclassJava." + project.init.replace('/', '_')
+    s"""
+       |javaVM = /usr/bin/java
+       |popsize = ${ScriptConfig.popSize}
+       |seed = $seed
+       |classTestFolder = target/test-classes
+       |workingDir = $projects4GenProg$project
+       |outputDir = $projects4GenProg${project}tmp
+       |cleanUpVariants = true
+       |libs=${genprogPath}lib/hamcrest-core-1.3.jar:${genprogPath}lib/junit-4.12.jar:${genprogPath}lib/junittestrunner.jar:${genprogPath}lib/varexc.jar
+       |sanity = yes
+       |sourceDir = src/main/java
+       |positiveTests = ${projects4GenProg}${project}pos.tests
+       |negativeTests = ${projects4GenProg}${project}neg.tests
+       |jacocoPath = ${genprogPath}lib/jacocoagent.jar
+       |testClassPath=${projects4GenProg}${project}target/test-classes/
+       |testGranularity = method
+       |targetClassName = $mainClass
+       |sourceVersion=1.8
+       |generations=1
+       |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
+       |regenPaths = true
+      """.stripMargin
   }
+}
+
+object MathPatchRunner extends App with PatchRunner {
+  assume(args.forall(x => x.endsWith("/")))
+  override def genprogPath: String               = args(0)
+  override def projects4GenProg: String          = args(1)
+  override def projects4VarexC: String           = args(2)
+  override def project: String                   = args(3)
+  override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
+  override def compileCMD                        = Seq("ant", "compile.tests")
+  override def template(project: String, seed: Long): String =
+    s"""
+       |javaVM = /usr/bin/java
+       |popsize = ${ScriptConfig.popSize}
+       |seed = ${seed}
+       |classTestFolder = target/test-classes
+       |workingDir = ${projects4GenProg}${project}
+       |outputDir = ${projects4GenProg}${project}tmp
+       |libs=${genprogPath}lib/hamcrest-core-1.3.jar:${genprogPath}lib/junit-4.12.jar:${genprogPath}lib/junittestrunner.jar:
+       |sanity = yes
+       |sourceDir = src/main/java
+       |positiveTests = ${projects4GenProg}${project}pos.tests
+       |negativeTests = ${projects4GenProg}${project}neg.tests
+       |jacocoPath = ${genprogPath}lib/jacocoagent.jar
+       |srcClassPath = ${projects4GenProg}${project}target/classes
+       |classSourceFolder = ${projects4GenProg}${project}target/classes
+       |testClassPath= ${projects4GenProg}${project}target/test-classes
+       |testGranularity = method
+       |targetClassName = ${projects4GenProg}${project}targetClasses.txt
+       |sourceVersion=1.8
+       |generations=1
+       |compileCommand=python3 ${projects4GenProg}${project}compile.py
+       |edits=append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
+       |
+       |""".stripMargin
+
+  go(0)
 }
 
 object GenProgVarexCBatch extends App {

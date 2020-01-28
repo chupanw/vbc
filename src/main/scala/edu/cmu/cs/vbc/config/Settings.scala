@@ -2,12 +2,14 @@ package edu.cmu.cs.vbc.config
 
 import com.typesafe.config.ConfigFactory
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import org.slf4j.LoggerFactory
 
 /**
   * Global configurations for VarexC
   */
 object Settings {
   private val config = ConfigFactory.load("reference.conf")
+  private val logger = LoggerFactory.getLogger("genprog")
 
   val logTrace: Boolean                 = config.getBoolean("logging.logTrace")
   val detectComplexLoop: Boolean        = config.getBoolean("misc.detectComplexLoop")
@@ -40,20 +42,22 @@ object Settings {
   val maxBlockCount: Int = config.getInt("maxBlockCount")
 
   def printSettings(): Unit = {
-    println(s"""**********************************************************************
-               |*                              Settings                              *
-               |**********************************************************************
-               |maxInteractionDegree: $maxInteractionDegree
-               |maxBlockCount: $maxBlockCount
-               |earlyFail: $earlyFail
-               |blockCounting: $blockCounting
-               |detectComplexLoop: $detectComplexLoop
-               |printContext: $printContext
-               |printExpandArrayWarnings: $printExpandArrayWarnings
-               |printTestResults: $printTestResults
-               |logTrace: $logTrace
-               |writeBDDs: $writeBDDs
-               |""".stripMargin)
+    val message = s"""**********************************************************************
+                     |*                              Settings                              *
+                     |**********************************************************************
+                     |maxInteractionDegree: $maxInteractionDegree
+                     |maxBlockCount: $maxBlockCount
+                     |earlyFail: $earlyFail
+                     |blockCounting: $blockCounting
+                     |detectComplexLoop: $detectComplexLoop
+                     |printContext: $printContext
+                     |printExpandArrayWarnings: $printExpandArrayWarnings
+                     |printTestResults: $printTestResults
+                     |logTrace: $logTrace
+                     |writeBDDs: $writeBDDs
+                     |""".stripMargin
+    println(message)
+    logger.info(message)
   }
 }
 
