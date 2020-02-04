@@ -39,7 +39,7 @@ object Settings {
     *
     * This limit is intentionally large because we hope identify infinite loops so that we can remove them.
     */
-  val maxBlockCount: Int = config.getInt("maxBlockCount")
+  val maxBlockCount: Long = config.getLong("maxBlockCount")
 
   def printSettings(): Unit = {
     val message = s"""**********************************************************************
@@ -67,7 +67,7 @@ object Settings {
 object VERuntime {
   var hasVException: Boolean          = false
   var exceptionCtx: List[FeatureExpr] = Nil
-  var curBlockCount: Int              = 0
+  var curBlockCount: Long             = 0
   var boundaryCtx: FeatureExpr        = FeatureExprFactory.True
   def incrementBlockCount(): Unit     = curBlockCount += 1
   def init(ctx: FeatureExpr): Unit = {
