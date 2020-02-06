@@ -310,7 +310,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   /**
     * Ensure we support all JUnit annotations in this test class
     *
-    * We support the following annotations: @Test, @Before, @After, @Ignore,
+    * We support the following annotations: @Test, @Before, @After, @Ignore, @Deprecated (java.lang)
     *
     * @return true if only using supported annotations
     */
@@ -321,7 +321,8 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       x.getAnnotation(classOf[org.junit.Before]) != null ||
       x.getAnnotation(classOf[org.junit.After]) != null ||
       x.getAnnotation(classOf[org.junit.Ignore]) != null ||
-      x.getAnnotation(classOf[Parameters]) != null
+      x.getAnnotation(classOf[Parameters]) != null ||
+      x.getAnnotation(classOf[Deprecated]) != null
     }
   }
 
