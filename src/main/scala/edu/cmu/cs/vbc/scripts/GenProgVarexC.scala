@@ -73,7 +73,10 @@ trait PatchRunner {
     assert(!serCache.exists() || serCache.delete())
     val jar    = genprogPath + "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
     val jvmOps = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
-    assert(s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".! == 0)
+    val retCode = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
+    val variantsPath = mkPath(projects4GenProg, project, "tmp")
+    copyMutatedCode(getLastVariant(variantsPath))
+    assert(retCode == 0, "Error running GenProg")
   }
 
   def mkPath(elems: String*): Path         = FileSystems.getDefault.getPath(elems.head, elems.tail: _*)
@@ -108,9 +111,7 @@ trait PatchRunner {
 
   def step4_RunVarexC(): Boolean = {
     // copy source files to the working directory
-    val variantsPath = mkPath(projects4GenProg, project, "tmp")
     val destProject  = mkPath(projects4VarexC, project)
-    copyMutatedCode(getLastVariant(variantsPath))
     Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
     if (ScriptConfig.timeout > 0) {
       try {
