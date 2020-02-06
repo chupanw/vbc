@@ -1,5 +1,7 @@
 package edu.cmu.cs.vbc.config
 
+import java.text.NumberFormat
+
 import com.typesafe.config.ConfigFactory
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import org.slf4j.LoggerFactory
@@ -69,7 +71,12 @@ object VERuntime {
   var exceptionCtx: List[FeatureExpr] = Nil
   var curBlockCount: Long             = 0
   var boundaryCtx: FeatureExpr        = FeatureExprFactory.True
-  def incrementBlockCount(): Unit     = curBlockCount += 1
+  private val numFormatter = NumberFormat.getNumberInstance
+  private val formattedMaxBlock = numFormatter.format(Settings.maxBlockCount)
+  def incrementBlockCount(): Unit     = {
+    curBlockCount += 1
+    if (curBlockCount % 10000 == 0) println(s"#Blocks executed: ${numFormatter.format(curBlockCount)} out of $formattedMaxBlock")
+  }
   def init(ctx: FeatureExpr): Unit = {
     hasVException = false
     exceptionCtx = Nil
