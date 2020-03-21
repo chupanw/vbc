@@ -126,6 +126,7 @@ object GenProg extends App {
          |targetClassName = $mainClass
          |sourceVersion=1.8
          |generations=10
+         |sample=0.1
          |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
          |regenPaths = true
       """.stripMargin
