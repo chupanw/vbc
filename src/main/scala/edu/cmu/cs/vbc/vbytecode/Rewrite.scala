@@ -3,7 +3,6 @@ package edu.cmu.cs.vbc.vbytecode
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode.instructions._
 
-
 /**
   * rewrites of methods as part of variational lifting.
   * note that ASTs are immutable; returns a new (rewritten) method.
@@ -13,28 +12,24 @@ import edu.cmu.cs.vbc.vbytecode.instructions._
   */
 object Rewrite {
 
-
   def rewrite(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
     initializeConditionalFields(removeOurHandlers(m), cls)
 
   def rewriteV(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
     if (m.body.blocks.nonEmpty) {
-//      profiling(
-        initializeConditionalFields(
-          addFakeHanlderBlocks(
-            appendGOTO(
-              ensureUniqueReturnInstr(
-                replaceAthrowWithAreturn(
-                  recordHandledExceptions(m)
-                )
+      initializeConditionalFields(
+        addFakeHanlderBlocks(
+          appendGOTO(
+            ensureUniqueReturnInstr(
+              replaceAthrowWithAreturn(
+                recordHandledExceptions(m)
               )
             )
-          ),
-          cls
+          )
+        ),
+        cls
       )
-//        , cls)
-    }
-    else {
+    } else {
       m
     }
   }
@@ -43,19 +38,21 @@ object Rewrite {
   private def profiling(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode = {
     val id = cls.name + "#" + m.name + "#" + idCount
     idCount += 1
-    val newBlocks = m.body.blocks.map(b =>
-      if (b == m.body.blocks.head)
-        Block(InstrStartTimer(id) +: b.instr, b.exceptionHandlers, b.exceptions)
-      else if (b == m.body.blocks.last)
-        Block(b.instr.flatMap(i =>
-          if (i.isReturnInstr)
-            List(InstrStopTimer(id), i)
-          else
-            List(i)
-        ), b.exceptionHandlers, b.exceptions)
-      else
-        b
-    )
+    val newBlocks = m.body.blocks.map(
+      b =>
+        if (b == m.body.blocks.head)
+          Block(InstrStartTimer(id) +: b.instr, b.exceptionHandlers, b.exceptions)
+        else if (b == m.body.blocks.last)
+          Block(b.instr.flatMap(
+                  i =>
+                    if (i.isReturnInstr)
+                      List(InstrStopTimer(id), i)
+                    else
+                      List(i)),
+                b.exceptionHandlers,
+                b.exceptions)
+        else
+        b)
     m.copy(body = CFG(newBlocks))
   }
 
@@ -64,8 +61,7 @@ object Rewrite {
       if (b != m.body.blocks.last && b.instr.nonEmpty && !b.instr.last.isJumpInstr && !b.instr.last.isATHROW) {
         Block(b.instr :+ InstrGOTO(m.body.blocks.indexOf(b) + 1), b.exceptionHandlers, b.exceptions)
       } else
-        b
-    )
+      b)
     m.copy(body = CFG(rewrittenBlocks))
   }
 
@@ -73,17 +69,17 @@ object Rewrite {
     val rewrittenBlocks = m.body.blocks.map(b =>
       if (b == m.body.blocks.last) {
         Block(b.instr.flatMap(i =>
-          if (i.isATHROW) List(InstrCheckThrow(), InstrARETURN()) else List(i)
-        ), b.exceptionHandlers, b.exceptions)
-      } else b
-    )
+                if (i.isATHROW) List(InstrCheckThrow(), InstrARETURN()) else List(i)),
+              b.exceptionHandlers,
+              b.exceptions)
+      } else b)
     m.copy(body = CFG(rewrittenBlocks))
   }
 
-
   private def ensureUniqueReturnInstr(m: VBCMethodNode): VBCMethodNode = {
     //if the last instruction in the last block is the only return statement, we are happy
-    val returnInstr = for (block <- m.body.blocks; instr <- block.instr if instr.isReturnInstr) yield instr
+    val returnInstr = for (block <- m.body.blocks; instr <- block.instr if instr.isReturnInstr)
+      yield instr
     assert(returnInstr.nonEmpty, "no return instruction found in method")
     // RETURN and ARETURN should not happen together, otherwise code could not compile in the first place.
     // For all other kinds of return instructions that take argument, there is no need to worry about exact return type
@@ -104,7 +100,7 @@ object Rewrite {
     var newReturnBlockInstr = List(returnInstr)
     if (!returnInstr.isRETURN)
       newReturnBlockInstr ::= InstrALOAD(returnVariable)
-    val newReturnBlock = Block(newReturnBlockInstr, Nil, Nil)
+    val newReturnBlock    = Block(newReturnBlockInstr, Nil, Nil)
     val newReturnBlockIdx = method.body.blocks.size
 
     def getStoreInstr(retInstr: Instruction): Instruction = retInstr match {
@@ -113,28 +109,31 @@ object Rewrite {
       case _: InstrFRETURN => InstrFSTORE(returnVariable)
       case _: InstrDRETURN => InstrDSTORE(returnVariable)
       case _: InstrARETURN => InstrASTORE(returnVariable)
-      case _ => throw new RuntimeException("Not a return instruction: " + retInstr)
+      case _               => throw new RuntimeException("Not a return instruction: " + retInstr)
     }
-    def storeAndGotoSeq(retInstr: Instruction): List[Instruction] = List(getStoreInstr(retInstr), InstrGOTO(newReturnBlockIdx))
-    def storeNullAndGotoSeq: List[Instruction] = List(InstrACONST_NULL(), InstrASTORE(returnVariable), InstrGOTO(newReturnBlockIdx))
+    def storeAndGotoSeq(retInstr: Instruction): List[Instruction] =
+      List(getStoreInstr(retInstr), InstrGOTO(newReturnBlockIdx))
+    def storeNullAndGotoSeq: List[Instruction] =
+      List(InstrACONST_NULL(), InstrASTORE(returnVariable), InstrGOTO(newReturnBlockIdx))
 
-    val rewrittenBlocks = method.body.blocks.map(block =>
-      Block(block.instr.flatMap(instr =>
-        if (instr.isReturnInstr) {
-          if (instr.isRETURN) storeNullAndGotoSeq else storeAndGotoSeq(instr)
-        }
-        else
-          List(instr)
-      ), block.exceptionHandlers, block.exceptions))
+    val rewrittenBlocks = method.body.blocks.map(
+      block =>
+        Block(
+          block.instr.flatMap(instr =>
+            if (instr.isReturnInstr) {
+              if (instr.isRETURN) storeNullAndGotoSeq else storeAndGotoSeq(instr)
+            } else
+              List(instr)),
+          block.exceptionHandlers,
+          block.exceptions
+      ))
 
-    method.copy(body =
-      CFG(
+    method.copy(
+      body = CFG(
         rewrittenBlocks :+ newReturnBlock
-      )
-    )
+      ))
 
   }
-
 
   /** Insert INIT_CONDITIONAL_FIELDS in init
     *
@@ -148,7 +147,9 @@ object Rewrite {
   private def initializeConditionalFields(m: VBCMethodNode, cls: VBCClassNode): VBCMethodNode =
     if (m.isInit) {
       val firstBlockInstructions = m.body.blocks.head.instr
-      val newBlocks = Block(InstrINIT_CONDITIONAL_FIELDS() +: firstBlockInstructions, m.body.blocks.head.exceptionHandlers, m.body.blocks.head.exceptions) +: m.body.blocks.drop(1)
+      val newBlocks = Block(InstrINIT_CONDITIONAL_FIELDS() +: firstBlockInstructions,
+                            m.body.blocks.head.exceptionHandlers,
+                            m.body.blocks.head.exceptions) +: m.body.blocks.drop(1)
       m.copy(body = CFG(newBlocks))
     } else m
 
@@ -172,49 +173,68 @@ object Rewrite {
       if (b.exceptionHandlers.isEmpty) (b, Nil)
       else {
         // replace exceptionHandlers in current block to point to new fake blocks
-        val fakePairs: List[(VBCHandler, List[Block])] = b.exceptionHandlers.toList.map { h =>
-          if (h.exceptionType != "edu/cmu/cs/vbc/VException") {
-            val fakeHandler = new VBCHandler(
-              h.exceptionType,
-              currentIdx,
-              h.visibleTypeAnnotations,
-              h.invisibleTypeAnnotations
-            )
-            // shouldJumpBack is true because fake handler blocks are always behind actual handler blocks
-            val fakeBlock = Block(List(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(h.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true)
-            currentIdx = currentIdx + 1
-            (fakeHandler, List(fakeBlock))
-          } else {
-            // Replace placebo handler with jumps to actual handler
-            // First, we generate a block to update context and wrap VException into V.
-            // Then, if there are $n$ exception handlers in the original code, we generate $n-1$ blocks ending with IFNE
-            //  to jump to actual handler.
-            // Finally, we generate a block with a GOTO that jumps to the last exception handler, because actual handler
-            //  can handle unexpected exceptions (i.e., throw it again and catch by our outer try-catch).
-            val handler = VBCHandler("edu/cmu/cs/vbc/VException", currentIdx, Nil, Nil)
-            val firstBlock = Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(currentIdx + 1))
-            val originHandlers = b.exceptionHandlers.toList
-            // remove the last one, which should be Throwable and the VException, the rest should be the original exceptions being handled
-            val originHandlersWithExceptions = originHandlers.init.filter(_.exceptionType != "edu/cmu/cs/vbc/VException")
-            // leave one actual handler for the last GOTO
-            val jumpBlocks: List[Block] = originHandlersWithExceptions.init.map(x => {
-              Block(List(
-                InstrDUP(),
-                InstrLDC(x.exceptionType),
-                InstrINVOKESTATIC(Owner.getVOps, MethodName("isTypeOf"), MethodDesc("(Ledu/cmu/cs/vbc/VException;Ljava/lang/String;)Z"), itf = false),
-                InstrIFNE(x.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true
+        val fakePairs: List[(VBCHandler, List[Block])] = b.exceptionHandlers.toList.map {
+          h =>
+            if (h.exceptionType != "edu/cmu/cs/vbc/VException") {
+              val fakeHandler = new VBCHandler(
+                h.exceptionType,
+                currentIdx,
+                h.visibleTypeAnnotations,
+                h.invisibleTypeAnnotations
               )
-            }) ::: Block(List(InstrGOTO(originHandlersWithExceptions.last.handlerBlockIdx)), Nil, Nil, shouldJumpBack = true) :: Nil
-            currentIdx += originHandlersWithExceptions.size + 1
-            (handler, firstBlock :: jumpBlocks)
-          }
+              // shouldJumpBack is true because fake handler blocks are always behind actual handler blocks
+              val fakeBlock = Block(
+                List(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(h.handlerBlockIdx)),
+                Nil,
+                Nil,
+                shouldJumpBack = true)
+              currentIdx = currentIdx + 1
+              (fakeHandler, List(fakeBlock))
+            } else {
+              // Replace placebo handler with jumps to actual handler
+              // First, we generate a block to update context and wrap VException into V.
+              // Then, if there are $n$ exception handlers in the original code, we generate $n-1$ blocks ending with IFNE
+              //  to jump to actual handler.
+              // Finally, we generate a block with a GOTO that jumps to the last exception handler, because actual handler
+              //  can handle unexpected exceptions (i.e., throw it again and catch by our outer try-catch).
+              val handler = VBCHandler("edu/cmu/cs/vbc/VException", currentIdx, Nil, Nil)
+              val firstBlock =
+                Block(InstrUpdateCtxFromVException(), InstrWrapOne(), InstrGOTO(currentIdx + 1))
+              val originHandlers = b.exceptionHandlers.toList
+              // remove the last one, which should be Throwable and the VException, the rest should be the original exceptions being handled
+              val originHandlersWithExceptions =
+                originHandlers.init.filter(_.exceptionType != "edu/cmu/cs/vbc/VException")
+              // leave one actual handler for the last GOTO
+              val jumpBlocks: List[Block] = originHandlersWithExceptions.init.map(x => {
+                Block(
+                  List(
+                    InstrDUP(),
+                    InstrLDC(x.exceptionType),
+                    InstrINVOKESTATIC(
+                      Owner.getVOps,
+                      MethodName("isTypeOf"),
+                      MethodDesc("(Ledu/cmu/cs/vbc/VException;Ljava/lang/String;)Z"),
+                      itf = false),
+                    InstrIFNE(x.handlerBlockIdx)
+                  ),
+                  Nil,
+                  Nil,
+                  shouldJumpBack = true
+                )
+              }) ::: Block(List(InstrGOTO(originHandlersWithExceptions.last.handlerBlockIdx)),
+                           Nil,
+                           Nil,
+                           shouldJumpBack = true) :: Nil
+              currentIdx += originHandlersWithExceptions.size + 1
+              (handler, firstBlock :: jumpBlocks)
+            }
         }
         val (fakeExceptionHandlers, fakeBlocks) = fakePairs.unzip
-        val newBlock: Block = b.copy(exceptionHandlers = fakeExceptionHandlers)
+        val newBlock: Block                     = b.copy(exceptionHandlers = fakeExceptionHandlers)
         (newBlock, fakeBlocks.flatten)
       }
     })
-    val newBlocks: List[Block] = pairs.unzip._1
+    val newBlocks: List[Block]  = pairs.unzip._1
     val fakeBlocks: List[Block] = pairs.unzip._2.flatten
     m.copy(body = new CFG(newBlocks ::: fakeBlocks))
   }
@@ -224,11 +244,15 @@ object Rewrite {
     val eb: Array[ArrayBuffer[String]] = Array.fill(m.body.blocks.size)(ArrayBuffer())
     for (b <- m.body.blocks if b.exceptionHandlers.nonEmpty) {
       val hs = b.exceptionHandlers
-      assume(hs.last.exceptionType == "java/lang/Throwable", "last exception type should be Throwable")
+      assume(hs.last.exceptionType == "java/lang/Throwable",
+             "last exception type should be Throwable")
       val fhs = b.exceptionHandlers.init.filter(_.exceptionType != "edu/cmu/cs/vbc/VException")
-      fhs foreach {x => eb(x.handlerBlockIdx) += x.exceptionType}
+      fhs foreach { x =>
+        eb(x.handlerBlockIdx) += x.exceptionType
+      }
     }
-    val newBlocks = m.body.blocks.zipWithIndex.map(x => Block(x._1.instr, x._1.exceptionHandlers, eb(x._2).toList.distinct))
+    val newBlocks = m.body.blocks.zipWithIndex.map(x =>
+      Block(x._1.instr, x._1.exceptionHandlers, eb(x._2).toList.distinct))
     m.copy(body = CFG(newBlocks))
   }
 
@@ -236,12 +260,14 @@ object Rewrite {
     * Remove placeholder VException handler and our last Throwable handler for unlifted code, used in diff. testing
     */
   private def removeOurHandlers(m: VBCMethodNode): VBCMethodNode = {
-    val blocks = m.body.blocks.map(b => b.copy(exceptionHandlers =
-      if (b.exceptionHandlers.nonEmpty)
-        b.exceptionHandlers.init.filterNot(_.exceptionType == "edu/cmu/cs/vbc/VException")
-      else
-        b.exceptionHandlers
-    ))
+    val blocks = m.body.blocks.map(
+      b =>
+        b.copy(
+          exceptionHandlers =
+            if (b.exceptionHandlers.nonEmpty)
+              b.exceptionHandlers.init.filterNot(_.exceptionType == "edu/cmu/cs/vbc/VException")
+            else
+              b.exceptionHandlers))
     m.copy(body = CFG(blocks))
   }
 }
