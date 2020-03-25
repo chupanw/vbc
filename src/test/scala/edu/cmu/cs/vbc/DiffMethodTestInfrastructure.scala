@@ -19,17 +19,34 @@ trait DiffMethodTestInfrastructure {
     }
   }
 
-
   case class TestClass(m: VBCMethodNode) {
     private def createClass(testmethod: VBCMethodNode): VBCClassNode = {
-      val constr = new VBCMethodNode(ACC_PUBLIC, "<init>", "()V", Some("()V"), Nil,
-        CFG(List(
-          Block(InstrALOAD(new Parameter(0, "this", TypeDesc("LTest;"))),
-            InstrINVOKESPECIAL(Owner("java/lang/Object"), MethodName("<init>"), MethodDesc("()V"), false),
-            InstrRETURN())
-        )))
-      new VBCClassNode(V1_8, ACC_PUBLIC, "Test", None, "java/lang/Object", Nil, Nil,
-        List(constr, testmethod))
+      val constr = new VBCMethodNode(
+        ACC_PUBLIC,
+        "<init>",
+        "()V",
+        Some("()V"),
+        Nil,
+        CFG(
+          List(
+            Block(
+              InstrALOAD(new Parameter(0, "this", TypeDesc("LTest;"))),
+              InstrINVOKESPECIAL(Owner("java/lang/Object"),
+                                 MethodName("<init>"),
+                                 MethodDesc("()V"),
+                                 false),
+              InstrRETURN()
+            )
+          ))
+      )
+      new VBCClassNode(V1_8,
+                       ACC_PUBLIC,
+                       "Test",
+                       None,
+                       "java/lang/Object",
+                       Nil,
+                       Nil,
+                       List(constr, testmethod))
 
     }
 
@@ -42,7 +59,6 @@ trait DiffMethodTestInfrastructure {
     }
 
   }
-
 
   def loadTestClass(clazz: TestClass): Class[_] = {
     val cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS)
@@ -77,23 +93,19 @@ trait DiffMethodTestInfrastructure {
     myVClassLoader.defineClass("Test", vbyte)
   }
 
-
   def testMethod(m: VBCMethodNode, compareBruteForce: Boolean = true): Unit = {
 
     val clazz = new TestClass(m)
 
-
     val configOptions: Set[String] = getConfigOptions(m)
-
 
     //        val resource: String = "edu.cmu.cs.vbc.Tmp".replace('.', '/') + ".class"
     //        val is: InputStream = myClassLoader.getResourceAsStream(resource)
     //        new ClassReader(is).accept(printer, 0)
 
-
     //        val testClass = myClassLoader.defineClass("Test", byte)
 
-    val testClass = loadTestClass(clazz)
+    val testClass  = loadTestClass(clazz)
     val testVClass = loadVTestClass(clazz)
 
 //    val vresult: List[TOpt[String]] = executeV(testVClass, m.name)
@@ -108,7 +120,8 @@ trait DiffMethodTestInfrastructure {
 
   def getConfigOptions(m: VBCMethodNode): Set[String] = {
     val configOptions: Set[String] =
-      (for (block <- m.body.blocks; instr <- block.instr; if instr.isInstanceOf[InstrLoadConfig]) yield instr.asInstanceOf[InstrLoadConfig].config).toSet
+      (for (block <- m.body.blocks; instr <- block.instr; if instr.isInstanceOf[InstrLoadConfig])
+        yield instr.asInstanceOf[InstrLoadConfig].config).toSet
     configOptions
   }
 
@@ -159,7 +172,7 @@ trait DiffMethodTestInfrastructure {
 //  }
 
   type Feature = String
-  type Config = (List[Feature], List[Feature])
+  type Config  = (List[Feature], List[Feature])
 
   def explode(fs: List[Feature]): List[Config] = {
     if (fs.isEmpty) List((Nil, Nil))
@@ -170,12 +183,14 @@ trait DiffMethodTestInfrastructure {
     }
   }
 
-
-  def benchmark(testVClass: Class[_], testClass: Class[_], method: String, configOptions: Set[String]): Unit = {
+  def benchmark(testVClass: Class[_],
+                testClass: Class[_],
+                method: String,
+                configOptions: Set[String]): Unit = {
     import org.scalameter._
 
     //measure V execution
-    var testObject: Any = null
+    var testObject: Any   = null
     var _ctx: FeatureExpr = null
     val vtime = config(
       Key.exec.benchRuns -> 20
@@ -195,24 +210,23 @@ trait DiffMethodTestInfrastructure {
     }
     //        println(s"Total time V: $time")
 
-
     //measure brute-force execution
     val configs = explode(configOptions.toList)
     val bftimes = for ((sel, desel) <- configs)
-      yield config(
-        Key.exec.benchRuns -> 20
-      ) withWarmer {
-        new Warmer.Default
-        //        } withMeasurer {
-        //            new Measurer.IgnoringGC
-      } setUp { _ =>
+      yield
+        config(
+          Key.exec.benchRuns -> 20
+        ) withWarmer {
+          new Warmer.Default
+          //        } withMeasurer {
+          //            new Measurer.IgnoringGC
+        } setUp { _ =>
 //        TestOutput.output = Nil
-        Config.configValues = (sel.map((_ -> 1)) ++ desel.map((_ -> 0))).toMap
-        testObject = testClass.newInstance()
-      } measure {
-        testClass.getMethod(method).invoke(testObject)
-      }
-
+          Config.configValues = (sel.map((_ -> 1)) ++ desel.map((_ -> 0))).toMap
+          testObject = testClass.newInstance()
+        } measure {
+          testClass.getMethod(method).invoke(testObject)
+        }
 
     val avgTime = bftimes.map(_.value).sum / bftimes.size
     println("VExecution time: " + vtime)
@@ -221,15 +235,23 @@ trait DiffMethodTestInfrastructure {
 
   }
 
-  def simpleMethod(instrs: Instruction*) = {
+  def simpleMethodNoBF(instrs: Instruction*): Unit = {
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
-    testMethod(new VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil,
-      CFG(List(Block(instrs: _*)))))
+    testMethod(
+      new VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil, CFG(List(Block(instrs: _*)))),
+      compareBruteForce = false)
+  }
+
+  def simpleMethod(instrs: Instruction*): Unit = {
+    FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
+    testMethod(
+      new VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil, CFG(List(Block(instrs: _*)))))
   }
 
   def methodWithBlocks(blocks: List[Block], compareBruteForce: Boolean = true) = {
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
-    testMethod(VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil, CFG(blocks)), compareBruteForce)
+    testMethod(VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil, CFG(blocks)),
+               compareBruteForce)
   }
 
   /** Helper function to create a variational Integer.
@@ -241,27 +263,35 @@ trait DiffMethodTestInfrastructure {
     * @return A list of bytecode blocks
     */
   def createVInteger(
-                      startBlockIdx: Int,
-                      tValue: Int,
-                      fValue: Int,
-                      localVar: Option[LocalVar] = None,
-                      config: String = "A"
-                    ): List[Block] = {
+      startBlockIdx: Int,
+      tValue: Int,
+      fValue: Int,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
-      List( InstrICONST(tValue), InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), itf = false) )
+      List(InstrICONST(tValue),
+           InstrINVOKESTATIC(Owner("java/lang/Integer"),
+                             MethodName("valueOf"),
+                             MethodDesc("(I)Ljava/lang/Integer;"),
+                             itf = false))
     )(
-      List( InstrICONST(fValue), InstrINVOKESTATIC(Owner("java/lang/Integer"), MethodName("valueOf"), MethodDesc("(I)Ljava/lang/Integer;"), itf = false) )
+      List(InstrICONST(fValue),
+           InstrINVOKESTATIC(Owner("java/lang/Integer"),
+                             MethodName("valueOf"),
+                             MethodDesc("(I)Ljava/lang/Integer;"),
+                             itf = false))
     )
   }
 
   /** Helper function to create a variational String. */
   def createVString(
-                     startBlockIdx: Int,
-                     tValue: String,
-                     fValue: String,
-                     localVar: Option[LocalVar] = None,
-                     config: String = "A"
-                   ): List[Block] = {
+      startBlockIdx: Int,
+      tValue: String,
+      fValue: String,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
       List(InstrLDC(tValue))
     )(
@@ -270,13 +300,13 @@ trait DiffMethodTestInfrastructure {
   }
 
   def createVPrimitiveArray(
-                    atype: Int,
-                    startBlockIdx: Int,
-                    tLength: Int,
-                    fLength: Int,
-                    localVar: Option[LocalVar] = None,
-                    config: String = "A"
-                  ): List[Block] = {
+      atype: Int,
+      startBlockIdx: Int,
+      tLength: Int,
+      fLength: Int,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
       List(InstrBIPUSH(tLength), InstrNEWARRAY(atype))
     )(
@@ -285,13 +315,13 @@ trait DiffMethodTestInfrastructure {
   }
 
   def createVObjectArray(
-                          atype: Owner,
-                          startBlockIdx: Int,
-                          tLength: Int,
-                          fLength: Int,
-                          localVar: Option[LocalVar] = None,
-                          config: String = "A"
-                        ): List[Block] = {
+      atype: Owner,
+      startBlockIdx: Int,
+      tLength: Int,
+      fLength: Int,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
       List(InstrBIPUSH(tLength), InstrANEWARRAY(atype))
     )(
@@ -300,12 +330,12 @@ trait DiffMethodTestInfrastructure {
   }
 
   def createVint(
-                tValue: Int,
-                fValue: Int,
-                startBlockIdx: Int,
-                localVar: Option[LocalVar] = None,
-                config: String = "A"
-                ): List[Block] = {
+      tValue: Int,
+      fValue: Int,
+      startBlockIdx: Int,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
       List(InstrLDC(Integer.valueOf(tValue)))
     )(
@@ -314,12 +344,12 @@ trait DiffMethodTestInfrastructure {
   }
 
   def createVlong(
-                 tValue: Long,
-                 fValue: Long,
-                 startBlockIdx: Int,
-                 localVar: Option[LocalVar] = None,
-                 config: String = "A"
-                 ): List[Block] = {
+      tValue: Long,
+      fValue: Long,
+      startBlockIdx: Int,
+      localVar: Option[LocalVar] = None,
+      config: String = "A"
+  ): List[Block] = {
     createV(startBlockIdx, localVar, config)(
       List(InstrLDC(new java.lang.Long(tValue)))
     )(
@@ -327,11 +357,10 @@ trait DiffMethodTestInfrastructure {
     )
   }
 
-  def createV(startBlockIdx: Int, localVar: Option[LocalVar] = None, config: String = "A")
-             (t: List[Instruction])
-             (f: List[Instruction]): List[Block] = {
+  def createV(startBlockIdx: Int, localVar: Option[LocalVar] = None, config: String = "A")(
+      t: List[Instruction])(f: List[Instruction]): List[Block] = {
     Block(InstrLoadConfig(config), InstrIFEQ(startBlockIdx + 2)) ::
-    Block(
+      Block(
       t ::: List(
         if (localVar.isDefined)
           if (localVar.get.desc == "I") InstrISTORE(localVar.get) else InstrASTORE(localVar.get)
@@ -340,7 +369,7 @@ trait DiffMethodTestInfrastructure {
         InstrGOTO(startBlockIdx + 3)
       ): _*
     ) ::
-    Block(
+      Block(
       f ::: List(
         if (localVar.isDefined)
           if (localVar.get.desc == "I") InstrISTORE(localVar.get) else InstrASTORE(localVar.get)
@@ -349,6 +378,6 @@ trait DiffMethodTestInfrastructure {
         InstrGOTO(startBlockIdx + 3)
       ): _*
     ) ::
-    Nil
+      Nil
   }
 }
