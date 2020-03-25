@@ -19,7 +19,7 @@ public class ExceptionExample {
 
     int num;
 
-    private ExceptionExample() {
+    public ExceptionExample() {
         if (numZero)
             num = 0;
         else
@@ -55,11 +55,11 @@ public class ExceptionExample {
     }
 
     // in fact we are returning a One(null) to indicate no exception
-    private void noThrow() {
+    public void noThrow() {
         System.out.println("no exception");
     }
 
-    private void noThrow2() {
+    public void noThrow2() {
         if (A) {
             System.out.println("A is true");
             return;
@@ -67,12 +67,12 @@ public class ExceptionExample {
         System.out.println("A is false");
     }
 
-    private int throwInMethod() {
+    public int throwInMethod() {
         if (B)
             conditionallyThrow();
         else
             simplyThrow();
-        System.out.println("Unreachable");
+        System.out.println("end of throwInMethod");
         return 1;
     }
 
@@ -95,9 +95,10 @@ public class ExceptionExample {
         } catch (ArithmeticException e) {
             System.out.println("ArithmeticException caught under A");
         }
+        System.out.println("end of method");
     }
 
-    private void shouldCatchSameMethod() {
+    public void shouldCatchSameMethod() {
         try {
             if (A)
                 throw new RuntimeException("exception under A");
@@ -109,7 +110,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldCatchInMethod() {
+    public void shouldCatchInMethod() {
         if (A) {
             try {
                 implicitThrow();
@@ -123,7 +124,7 @@ public class ExceptionExample {
     }
 
 
-    private void shouldCatchMultiExceptionSameMethod() {
+    public void shouldCatchMultiExceptionSameMethod() {
         if (A) {
             try {
                 if (B)
@@ -142,7 +143,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldCatchMultiExceptionSameMethodSameCatch() {
+    public void shouldCatchMultiExceptionSameMethodSameCatch() {
         if (A) {
             try {
                 if (B)
@@ -159,7 +160,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldCatchMultiExceptionInMethod() {
+    public void shouldCatchMultiExceptionInMethod() {
         if (A) {
             try {
                 if (B)
@@ -178,7 +179,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldCatchMultiExceptionInMethodSameCatch() {
+    public void shouldCatchMultiExceptionInMethodSameCatch() {
         if (A) {
             try {
                 if (B)
@@ -195,7 +196,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldNotCatchSameMethod() {
+    public void shouldNotCatchSameMethod() {
         try {
             if (A)
                 throw new RuntimeException("exception under A");
@@ -207,7 +208,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldNotCatchInMethod() {
+    public void shouldNotCatchInMethod() {
         if (A) {
             try {
                 implicitThrow();
@@ -220,7 +221,7 @@ public class ExceptionExample {
         System.out.println("no exception");
     }
 
-    private void shouldCatchSameMethodWithFinally() {
+    public void shouldCatchSameMethodWithFinally() {
         try {
             if (A)
                 throw new RuntimeException("exception under A");
@@ -234,7 +235,7 @@ public class ExceptionExample {
         }
     }
 
-    private void shouldCatchInMethodWithFinally() {
+    public void shouldCatchInMethodWithFinally() {
         if (A) {
             try {
                 implicitThrow();
