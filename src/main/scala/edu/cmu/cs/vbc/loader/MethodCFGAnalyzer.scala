@@ -128,12 +128,15 @@ class MethodCFGAnalyzer(owner: String, mn: MethodNode) extends Analyzer[BasicVal
           if (h.invisibleTypeAnnotations == null) Nil else h.invisibleTypeAnnotations.asScala.toList))
       assume(hs.last.exceptionType == "java/lang/Throwable")
       val vExp = VBCHandler("edu/cmu/cs/vbc/VException", -1, Nil, Nil)  // this will get translated in Rewrite.addFakeHandlerBlocks()
-      val hasException = hs.init.exists(_.exceptionType == "java/lang/Exception")
-      val hsInitNoException = hs.init.filter(_.exceptionType != "java/lang/Exception")
-      val hsInitException = hs.init.filter(_.exceptionType == "java/lang/Exception")
+      /** Find a suitable place to insert VException handler.
+        * For now, place VException before super types of VException (which is essentially a RuntimeException).
+        * Found cases include: java/lang/Exception, null (when finally is used, essentially treated as Throwable), and java/lang/Throwable */
+      val exceptionTypesToDefer = List("java/lang/Exception", null, "java/lang/Throwable")
+      val hsInitNoException = hs.init.filter(x => !exceptionTypesToDefer.contains(x.exceptionType))
+      val hsInitException = hs.init.filter(x => exceptionTypesToDefer.contains(x.exceptionType))
       // assuming the last one is the one we added to catch all exceptions
       // null is possible if using synchronization or finally
-      if (hs.size > 1 && !hs.exists(x => x.exceptionType == null))
+      if (hs.size > 1)
         hsInitNoException ::: vExp :: hsInitException ::: hs.last :: Nil
       else
         hs
