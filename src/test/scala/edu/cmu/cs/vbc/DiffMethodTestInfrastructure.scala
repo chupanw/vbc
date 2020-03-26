@@ -235,13 +235,6 @@ trait DiffMethodTestInfrastructure {
 
   }
 
-  def simpleMethodNoBF(instrs: Instruction*): Unit = {
-    FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
-    testMethod(
-      new VBCMethodNode(ACC_PUBLIC, "test", "()V", Some("()V"), Nil, CFG(List(Block(instrs: _*)))),
-      compareBruteForce = false)
-  }
-
   def simpleMethod(instrs: Instruction*): Unit = {
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
     testMethod(
