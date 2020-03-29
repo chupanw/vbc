@@ -9,13 +9,13 @@ import java.io.IOException;
  */
 public class ExceptionExample {
     @VConditional
-    boolean A = false;
+    boolean A;
     @VConditional
-    boolean B = false;
+    boolean B;
     @VConditional
-    boolean C = false;
+    boolean C;
     @VConditional
-    boolean numZero = false;
+    boolean numZero;
 
     int num;
 
@@ -38,7 +38,7 @@ public class ExceptionExample {
         ExceptionExample example = new ExceptionExample();
 //        example.noThrow();
 //        example.noThrow2();
-//        example.throwInMethod();
+        example.throwInMethod();
 //        example.throwInMethod2();
 //        example.implicitThrow();
 //        example.shouldCatchSameMethod();
@@ -51,7 +51,7 @@ public class ExceptionExample {
 //        example.shouldNotCatchInMethod();
 //        example.shouldCatchSameMethodWithFinally();
 //        example.shouldCatchInMethodWithFinally();
-        example.exceptionWithField();
+//        example.exceptionWithField();
     }
 
     // in fact we are returning a One(null) to indicate no exception
@@ -67,22 +67,20 @@ public class ExceptionExample {
         System.out.println("A is false");
     }
 
-    public int throwInMethod() {
+    public void throwInMethod() {
         if (B)
             conditionallyThrow();
         else
             simplyThrow();
         System.out.println("end of throwInMethod");
-        return 1;
     }
 
-    public int throwInMethod2() {
+    public void throwInMethod2() {
         if (B)
             conditionallyThrow();
         else
             implicitThrow();
         System.out.println("no exception");
-        return 1;
     }
 
     public void exceptionWithField() {
