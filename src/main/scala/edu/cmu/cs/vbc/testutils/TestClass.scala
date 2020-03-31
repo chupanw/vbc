@@ -117,11 +117,11 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   // only public
   def getAllFields: List[Field] = c.getFields.toList
 
-  def createObject(params: Option[Array[V[_]]]): Any = {
+  def createObject(params: Option[Array[V[_]]], ctx: FeatureExpr): Any = {
     try {
       if (params.nonEmpty) createParameterizedObject(params.get)
       else if (isJUnit3) createJUnit3Object()
-      else createJUnit4Object()
+      else createJUnit4Object(ctx)
     } catch {
       case t: Throwable =>
         System.err.println(s"Error creating test object for $c")
@@ -139,8 +139,8 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     }
   }
 
-  def createJUnit4Object(): Any = {
-    c.getConstructor(classOf[FeatureExpr]).newInstance(FeatureExprFactory.True)
+  def createJUnit4Object(ctx: FeatureExpr): Any = {
+    c.getConstructor(classOf[FeatureExpr]).newInstance(ctx)
   }
 
   def createParameterizedObject(parameters: Array[V[_]]): Any = {
@@ -181,7 +181,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     allTests.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     if (!isParameterized)
       for (x <- allTests if !isSkipped(x)) {
-        executeOnce(None, x, FeatureExprFactory.True, mutable.ListBuffer[FeatureExpr]())
+        executeOnce(None, x, FeatureExprFactory.True, FeatureExprFactory.False)
         writeBDD(c.getName, x.getName)
         checkAbort()
       } else
@@ -190,7 +190,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
         executeOnce(Some(x.asInstanceOf[Array[V[_]]]),
                     y,
                     FeatureExprFactory.True,
-                    mutable.ListBuffer[FeatureExpr]())
+                    FeatureExprFactory.False)
         writeBDD(c.getName, y.getName)
         checkAbort()
       }
@@ -213,60 +213,45 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
       x: Method, // test case to be executed
       context: FeatureExpr, // current context
-      accCtx: mutable.ListBuffer[FeatureExpr] // used to filter examined contexts
+      exploredContext: FeatureExpr // used to filter examined contexts
   ): Unit = {
-
-    /**
-      * Helper function to analyze contexts that could cause VExceptions but were caught internally
-      */
-    def analyzeHiddenContexts(except: FeatureExpr): Unit = {
-      /*
-          If a hidden exception A is thrown before B, which is later caught, A might invalidate B, so we
-          need to analyze A.
-       */
-      val hidden = VERuntime
-        .getHiddenContextsOtherThan(except)
-        .filter(x => !accCtx.exists(_ equivalentTo x.and(context)))
-      hidden.foreach(fe => {
-        executeOnce(params, x, context.and(fe), accCtx)
-        executeOnce(params, x, context.and(fe.not()), accCtx)
-      })
-    }
     if (context.isContradiction()) return
-    if (accCtx.exists(_.equivalentTo(context))) return
-    accCtx += context
     System.out.println(
       s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
       else "[hidden context]"}")
-    VERuntime.init(context)
-    val testObject = createObject(params)
+    VERuntime.init(context, context)
+    val testObject = createObject(params, context)
     try {
       before.map(_.invoke(testObject, context))
       x.invoke(testObject, context)
-      analyzeHiddenContexts(context)
-      VTestStat.succeed(className, x.getName)
       after.map(_.invoke(testObject, context))
+      System.gc()
+      val succeedingContext = VERuntime.getExploredContext(context)
+      VTestStat.succeed(className, x.getName, succeedingContext)
+      val exploredSoFar = succeedingContext.or(exploredContext)
+      val nextContext   = exploredSoFar.not()
+      if (nextContext.isSatisfiable()) executeOnce(params, x, nextContext, exploredSoFar)
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
-            if (!verifyException(t.e, x, t.ctx, context, accCtx))
-              System.out.println(t)
-            if (!t.ctx.equivalentTo(context)) {
-              analyzeHiddenContexts(t.ctx)
-              /* This is being conservative, so that we don't miss any VExceptions */
-              executeOnce(params, x, context.and(t.ctx), accCtx)
-              executeOnce(params, x, context.and(t.ctx.not()), accCtx)
-            } else
-              analyzeHiddenContexts(context)
-            VTestStat.succeed(className, x.getName) // this is conservative, will be filtered by failing test cases
+            if (!verifyException(t.e, x, t.ctx, context)) {
+              // unexpected exceptions occurred
+              VTestStat.fail(className, x.getName)
+              println(t)
+            } else {
+              VTestStat.succeed(className, x.getName, t.ctx)
+            }
+            val exploredSoFar = t.ctx.or(exploredContext)
+            val nextContext   = exploredSoFar.not()
+            if (nextContext.isSatisfiable()) executeOnce(params, x, nextContext, exploredSoFar)
           case t =>
-            if (!verifyException(t, x, FeatureExprFactory.True, context, accCtx))
-              throw new RuntimeException("Not a VException", t)
+            if (!verifyException(t, x, FeatureExprFactory.True, context))
+              throw new RuntimeException("Something wrong, not a VException", t)
         }
       }
       case e =>
-        throw new RuntimeException(s"Expecting InvocationTargetException, but found $e")
+        throw new RuntimeException(s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
     }
   }
 
@@ -279,31 +264,18 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     * @param m  test case method
     * @param expCtx exception context
     * @param context  current execution context
-    * @param accCtxs  accumulated execution contexts
     * @return true if it is expected
     */
   def verifyException(t: Throwable,
                       m: Method,
                       expCtx: FeatureExpr,
-                      context: FeatureExpr,
-                      accCtxs: mutable.ListBuffer[FeatureExpr]): Boolean = {
-    def checkAndLog(e: FeatureExpr, c: FeatureExpr): Unit =
-      if (e.equivalentTo(c) && VERuntime.getHiddenContextsOtherThan(e).isEmpty) {
-        VTestStat.fail(className, m.getName, e)
-        System.gc()
-      }
-
-    if (isJUnit3) {
-      checkAndLog(expCtx, context)
-      false
-    } else {
+                      context: FeatureExpr): Boolean = {
+    if (isJUnit3) false
+    else {
       val annotation = m.getAnnotation(classOf[org.junit.Test])
       assert(annotation != null, "No @Test annotation in method: " + m.getName)
       val expected = annotation.expected()
-      if (!expected.isInstance(t)) {
-        checkAndLog(expCtx, context)
-        false
-      } else true
+      expected.isInstance(t)
     }
   }
 
@@ -355,15 +327,16 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
 
   def writeBDD(cName: String, mName: String): Unit = {
     if (Settings.writeBDDs) {
-      if (VTestStat.classes(cName).failedMethods.contains(mName)) {
-        val failingCond      = VTestStat.classes(cName).failedMethods(mName).failingCtx
-        val originMethodName = mName.substring(0, mName.indexOf("__"))
-        val fileName         = "test." + cName + "." + originMethodName + ".txt"
-
-        val bddFactory = FExprBuilder.bddFactory
-        val writer     = new FileWriter(fileName)
-        bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd)
-      }
+      ???
+//      if (VTestStat.classes(cName).failedMethods.contains(mName)) {
+//        val failingCond      = VTestStat.classes(cName).failedMethods(mName).failingCtx
+//        val originMethodName = mName.substring(0, mName.indexOf("__"))
+//        val fileName         = "test." + cName + "." + originMethodName + ".txt"
+//
+//        val bddFactory = FExprBuilder.bddFactory
+//        val writer     = new FileWriter(fileName)
+//        bddFactory.save(new BufferedWriter(writer), failingCond.asInstanceOf[BDDFeatureExpr].bdd)
+//      }
     }
   }
 }

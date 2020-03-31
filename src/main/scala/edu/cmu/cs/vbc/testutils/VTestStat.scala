@@ -18,10 +18,9 @@ object VTestStat {
 
   def skipClass(c: String): Unit       = skippedClasses += c
   def skip(c: String, m: String): Unit = classes.getOrElseUpdate(c, VTestStatClass(c)).skipMethod(m)
-  def succeed(c: String, m: String): Unit =
-    classes.getOrElseUpdate(c, VTestStatClass(c)).succeedMethod(m)
-  def fail(c: String, m: String, ctx: FeatureExpr): Unit =
-    classes.getOrElseUpdate(c, VTestStatClass(c)).fail(m, ctx)
+  def succeed(c: String, m: String, ctx: FeatureExpr): Unit =
+    classes.getOrElseUpdate(c, VTestStatClass(c)).succeed(m, ctx)
+  def fail(c: String, m: String): Unit = classes.getOrElseUpdate(c, VTestStatClass(c)).fail(m)
 
   def clear(): Unit = {
     skippedClasses.clear()
@@ -35,7 +34,7 @@ object VTestStat {
   }
 
   def getOverallPassingCond: FeatureExpr =
-    classes.values.map(_.getOverallPassingCondition()).foldLeft(FeatureExprFactory.True)(_.and(_))
+    classes.values.map(_.getOverallPassingCondition).foldLeft(FeatureExprFactory.True)(_.and(_))
 
   def printToConsole(): Unit = {
     printlnAndLog("")
@@ -91,27 +90,30 @@ object VTestStat {
 
 case class VTestStatClass(c: String) {
   import VTestStat.printlnAndLog
-  var failedMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
-  var skippedMethods: mutable.Set[String]                     = mutable.Set()
-  var succeededMethods: mutable.Set[String]                   = mutable.Set()
+  var failedMethods: mutable.Set[String]                         = mutable.Set()
+  var skippedMethods: mutable.Set[String]                        = mutable.Set()
+  var succeededMethods: mutable.HashMap[String, VTestStatMethod] = mutable.HashMap.empty
 
   /* logging */
-  def skipMethod(m: String): Unit    = skippedMethods += m
-  def succeedMethod(m: String): Unit = succeededMethods += m
-  def fail(m: String, ctx: FeatureExpr): Unit =
-    failedMethods.getOrElseUpdate(m, VTestStatMethod(m)) logFailingContext ctx
+  def skipMethod(m: String): Unit = skippedMethods += m
+  def succeed(m: String, ctx: FeatureExpr): Unit =
+    succeededMethods.getOrElseUpdate(m, VTestStatMethod(m)).logSucceedingContext(ctx)
+  def fail(m: String): Unit = failedMethods += m
 
   /* report */
-  def getOverallPassingCondition(): FeatureExpr =
-    failedMethods.values.map(_.getPassingContext).foldLeft(FeatureExprFactory.True)(_.and(_))
+  def getOverallPassingCondition: FeatureExpr =
+    if (!failedMethods.forall(x => succeededMethods.contains(x))) FeatureExprFactory.False
+    else succeededMethods.values.map(_.getPassingContext).foldLeft(FeatureExprFactory.True)(_ and _)
 
   /**
     * Use with caution, might be too slow.
     */
-  def getOverallPassingConditionExcludingHigherD(): FeatureExpr =
-    failedMethods.values
-      .map(_.getPassingContextExcludingHighD)
-      .foldLeft(FeatureExprFactory.True)(_.and(_))
+  def getOverallPassingConditionExcludingHigherD: FeatureExpr =
+    if (failedMethods.nonEmpty) FeatureExprFactory.False
+    else
+      succeededMethods.values
+        .map(_.getPassingContextExcludingHighD)
+        .foldLeft(FeatureExprFactory.True)(_ and _)
 
   /**
     * Print one solution that has a degree lower than [[Settings.maxInteractionDegree]]
@@ -136,22 +138,19 @@ case class VTestStatClass(c: String) {
     */
   def print2Console(): Unit = {
     printlnAndLog(c)
-    printlnAndLog("[Failed]")
-    failedMethods.toList
+    printlnAndLog("[Succeeded]")
+    succeededMethods.toList
       .sortWith((x, y) => x._1.compareTo(y._1) < 0)
-      .unzip
-      ._2
-      .foreach(_.print2Console)
-    if (succeededMethods.exists(x => !failedMethods.contains(x))) {
-      printlnAndLog("[Succeeded]")
-      printlnAndLog(
-        succeededMethods.filter(x => !failedMethods.contains(x)).mkString("\t", "\n\t", ""))
+      .foreach(_._2.print2Console())
+    if (!failedMethods.forall(x => succeededMethods.contains(x))) {
+      printlnAndLog("[Failed]")
+      printlnAndLog(failedMethods.filterNot(x => succeededMethods.contains(x)).mkString("\t", "\n\t", ""))
     }
     if (skippedMethods.nonEmpty) {
       printlnAndLog("[Skipped]")
       printlnAndLog(skippedMethods.mkString("\t", "\n\t", ""))
     }
-    printOneSolution(getOverallPassingCondition())
+    printOneSolution(getOverallPassingCondition)
   }
 
   /**
@@ -160,14 +159,13 @@ case class VTestStatClass(c: String) {
   override def toString: String =
     s"""
        |$c pass if $getOverallPassingCondition
-       |[Failed]
-       |${failedMethods.toList
+       |[Succeeded]
+       |${succeededMethods.toList
          .sortWith((x, y) => x._1.compareTo(y._1) < 0)
-         .unzip
-         ._2
+         .map(_._2)
          .mkString("\t", "\n\t", "")}
-       |${if (succeededMethods.nonEmpty) "[Succeeded]" else ""}
-       |${succeededMethods.filter(x => !failedMethods.contains(x)).mkString("\t", "\n\t", "")}
+       |${if (!failedMethods.forall(x => succeededMethods.contains(x))) "[Failed]" else ""}
+       |${failedMethods.filterNot(x => succeededMethods.contains(x)).mkString("\t", "\n\t", "")}
        |${if (skippedMethods.nonEmpty) "[Skipped]" else ""}
        |${skippedMethods.mkString("\t", "\n\t", "")}
      """.stripMargin
@@ -176,24 +174,25 @@ case class VTestStatClass(c: String) {
     * Same limitations as toString
     */
   def toMarkdown(removePrefix: String): List[String] = {
-    val shortenClazzName = c.substring(removePrefix.length)
-    val skipped = for (m <- skippedMethods.toList)
-      yield shortenClazzName + s".$m" + " | " + "skipped" + "|"
-    val succeeded = for (m <- succeededMethods.filter(x => !failedMethods.contains(x)).toList)
-      yield s"$shortenClazzName.$m | ✔ |"
-    val failed = failedMethods.toList.unzip._2.map(x => x.toMarkdown(shortenClazzName))
-    skipped ::: succeeded ::: failed
+//    val shortenClazzName = c.substring(removePrefix.length)
+//    val skipped = for (m <- skippedMethods.toList)
+//      yield shortenClazzName + s".$m" + " | " + "skipped" + "|"
+//    val succeeded = for (m <- succeededMethods.filter(x => !failedMethods.contains(x)).toList)
+//      yield s"$shortenClazzName.$m | ✔ |"
+//    val failed = failedMethods.toList.unzip._2.map(x => x.toMarkdown(shortenClazzName))
+//    skipped ::: succeeded ::: failed
+    ???
   }
 }
 
 case class VTestStatMethod(m: String) {
-  var failingCtx: FeatureExpr = FeatureExprFactory.False
+  var succeedingCtx: FeatureExpr = FeatureExprFactory.False
 
-  def logFailingContext(fe: FeatureExpr): Unit = failingCtx = failingCtx or fe
+  def logSucceedingContext(fe: FeatureExpr): Unit = succeedingCtx = succeedingCtx or fe
 
   /* reporting */
-  def getPassingContextExcludingHighD: FeatureExpr = restrictStartingContext(failingCtx.not())
-  def getPassingContext: FeatureExpr               = failingCtx.not()
+  def getPassingContextExcludingHighD: FeatureExpr = restrictStartingContext(succeedingCtx)
+  def getPassingContext: FeatureExpr               = succeedingCtx
 
   def oneSolution(fe: FeatureExpr): String = {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
@@ -209,10 +208,9 @@ case class VTestStatMethod(m: String) {
     */
   def print2Console(): Unit = {
     import VTestStat.printlnAndLog
-    val x = failingCtx.not()
 //    val msg = (if (x.isContradiction() || V.isDegreeTooHigh(x)) s" has no " else " has ") + s"solutions with degree lower than ${GlobalConfig.maxInteractionDegree}"
 //    val msg = " pass if " + failingCtx.not()
-    val msg = oneSolution(failingCtx.not())
+    val msg = oneSolution(succeedingCtx)
     printlnAndLog("\t" + m + msg)
   }
 

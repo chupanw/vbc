@@ -8,43 +8,45 @@ import edu.cmu.cs.vbc.config.VERuntime
 
 trait RelaunchExceptionHandler {
 
-  /**
-    * OUTDATED, USE WITH CAUTION
-    */
-  def executeOnce(o: Option[Object], x: Method, args: Array[Object], context: FeatureExpr): Unit = {
+  def executeOnce(o: Option[Object],
+                  x: Method,
+                  args: Array[Object],
+                  context: FeatureExpr): Unit = {
+    if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(context)
+    VERuntime.init(context, context)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
       else
-        x.invoke(null, args :+ context:_*)
-      if (VERuntime.hasVException) {
-        val expCtx = VERuntime.getHiddenContextsOtherThan(context)
-        expCtx.foreach(fe => executeOnce(o, x, args, context.and(fe.not())))
-      }
+        x.invoke(null, args :+ context: _*)
+      System.gc()
+      val succeedingContext = VERuntime.getExploredContext(context)
+      val exploredSoFar     = succeedingContext.or(context.not())
+      val nextContext       = exploredSoFar.not()
+      if (nextContext.isSatisfiable()) executeOnce(o, x, args, nextContext)
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
-            System.out.println(t)
-            if (!t.ctx.equivalentTo(context)) {
-              val altCtx = context.and(t.ctx.not())
-              executeOnce(o, x, args, altCtx)
-            }
+            println(t)
+            val exploredSoFar = t.ctx.or(context.not())
+            val nextContext   = exploredSoFar.not()
+            if (nextContext.isSatisfiable()) executeOnce(o, x, args, nextContext)
           case t =>
-            throw new RuntimeException("Not a VException", t)
+            throw new RuntimeException("Something is wrong, not a VException", t)
         }
       }
       case e =>
-        throw new RuntimeException(s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
+        throw new RuntimeException(
+          s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
     }
   }
 }
 
 case class VException(e: Throwable, ctx: FeatureExpr) extends RuntimeException {
-  VERuntime.logVException(ctx)
-
-  override def toString: String = s"[VException ${if (Settings.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
-  def getTracesAsString: String = e.getStackTrace.toList mkString("[VException]\t", "\n[VException]\t", "\n")
+  override def toString: String =
+    s"[VException ${if (Settings.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
+  def getTracesAsString: String =
+    e.getStackTrace.toList mkString ("[VException]\t", "\n[VException]\t", "\n")
 }
