@@ -28,7 +28,25 @@ object TestTraceOutput {
 
   var trace: List[(FeatureExpr, String)] = Nil
 
-  val t = FeatureExprFactory.True
+  val t: FeatureExpr = FeatureExprFactory.True
+
+  private val restartPattern = util.Random.nextString(16)
+  def putRestartMark(ctx: FeatureExpr): Unit = trace ::= (ctx, restartPattern)
+
+  def extractVTraces(toExtract: List[(FeatureExpr, String)]): List[(FeatureExpr, List[(FeatureExpr, String)])] = {
+    val markerIdx = toExtract.indexWhere(p => p._2 == restartPattern)
+    if (markerIdx < 0) {
+      (FeatureExprFactory.True, toExtract) :: Nil
+    } else {
+      val (pre, post) = toExtract.splitAt(markerIdx)
+      val ctx = post.head._1
+      (ctx, pre) :: extractVTraces(post.tail)
+    }
+  }
+
+  def sortVTraces(toOrder: List[(FeatureExpr, List[(FeatureExpr, String)])]): List[(FeatureExpr, List[(FeatureExpr, String)])] = {
+    toOrder.sortWith((v1, v2) => v1._1.implies(v2._1).isTautology())
+  }
 
   def trace_s(s: String): Unit = {
     trace ::=(t, s)

@@ -70,6 +70,11 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     )
   }
 
+  def loadClassFromBytes(clsName: String, bytes: Array[Byte]): Class[_] = {
+    val clazz = loader.loadClass(bytes)
+    liftClass(clsName, clazz)
+  }
+
   override def findClass(name: String): Class[_] = {
     val resource: String = name.replace('.', '/') + ".class"
     val is: InputStream = getResourceAsStream(resource)

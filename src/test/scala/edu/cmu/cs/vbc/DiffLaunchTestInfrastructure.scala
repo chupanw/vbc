@@ -2,8 +2,8 @@ package edu.cmu.cs.vbc
 
 import java.io.{File, FileWriter}
 
+import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.vbc
-import edu.cmu.cs.vbc.ClassCreator.cw
 import edu.cmu.cs.vbc.config.VERuntime
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -74,7 +74,8 @@ trait DiffLaunchTestInfrastructure {
             }
       ).flatten,
       block.exceptionHandlers,
-      block.exceptions
+      block.exceptions,
+      shouldJumpBack = block.shouldJumpBack
     )
 
   def prepareBenchmark(method: VBCMethodNode, clazz: VBCClassNode): VBCMethodNode =
@@ -108,7 +109,8 @@ trait DiffLaunchTestInfrastructure {
             }
       ).flatten,
       block.exceptionHandlers,
-      block.exceptions
+      block.exceptions,
+      shouldJumpBack = block.shouldJumpBack
     )
 
   def instrumentCustomInit(method: VBCMethodNode): VBCMethodNode =
@@ -124,7 +126,8 @@ trait DiffLaunchTestInfrastructure {
             case i                              => i
           },
       block.exceptionHandlers,
-      block.exceptions
+      block.exceptions,
+      shouldJumpBack = block.shouldJumpBack
     )
 
 //  def checkCrash(clazz: Class[_]): Unit = testMain(clazz, false)
@@ -187,6 +190,7 @@ trait DiffLaunchTestInfrastructure {
       fm: (Map[String, Boolean]) => Boolean = _ => true,
       configFile: Option[String] = None,
       useModel: Boolean = false)(loadClassWith: VBCClassLoader => Class[_]): Unit = {
+    println("Warning: please make sure conditional fields are not initialized! Otherwise brute-force comparison would fail")
     //test uninstrumented variational execution to see whether it crashes
     val origClassLoader = this.getClass.getClassLoader
     val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader,
@@ -196,7 +200,7 @@ trait DiffLaunchTestInfrastructure {
                                                              useModel = useModel)
     changeClassLoader(testCrashLoader)
     val testCrash = loadClassWith(testCrashLoader)
-    VBCLauncher.invokeLiftedMain(testCrash, new Array[String](0))
+    VBCLauncher4Test.invokeLiftedMain(testCrash, new Array[String](0))
 
     //test instrumented version, executed variationally
     TestTraceOutput.trace = Nil
@@ -208,10 +212,11 @@ trait DiffLaunchTestInfrastructure {
                                                      useModel = useModel)
     changeClassLoader(vloader)
     val vcls = loadClassWith(vloader)
-    VBCLauncher.invokeLiftedMain(vcls, new Array[String](0))
+    VBCLauncher4Test.invokeLiftedMain(vcls, new Array[String](0))
 
-    val vtrace      = TestTraceOutput.trace
     val usedOptions = TraceConfig.options.map(_.feature)
+    val vtraces = TestTraceOutput.extractVTraces(TestTraceOutput.trace)
+    val sortedVTraces = TestTraceOutput.sortVTraces(vtraces)
 
     println("Used Options: " + TraceConfig.options.mkString(", "))
 
@@ -229,11 +234,13 @@ trait DiffLaunchTestInfrastructure {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))
-        VBCLauncher.invokeUnliftedMain(cls, new Array[String](0))
+        VBCLauncher4Test.invokeUnliftedMain(cls, new Array[String](0))
         val atrace = TestTraceOutput.trace
 
         //get the trace from the v execution relevant for this config and compare
-        val filteredvtrace = vtrace.filter(_._1.evaluate(sel.toSet))
+        val ctx = genConfig(sel, desel)
+        val selectedVTrace = sortedVTraces.find(p => ctx.implies(p._1).isTautology()).get._2
+        val filteredvtrace = selectedVTrace.filter(_._1.evaluate(sel.toSet))
         compareTraces(sel, atrace.map(_._2).reverse, filteredvtrace.map(_._2).reverse)
       }
     }
@@ -252,6 +259,12 @@ trait DiffLaunchTestInfrastructure {
                                                                useModel = useModel)
       benchmark(loadClassWith, vbenchmarkloader, benchmarkloader, usedOptions, fm)
     }
+  }
+
+  def genConfig(sel: Seq[Feature], desel: Seq[Feature]): FeatureExpr = {
+    val selFE = sel.map(x => FeatureExprFactory.createDefinedExternal(x))
+    val deselFE = desel.map(x => FeatureExprFactory.createDefinedExternal(x).not())
+    selFE.foldLeft(FeatureExprFactory.True)(_ and _) and deselFE.foldLeft(FeatureExprFactory.True)(_ and _)
   }
 
   type Feature = String
@@ -327,7 +340,7 @@ trait DiffLaunchTestInfrastructure {
       TraceConfig.config = Map()
     } measure {
       //      Profiler.reset()
-      VBCLauncher.invokeLiftedMain(testVClass, new Array[String](0))
+      VBCLauncher4Test.invokeLiftedMain(testVClass, new Array[String](0))
       //      Profiler.report()
     }
     //        println(s"Total time V: $time")
@@ -350,7 +363,7 @@ trait DiffLaunchTestInfrastructure {
           TestTraceOutput.trace = Nil
           TraceConfig.config = configToMap((sel, desel))
         } measure {
-          VBCLauncher.invokeUnliftedMain(testClass, new Array[String](0))
+          VBCLauncher4Test.invokeUnliftedMain(testClass, new Array[String](0))
         }
 
     val avgTime = bftimes.map(_.value).sum / bftimes.size
