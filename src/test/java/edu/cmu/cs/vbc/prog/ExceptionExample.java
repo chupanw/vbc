@@ -254,18 +254,20 @@ public class ExceptionExample {
     private void throwArithmeticException() { throw new ArithmeticException("/ by zero"); }
     private void throwArrayIndexOutOfBoundsException() { throw new ArrayIndexOutOfBoundsException("-1"); }
     private void throwIOException() throws IOException { throw new IOException("file not exist"); }
-    private int implicitThrow() {
+    public void implicitThrow() {
         int a = 10;
+        int b = 0;
         if (C)
-            return a / 0;
+            b = a / 0;
         else
-            return a / 2;
+            b = a / 2;
     }
-    private int implicitThrow2() {
+    public void implicitThrow2() {
+        int a = 0;
         if (C)
-            return 1 / num;
+            a = 1 / num;
         else
-            return 1 + num;
+            a = 1 + num;
     }
     private void conditionallyThrow() {
         if (A) {
