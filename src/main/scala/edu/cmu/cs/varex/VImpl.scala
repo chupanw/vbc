@@ -58,10 +58,6 @@ class MTBDDVImpl[T] (val values: MTBDD[T]) extends V[T] {
     foreachWithContext(this.values, fun)
   }
 
-  //perf
-  override def foreachExp(fun: BiConsumerExp[FeatureExpr, T]): Unit =
-    if (values != NOVALUE) MTBDDFactory.foreachValue[T](values, x => fun.accept(new BDDFeatureExpr(values.whenCondition(y => y == x)), x))
-
   override def when(condition: Predicate[T], filterNull: Boolean): FeatureExpr = {
     new BDDFeatureExpr(values.whenCondition(x => if (filterNull) x != null && condition.test(x) else condition.test(x)))
   }
