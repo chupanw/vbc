@@ -2,6 +2,8 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
+import edu.cmu.cs.vbc.VException;
+import edu.cmu.cs.vbc.config.VERuntime;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -98,21 +100,43 @@ class VImpl<T> implements V<T>, Serializable {
 //        return result;
 //    }
 
+    private void interceptThrowable(Throwable t, FeatureExpr ctx) {
+        if (!VERuntime.shouldPostpone(ctx)) {
+            VERuntime.throwExceptionCtx(ctx);
+            if (t instanceof VException) {
+                throw (VException) t;
+            }
+            else {
+                throw new VException(t, ctx);
+            }
+        } else {
+            VERuntime.postponeExceptionCtx(ctx);
+        }
+    }
 
     @Override
     public <U> V<? extends U> map(Function<? super T, ? extends U> fun) {
         Map<U, FeatureExpr> result = new HashMap<>(values.size());
-        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet())
-            put(result, fun.apply(e.getKey()), e.getValue());
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
+            try {
+                put(result, fun.apply(e.getKey()), e.getValue());
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
+        }
         return createV(result);
     }
 
     @Override
     public <U> V<? extends U> map(@Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> fun) {
-        assert fun != null;
         Map<U, FeatureExpr> result = new HashMap<>(values.size());
-        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet())
-            put(result, fun.apply(e.getValue(), e.getKey()), e.getValue());
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
+            try {
+                put(result, fun.apply(e.getValue(), e.getKey()), e.getValue());
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
+        }
         return createV(result);
     }
 
@@ -121,21 +145,28 @@ class VImpl<T> implements V<T>, Serializable {
         assert fun != null;
         Map<U, FeatureExpr> result = new HashMap<>(values.size());
         for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
-            V<? extends U> u = fun.apply(e.getKey());
-            assert u != null;
-            addVToMap(result, e.getValue(), u);
+            try {
+                V<? extends U> u = fun.apply(e.getKey());
+                assert u != null;
+                addVToMap(result, e.getValue(), u);
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
         }
         return createV(result).restrictInteractionDegree();
     }
 
     @Override
     public <U> V<? extends U> flatMap(@Nonnull BiFunction<FeatureExpr, ? super T, V<? extends U>> fun) {
-        assert fun != null;
         Map<U, FeatureExpr> result = new HashMap<>(values.size());
         for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
-            V<? extends U> u = fun.apply(e.getValue(), e.getKey());
-            assert u != null;
-            addVToMap(result, e.getValue(), u);
+            try {
+                V<? extends U> u = fun.apply(e.getValue(), e.getKey());
+                assert u != null;
+                addVToMap(result, e.getValue(), u);
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
         }
         return createV(result).restrictInteractionDegree();
     }
@@ -143,7 +174,6 @@ class VImpl<T> implements V<T>, Serializable {
 
     private static <U> void addVToMap(Map<U, FeatureExpr> result, FeatureExpr ctx, @Nonnull V<? extends U> u) {
         assert u != null;
-        assert (u instanceof One) || (u instanceof VImpl) : "unexpected V value: " + u;
         if (u instanceof VEmpty)
             return;
         else if (u instanceof One)
@@ -174,22 +204,24 @@ class VImpl<T> implements V<T>, Serializable {
 
     @Override
     public void foreach(@Nonnull Consumer<T> fun) {
-        assert fun != null;
-        values.keySet().forEach(fun::accept);
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
+            try {
+                fun.accept(e.getKey());
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
+        }
     }
 
     @Override
     public void foreach(@Nonnull BiConsumer<FeatureExpr, T> fun) {
-        assert fun != null;
-        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet())
-            fun.accept(e.getValue(), e.getKey());
-    }
-
-    @Override
-    public void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable {
-        assert fun != null;
-        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet())
-            fun.accept(e.getValue(), e.getKey());
+        for (HashMap.Entry<T, FeatureExpr> e : values.entrySet()) {
+            try {
+                fun.accept(e.getValue(), e.getKey());
+            } catch (Throwable t) {
+                interceptThrowable(t, e.getValue());
+            }
+        }
     }
 
 
@@ -208,7 +240,7 @@ class VImpl<T> implements V<T>, Serializable {
     @Override
     public V<T> select(@Nonnull FeatureExpr configSpace) {
         assert configSpace != null;
-        assert configSpace.implies(getConfigSpace()).isTautology() :
+        assert configSpace.and(VERuntime.postponedExceptionContext().not()).implies(getConfigSpace()).isTautology() :
                 "selecting under broader condition (" + configSpace + ") than the configuration space described by One (" + getConfigSpace() + ")";
 
         return reduce(configSpace);

@@ -2,6 +2,8 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
+import edu.cmu.cs.vbc.VException;
+import edu.cmu.cs.vbc.config.VERuntime;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -32,50 +34,78 @@ public class One<T> implements V<T>, Serializable {
         return value;
     }
 
+    private <U> V<? extends U> interceptThrowable(Throwable t) {
+        if (VERuntime.shouldPostpone(configSpace)) {
+            VERuntime.postponeExceptionCtx(configSpace);
+            return VEmpty.instance();
+        }
+        else {
+            VERuntime.throwExceptionCtx(configSpace);
+            if (t instanceof VException) {
+                throw (VException) t;
+            }
+            else {
+                throw new VException(t, configSpace);
+            }
+        }
+    }
+
     @Override
     public <U> V<? extends U> map(@Nonnull Function<? super T, ? extends U> fun) {
-        assert fun != null;
-        return V.one(configSpace, fun.apply(value));
+        try {
+            return V.one(configSpace, fun.apply(value));
+        } catch (Throwable t) {
+            return interceptThrowable(t);
+        }
     }
 
     @Override
     public <U> V<? extends U> map(@Nonnull BiFunction<FeatureExpr, ? super T, ? extends U> fun) {
-        assert fun != null;
-        return V.one(configSpace, fun.apply(configSpace, value));
+        try {
+            return V.one(configSpace, fun.apply(configSpace, value));
+        } catch (Throwable t) {
+            return interceptThrowable(t);
+        }
     }
 
     @Override
     public <U> V<? extends U> flatMap(@Nonnull Function<? super T, V<? extends U>> fun) {
-        assert fun != null;
-        V<? extends U> result = fun.apply(value);
-        assert result != null;
-        return result.reduce(configSpace);
+        try {
+            V<? extends U> result = fun.apply(value);
+            assert result != null;
+            return result.reduce(configSpace);
+        } catch (Throwable t) {
+            return interceptThrowable(t);
+        }
     }
 
     @Override
     public <U> V<? extends U> flatMap(@Nonnull BiFunction<FeatureExpr, ? super T, V<? extends U>> fun) {
-        assert fun != null;
-        V<? extends U> result = fun.apply(configSpace, value);
-        assert result != null;
-        return result.reduce(configSpace);
+        try {
+            V<? extends U> result = fun.apply(configSpace, value);
+            assert result != null;
+            return result.reduce(configSpace);
+        } catch (Throwable t) {
+            return interceptThrowable(t);
+        }
     }
 
     @Override
     public void foreach(@Nonnull Consumer<T> fun) {
-        assert fun != null;
-        fun.accept(value);
+        try {
+            fun.accept(value);
+        } catch (Throwable t) {
+            interceptThrowable(t);
+        }
     }
 
     @Override
     public void foreach(@Nonnull BiConsumer<FeatureExpr, T> fun) {
-        assert fun != null;
-        fun.accept(configSpace, value);
-    }
-
-    @Override
-    public void foreachExp(@Nonnull BiConsumerExp<FeatureExpr, T> fun) throws Throwable {
-        assert fun != null;
-        fun.accept(configSpace, value);
+        try {
+            fun.accept(configSpace, value);
+        } catch (Throwable t) {
+            interceptThrowable(t);
+        }
     }
 
     @Override
