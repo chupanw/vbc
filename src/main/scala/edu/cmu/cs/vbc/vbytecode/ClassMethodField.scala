@@ -45,7 +45,7 @@ case class VBCMethodNode(access: Int,
       if (name != "<init>")
         MethodDesc(desc).toVs.appendFE.toVReturnTypeIfReturningVoid
       else
-        MethodDesc(desc).toVs_AppendFE_AppendArgs //cpwtodo: exception handling in constructor
+        MethodDesc(desc).toVs_AppendFE_AppendArgs
     val mv = cw.visitMethod(
       if (name == "<clinit>") access | ACC_PUBLIC else access,
       MethodName(name).rename(MethodDesc(desc)).liftCLINIT,
@@ -405,7 +405,6 @@ case class VBCClassNode(
       false
     )
 
-    // cpwtodo: improve the way we report exception, for now just print them out
 //    mv.visitFieldInsn(GETSTATIC, Owner("java/lang/System"), FieldName("out"), TypeDesc("Ljava/io/PrintStream;"))
 //    mv.visitInsn(SWAP)
 //    mv.visitMethodInsn(INVOKEVIRTUAL, Owner("java/io/PrintStream"), MethodName("println"), MethodDesc("(Ljava/lang/Object;)V"), false)

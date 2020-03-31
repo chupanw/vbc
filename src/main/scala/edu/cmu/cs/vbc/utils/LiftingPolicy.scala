@@ -130,7 +130,6 @@ object LiftingPolicy {
     val shouldLiftMethod = LiftingPolicy.shouldLiftMethodCall(owner, name, desc)
     if (shouldLiftMethod) {
       if (name.contentEquals("<init>")) {
-        // cpwtodo: handle exception in <init>
         LiftedCall(owner.toModel, name, desc.toVs_AppendFE_AppendArgs, isLifting = true)
       } else {
         LiftedCall(owner.toModel, name.rename(desc.toModels), desc.toVs.appendFE.toVReturnTypeIfReturningVoid, isLifting = true)
