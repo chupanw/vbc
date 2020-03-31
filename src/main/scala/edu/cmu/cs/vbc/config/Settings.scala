@@ -6,6 +6,8 @@ import com.typesafe.config.ConfigFactory
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
+
 /**
   * Global configurations for VarexC
   */
@@ -64,37 +66,81 @@ object Settings {
 }
 
 /**
-  * Store some global runtime values, should avoid if possible
+  * Store some global runtime, should avoid if possible
+  *
+  * This object is a centralized place for all kinds of runtime states that can affect variational execution,
+  * mostly for exception handling, but also sometimes for performance or logging.
+  *
+  * If weird bugs occur, check this object first...
   */
 object VERuntime {
-  var hasVException: Boolean          = false
-  var exceptionCtx: List[FeatureExpr] = Nil
-  var curBlockCount: Long             = 0
-  var boundaryCtx: FeatureExpr        = FeatureExprFactory.True
-  private val numFormatter = NumberFormat.getNumberInstance
+
+  /**
+    * A set of contexts that show under what configurations the current variational execution is still valid.
+    * Parts of an execution can become invalid if, for example, some exceptions occur and we decide to ignore them.
+    * To explore the contexts that have exceptions, we restart variational execution.
+    */
+  var postponedExceptionContext: FeatureExpr = FeatureExprFactory.False
+  var thrownExceptionContext: FeatureExpr    = FeatureExprFactory.False
+  var globalContext: FeatureExpr             = FeatureExprFactory.False
+  var curBlockCount: Long                    = 0
+
+  /**
+    * Used when execution crosses the boundary of VE environment and the Digester library. See [[edu.cmu.cs.varex.VOps.populate()]]
+    */
+  var boundaryCtx: FeatureExpr = FeatureExprFactory.True
+
+  private val numFormatter      = NumberFormat.getNumberInstance
   private val formattedMaxBlock = numFormatter.format(Settings.maxBlockCount)
-  def incrementBlockCount(): Unit     = {
+  def incrementBlockCount(): Unit = {
     curBlockCount += 1
-    if (curBlockCount % 10000 == 0) println(s"#Blocks executed: ${numFormatter.format(curBlockCount)} out of $formattedMaxBlock")
+    if (curBlockCount % 100000000 == 0)
+      println(
+        s"#Blocks executed: ${numFormatter.format(curBlockCount)} out of max $formattedMaxBlock")
   }
-  def init(ctx: FeatureExpr): Unit = {
-    hasVException = false
-    exceptionCtx = Nil
-    curBlockCount = 0
-    boundaryCtx = ctx
+
+  /**
+    * Initialize all mutable states.
+    *
+    * All vars or mutable objects within this [[VERuntime]] object should get initialized here.
+    *
+    * MUST BE CALLED BEFORE EACH RESTART OF VARIATIONAL EXECUTION.
+    */
+  def init(initContext: FeatureExpr, boundaryCtx: FeatureExpr): Unit = {
+
+    /** Exception handling  */
+    this.globalContext = initContext
+    this.postponedExceptionContext = FeatureExprFactory.False
+    this.thrownExceptionContext = FeatureExprFactory.False
+
+    /** Logging */
+    this.curBlockCount = 0
+
+    /** Model class issues */
+    this.boundaryCtx = boundaryCtx
   }
-  def logVException(fe: FeatureExpr): Unit = {
-    hasVException = true
-    if (!fe.isTautology()) {
-      val hasDuplicate = exceptionCtx.exists(x => x.equivalentTo(fe))
-      if (!hasDuplicate) exceptionCtx = fe :: exceptionCtx
+
+  def postponeExceptionCtx(ctx: FeatureExpr): Unit = {
+    postponedExceptionContext = postponedExceptionContext or ctx
+  }
+
+  def throwExceptionCtx(ctx: FeatureExpr): Unit = {
+    thrownExceptionContext = ctx
+  }
+
+  def shouldPostpone(currentCtx: FeatureExpr): Boolean = {
+    (globalContext and (postponedExceptionContext or currentCtx).not()).isSatisfiable()
+  }
+
+  def getExploredContext(startingCtx: FeatureExpr): FeatureExpr = {
+    val hasPostponedExp = postponedExceptionContext.isSatisfiable()
+    val hasThrownExp    = thrownExceptionContext.isSatisfiable()
+    (hasPostponedExp, hasThrownExp) match {
+      case (false, false) => startingCtx
+      case (true, false)  => startingCtx.and(postponedExceptionContext.not())
+      case (_, true)      => startingCtx.and(thrownExceptionContext)
     }
   }
-
-  def getHiddenContextsOtherThan(that: FeatureExpr): List[FeatureExpr] =
-    exceptionCtx.filterNot(_ equivalentTo that)
-
-  def getHiddenContexts: List[FeatureExpr] = exceptionCtx
 
   var classloader: Option[ClassLoader] = None
 

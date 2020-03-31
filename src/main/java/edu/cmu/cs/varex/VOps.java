@@ -157,16 +157,10 @@ public class VOps {
         return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, bb -> aa.intValue() * bb.intValue()));
     }
 
-    public static V<? extends Integer> IDIV(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) throws VException {
-        FEWrapper w = new FEWrapper(ctx);
-        try {
-            return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, (fe2, bb) -> {
-                w.update(fe2);
-                return aa.intValue() / bb.intValue();
-            }));
-        } catch (Throwable t) {
-            throw new VException(t, w.get());
-        }
+    public static V<? extends Integer> IDIV(V<? extends Integer> a, V<? extends Integer> b, FeatureExpr ctx) {
+        return a.sflatMap(ctx, (fe, aa) -> b.smap(fe, (fe2, bb) -> {
+            return aa.intValue() / bb.intValue();
+        }));
     }
 
     // no runtime exception
@@ -202,16 +196,10 @@ public class VOps {
     }
 
     // arithmetic exception
-    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) throws VException {
-        FEWrapper w = new FEWrapper(ctx);
-        try {
-            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
-                w.update(fe2);
-                return v1.intValue() % v2.intValue();
-            }));
-        } catch (Throwable t) {
-            throw new VException(t, w.get());
-        }
+    public static V<? extends Integer> irem(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+            return v1.intValue() % v2.intValue();
+        }));
     }
 
     // no runtime exception
@@ -235,16 +223,10 @@ public class VOps {
     }
 
     // arithmetic exception
-    public static V<? extends Long> ldiv(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) throws VException {
-        FEWrapper w = new FEWrapper(ctx);
-        try {
-            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
-                w.update(fe2);
-                return v1.longValue() / v2.longValue();
-            }));
-        } catch (Throwable t) {
-            throw new VException(t, w.get());
-        }
+    public static V<? extends Long> ldiv(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+            return v1.longValue() / v2.longValue();
+        }));
     }
 
     // no runtime exception
@@ -423,16 +405,10 @@ public class VOps {
     }
 
     // arithmetic exception
-    public static V<? extends Long> lrem(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) throws VException {
-        FEWrapper w = new FEWrapper(ctx);
-        try {
-            return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
-                w.update(fe2);
-                return v1.longValue() % v2.longValue();
-            }));
-        } catch (Throwable t) {
-            throw new VException(t, w.get());
-        }
+    public static V<? extends Long> lrem(V<? extends Long> value1, V<? extends Long> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+            return v1.longValue() % v2.longValue();
+        }));
     }
 
     // no runtime exception
@@ -459,52 +435,68 @@ public class VOps {
     // Special println that prints configuration as well
     //////////////////////////////////////////////////
     public static void println(PrintStream out, String s, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(s + " [" + ctx + "]");
-        else
-            out.println(s + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(s + " [" + ctx + "]");
+            else
+                out.println(s + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, int i, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(i + " [" + ctx + "]");
-        else
-            out.println(i + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(i + " [" + ctx + "]");
+            else
+                out.println(i + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, long l, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(l + " [" + ctx + "]");
-        else
-            out.println(l + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(l + " [" + ctx + "]");
+            else
+                out.println(l + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, double d, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(d + " [" + ctx + "]");
-        else
-            out.println(d + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(d + " [" + ctx + "]");
+            else
+                out.println(d + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, Object o, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(o + " [" + ctx + "]");
-        else
-            out.println(o + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(o + " [" + ctx + "]");
+            else
+                out.println(o + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, char c, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(c + " [" + ctx + "]");
-        else
-            out.println(c + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(c + " [" + ctx + "]");
+            else
+                out.println(c + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, boolean b, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(b + " [" + ctx + "]");
-        else
-            out.println(b + " [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(b + " [" + ctx + "]");
+            else
+                out.println(b + " [hidden context]");
+        }
     }
     public static void println(PrintStream out, FeatureExpr ctx) {
-        if (Settings.printContext())
-            out.println(" [" + ctx + "]");
-        else
-            out.println(" [hidden context]");
+        if (ctx.isSatisfiable()) {
+            if (Settings.printContext())
+                out.println(" [" + ctx + "]");
+            else
+                out.println(" [hidden context]");
+        }
     }
 
     //////////////////////////////////////////////////
@@ -526,19 +518,27 @@ public class VOps {
     /**
      * Called as part of lifting ATHROW to throw exceptions under method contexts.
      */
-    public static Throwable extractThrowable(V<? extends Throwable> vT, FeatureExpr ctx) {
+    public static V<?> extractThrowableAndThrow(V<? extends Throwable> vT, FeatureExpr ctx) throws Throwable {
         V<? extends Throwable> selected = vT.select(ctx);
-        if (selected instanceof One) {
-            return selected.getOne();
-        } else {
-            One oneValue = ((VImpl) selected).getOneValue();
-            Object v = oneValue.value;  // HashMap VImpl
-            if (v instanceof AssertionError) {
-                throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace());
+        FeatureExpr configSpace = selected.getConfigSpace();
+        if (!VERuntime.shouldPostpone(configSpace)) {
+            VERuntime.throwExceptionCtx(configSpace);
+            if (selected instanceof One) {
+                throw new VException(selected.getOne(), configSpace);
             } else {
-                throw new VException((Throwable) v, oneValue.getConfigSpace());
+                One oneValue = ((VImpl) selected).getOneValue();
+                Object v = oneValue.value;  // HashMap VImpl
+                if (v instanceof AssertionError) {
+                    throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace());
+                } else {
+                    throw new VException((Throwable) v, oneValue.getConfigSpace());
+                }
             }
+        } else {
+            VERuntime.postponeExceptionCtx(ctx);
         }
+        // ATHROW should be the end of a block anyway (compiler-enforced), so doing nothing should not affect the rest of the execution
+        return VEmpty.instance();
     }
 
     /**
@@ -558,7 +558,7 @@ public class VOps {
         if (ctxOfVException.isContradiction())
             return vT;
         V<? extends Throwable> selected = vT.select(ctx.and(ctxOfVException));
-        assert selected instanceof One : "Should have only one VException";
+        assert selected instanceof One : "Should have only one VException"; // cpwTODO: can we generalize this to handle multiple exceptions at a time?
         VException ve = (VException) selected.getOne();
         for (String s : expSet) {
             try {
@@ -590,27 +590,33 @@ public class VOps {
      * Used in our try-catch to detect conditional exceptions.
      *
      * If a conditional exception is detected, we wrap it into a VException with its context and throw it.
+     *
+     * @cpwTODO: remove the redundant mCtx parameter (why is it redundant?)
      */
-    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) throws Throwable {
+    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) {
         V<? extends Throwable> selected = vT.select(ctx);
-        selected.foreachExp((fe, x) -> {
-            if (x instanceof VException)
-                throw x;
-            else if (x instanceof ExceptionInInitializerError) {
-                // exceptions thrown inside clinit are converted to ExceptionInInitializerError internally in JVM
-                System.err.println("Error in <clinit>, re-execution likely to be affected");
-                if (x.getCause() instanceof VException) {
-                    throw x.getCause();
-                }
-                else {
-                    throw new VException(x, fe);
-                }
+        assert selected instanceof One : "Is a CHOICE possible here?";
+        FeatureExpr expCtx = selected.getConfigSpace();
+        Throwable x = selected.getOne();
+        if (x instanceof VException)
+            throw (VException) x;
+        else if (x instanceof ExceptionInInitializerError) {
+            // exceptions thrown inside clinit are converted to ExceptionInInitializerError internally in JVM
+            System.err.println("Error in <clinit>, re-execution likely to be affected");
+            if (x.getCause() instanceof VException) {
+                throw (VException) x.getCause();
             }
-            else
-                throw new VException(x, fe);
-        });
+            else {
+                throw new VException(x, expCtx);
+            }
+        }
+        else
+            throw new VException(x, expCtx);
     }
 
+    public static FeatureExpr updateCurrentContextFromGlobal(FeatureExpr ctx) {
+        return ctx.and(VERuntime.postponedExceptionContext().not());
+    }
     /**
      * Not really used anymore.
      *
@@ -999,7 +1005,13 @@ public class VOps {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
         if (VERuntime.curBlockCount() > Settings.maxBlockCount()) {
-            throw new VException(new Error("Max block exceeded, potential infinite loop"), ctx);
+            if (VERuntime.shouldPostpone(ctx)) {
+                VERuntime.postponeExceptionCtx(ctx);
+            }
+            else {
+                VERuntime.throwExceptionCtx(ctx);
+                throw new VException(new Error("Max block exceeded, potential infinite loop"), ctx);
+            }
         }
     }
 
@@ -1077,18 +1089,5 @@ public class VOps {
                 }
             }
         });
-    }
-}
-
-class FEWrapper {
-    private FeatureExpr fe;
-    FEWrapper(FeatureExpr init) {
-        fe = init;
-    }
-    void update(FeatureExpr e) {
-        fe = e;
-    }
-    FeatureExpr get() {
-        return fe;
     }
 }

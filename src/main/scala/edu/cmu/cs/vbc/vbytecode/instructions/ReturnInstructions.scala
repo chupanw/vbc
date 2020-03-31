@@ -24,7 +24,7 @@ case class InstrRETURN() extends ReturnInstruction {
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     if (env.method.isInit)
-      mv.visitInsn(RETURN)  //cpwtodo: handle exceptions in <init>
+      mv.visitInsn(RETURN)
     else {
       mv.visitVarInsn(ALOAD, env.getVarIdx(env.exceptionVar))
       mv.visitInsn(ARETURN)
@@ -103,8 +103,16 @@ case class InstrATHROW() extends Instruction {
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     import edu.cmu.cs.vbc.utils.LiftUtils._
     loadCurrentCtx(mv, env, block)
-    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("extractThrowable"), MethodDesc(s"($vclasstype$fexprclasstype)Ljava/lang/Throwable;"), false)
-    mv.visitInsn(ATHROW)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("extractThrowableAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype)$vclasstype"), false)
+
+    /** If not thrown, we update current block context before it gets propagated */
+    updateBlockCtxIfNotThrowingException(mv, env, block)
+    /** If this is the last VBlock, we need to insert a return instr to avoid the GOTO we add when transforming block structure */
+    if (env.getNextVBlock(env.getVBlock(block)).isEmpty) {
+      if (env.method.isInit) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
+    } else {
+      mv.visitInsn(POP)
+    }
   }
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = {
     env.setLift(this)

@@ -127,6 +127,12 @@ object LiftUtils {
   def loadV(mv: MethodVisitor, env: MethodEnv, v: Variable) =
     mv.visitVarInsn(ALOAD, env.getVarIdx(v))
 
+  def updateBlockCtxIfNotThrowingException(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("updateCurrentContextFromGlobal"), MethodDesc(s"($fexprclasstype)$fexprclasstype"), false) // insert this call into INVOKEDYNAMIC
+    mv.visitVarInsn(ASTORE, env.getBlockVarVIdx(block))
+  }
+
   /**
     * precondition: plain reference on top of stack
     * postcondition: V reference on top of stack

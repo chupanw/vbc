@@ -31,6 +31,18 @@ trait BinOpInstruction extends Instruction {
   override def doBacktrack(env: VMethodEnv): Unit = {
     env.setTag(this, env.TAG_NEED_V)
   }
+
+  def updateStackAndSetLift(s: VBCFrame, env: VMethodEnv): UpdatedFrame = {
+    env.setLift(this)
+    val (v1, prev1, frame1) = s.pop()
+    val (v2, prev2, frame2) = frame1.pop()
+    val newFrame = frame2.push(V_TYPE(false), Set(this))
+    val backtrack: Set[Instruction] =
+      if (v1 == V_TYPE(false) && v2 != V_TYPE(false)) prev2
+      else if (v2 == V_TYPE(false) && v1 != V_TYPE(false)) prev1
+      else Set()
+    (newFrame, backtrack)
+  }
 }
 
 trait BinOpNonIntInstruction extends Instruction {
@@ -51,6 +63,23 @@ trait BinOpNonIntInstruction extends Instruction {
       else {
         frame2.push(retType, Set(this))
       }
+    val backtrack: Set[Instruction] =
+      if (!v1.isInstanceOf[V_TYPE] && v2.isInstanceOf[V_TYPE]) prev1
+      else if (!v2.isInstanceOf[V_TYPE] && v1.isInstanceOf[V_TYPE]) prev2
+      else Set()
+    (newFrame, backtrack)
+  }
+
+  def updateStackWithReturnTypeAndSetLift(s: VBCFrame, env: VMethodEnv, retType: VBCType): UpdatedFrame = {
+    val retVType: VBCType = retType match {
+      case _: LONG_TYPE => V_TYPE(true)
+      case _: DOUBLE_TYPE => V_TYPE(true)
+      case _ => V_TYPE(false)
+    }
+    env.setLift(this)
+    val (v1, prev1, frame1) = s.pop()
+    val (v2, prev2, frame2) = frame1.pop()
+    val newFrame = frame2.push(retVType, Set(this))
     val backtrack: Set[Instruction] =
       if (!v1.isInstanceOf[V_TYPE] && v2.isInstanceOf[V_TYPE]) prev1
       else if (!v2.isInstanceOf[V_TYPE] && v1.isInstanceOf[V_TYPE]) prev2
@@ -135,17 +164,13 @@ case class InstrIDIV() extends BinOpInstruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this)) {
-      loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IDIV", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
-    } else {
-      mv.visitInsn(IDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) {
-        int2Integer(mv)
-        callVCreateOne(mv, loadCurrentCtx(_, env, block))
-      }
-    }
+    /** For easier exception handling, we lift all IDIV instructions. */
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, vopsclassname, "IDIV", s"(Ledu/cmu/cs/varex/V;Ledu/cmu/cs/varex/V;$fexprclasstype)Ledu/cmu/cs/varex/V;", false)
+    updateBlockCtxIfNotThrowingException(mv, env, block)
   }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = updateStackAndSetLift(s, env)
 }
 
 /**
@@ -515,18 +540,13 @@ case class InstrIUSHR() extends BinOpInstruction {
 case class InstrIREM() extends BinOpInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(IREM)
 
-  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit =
-    if (env.shouldLiftInstr(this)) {
-      loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("irem"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
-    }
-    else {
-      mv.visitInsn(IREM)
-      if (env.getTag(this, env.TAG_NEED_V)) {
-        int2Integer(mv)
-        callVCreateOne(mv, loadCurrentCtx(_, env, block))
-      }
-    }
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("irem"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
+    updateBlockCtxIfNotThrowingException(mv, env, block)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackAndSetLift(s, env)
 }
 
 /** Boolean XOR int
@@ -686,26 +706,18 @@ case class InstrLDIV() extends BinOpNonIntInstruction {
     mv.visitInsn(LDIV)
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this)) {
-      loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(
-        INVOKESTATIC,
-        Owner.getVOps,
-        "ldiv",
-        MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
-        false
-      )
-    }
-    else {
-      mv.visitInsn(LDIV)
-      if (env.getTag(this, env.TAG_NEED_V)) {
-        long2Long(mv)
-        callVCreateOne(mv, loadCurrentCtx(_, env, block))
-      }
-    }
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(
+      INVOKESTATIC,
+      Owner.getVOps,
+      "ldiv",
+      MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"),
+      false
+    )
+    updateBlockCtxIfNotThrowingException(mv, env, block)
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnTypeAndSetLift(s, env, LONG_TYPE())
 }
 
 
@@ -994,19 +1006,12 @@ case class InstrLREM() extends BinOpNonIntInstruction {
   override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(LREM)
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (env.shouldLiftInstr(this)) {
-      loadCurrentCtx(mv, env, block)
-      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lrem", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
-    } else {
-      mv.visitInsn(LREM)
-      if (env.getTag(this, env.TAG_NEED_V)) {
-        long2Long(mv)
-        callVCreateOne(mv, loadCurrentCtx(_, env, block))
-      }
-    }
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, "lrem", s"($vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    updateBlockCtxIfNotThrowingException(mv, env, block)
   }
 
-  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnType(s, env, LONG_TYPE())
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackWithReturnTypeAndSetLift(s, env, LONG_TYPE())
 }
 
 /**

@@ -78,10 +78,16 @@ trait MethodInstruction extends Instruction {
         }
         if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
           callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
-        //cpwtodo: when calling RETURN, there might be a V<Exception> on stack, but for now just ignore it.
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }
     }
+  }
+
+  def preMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+  }
+
+  def postMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    updateBlockCtxIfNotThrowingException(mv, env, block)
   }
 
   def shouldTransformReturnType(liftedCall: LiftedCall): Boolean = {
@@ -556,6 +562,7 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
     * @param block Current block
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    preMethod(mv, env, block)
     if (env.shouldLiftInstr(this)) {
       invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     } else {
@@ -567,11 +574,11 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
         // e.g. passing V<Integer> into String constructor
         loadCurrentCtx(mv, env, block)
         invokeInitWithVs(liftedCall, itf, mv, env)
+        postMethod(mv, env, block)
         return // avoid redundant One wrapping in the end.
       } else if (name.contentEquals("<init>") && liftedCall.isLifting && hasVArgs) {
         pushNulls(mv, desc)
         mv.visitMethodInsn(INVOKESPECIAL, liftedCall.owner, liftedCall.name, liftedCall.desc, itf)
-        //cpwtodo: handle exceptions in <init>
       } else if (!liftedCall.isLifting && hasVArgs) {
         loadCurrentCtx(mv, env, block)
         invokeOnNonV(owner, name, desc, itf, mv, env, block)
@@ -583,7 +590,6 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
         if (shouldTransformReturnType(liftedCall)) {
           boxReturnValue(liftedCall.desc, mv)
         }
-        //cpwtodo: for now, ignore the exceptions on stack
         if (!name.contentEquals("<init>") && liftedCall.isLifting && desc.isReturnVoid)
           mv.visitInsn(POP)
       }
@@ -591,6 +597,7 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
       if (env.getTag(this, env.TAG_WRAP_DUPLICATE) || env.getTag(this, env.TAG_NEED_V))
         callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
     }
+    postMethod(mv, env, block)
   }
 
   def invokeInitWithVs(liftedCall: LiftedCall,
@@ -724,7 +731,7 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
     * @param block Current block
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-
+    preMethod(mv, env, block)
     if (env.shouldLiftInstr(this)) {
       invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     } else {
@@ -746,10 +753,10 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
           }
           callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
         }
-        // cpwtodo: for now, just pop the returned exceptions.
         if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
       }
     }
+    postMethod(mv, env, block)
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame =
@@ -772,6 +779,7 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    preMethod(mv, env, block)
     val hasVArgs   = env.getTag(this, env.TAG_HAS_VARG)
     val liftedCall = liftCall(owner, name, desc)
 
@@ -785,9 +793,9 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
         boxReturnValue(liftedCall.desc, mv)
         callVCreateOne(mv, (m) => loadCurrentCtx(m, env, block))
       }
-      //cpwtodo: for now, ignore exceptions on stack
       if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
     }
+    postMethod(mv, env, block)
   }
 
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame =
@@ -844,6 +852,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
     * Should be the same as INVOKEVIRTUAL
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    preMethod(mv, env, block)
     if (env.shouldLiftInstr(this)) {
       val lifted = liftCall(owner, name, desc)
       if (lifted.owner == Owner("model/java/lang/Comparable") && lifted.name == MethodName(
@@ -877,6 +886,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
         if (liftedCall.isLifting && desc.isReturnVoid) mv.visitInsn(POP)
       }
     }
+    postMethod(mv, env, block)
   }
 }
 
@@ -896,6 +906,13 @@ case class InstrINVOKEDYNAMIC(name: MethodName,
     mv.visitInvokeDynamicInsn(name, desc.toModels, bsm, bsmArgs: _*)
   }
 
+  def preMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+  }
+
+  def postMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    updateBlockCtxIfNotThrowingException(mv, env, block)
+  }
+
   /**
     * Lifting INVOKEDYNAMIC means we need to explode V arguments
     *
@@ -912,6 +929,7 @@ case class InstrINVOKEDYNAMIC(name: MethodName,
     *     (Ljava/lang/Integer;Ljava/lang/Integer;)I [asm.Type]
     */
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    preMethod(mv, env, block)
     if (!env.shouldLiftInstr(this)) {
       // we are lifting the interface all arguments on the stack should be Vs
       // 1. rename method name according to parameter types and return type
@@ -998,6 +1016,7 @@ case class InstrINVOKEDYNAMIC(name: MethodName,
         }
       }
     }
+    postMethod(mv, env, block)
   }
 
   def toModelBsmArgs(bsmArgs: Array[Object]): Array[Object] = {
