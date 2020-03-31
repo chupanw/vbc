@@ -3,9 +3,8 @@ package edu.cmu.cs.vbc
 import java.lang.reflect.{Method, Modifier}
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.varex.{MTBDDVImpl, V, VImpl}
+import edu.cmu.cs.varex.V
 import edu.cmu.cs.vbc.config.{Settings, VERuntime}
-import edu.cmu.cs.vbc.utils.Statistics
 
 /**
   * @author chupanw
@@ -27,10 +26,13 @@ object Launcher extends App {
   println(s"TIME: ${(end - start) / 1000}s")
 }
 
-
 object VBCLauncher extends RelaunchExceptionHandler {
-  def launch(classname: String, liftBytecode: Boolean = true, configFile: String, args: Array[String] = new Array[String](0)) {
-    val loader: VBCClassLoader = new VBCClassLoader(this.getClass.getClassLoader, liftBytecode, configFile = Some(configFile))
+  def launch(classname: String,
+             liftBytecode: Boolean = true,
+             configFile: String,
+             args: Array[String] = new Array[String](0)) {
+    val loader: VBCClassLoader =
+      new VBCClassLoader(this.getClass.getClassLoader, liftBytecode, configFile = Some(configFile))
     VERuntime.classloader = Some(loader)
     Thread.currentThread().setContextClassLoader(loader)
     val cls: Class[_] = loader.loadClass(classname)
@@ -41,24 +43,27 @@ object VBCLauncher extends RelaunchExceptionHandler {
 
   def invokeLiftedMain(cls: Class[_], args: Array[String]): Unit = {
     try {
-      val mtd: Method = cls.getMethod("main__Array_Ljava_lang_String__V", classOf[V[_]], classOf[FeatureExpr])
+      val mtd: Method =
+        cls.getMethod("main__Array_Ljava_lang_String__V", classOf[V[_]], classOf[FeatureExpr])
       val modifiers = mtd.getModifiers
       if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers))
         executeOnce(None, mtd, Array(processArgs(args)), FeatureExprFactory.True)
     } catch {
-      case _: NoSuchMethodException => println(s"No lifted main method found in ${cls.getName}, aborting...")
+      case _: NoSuchMethodException =>
+        println(s"No lifted main method found in ${cls.getName}, aborting...")
       case e => e.printStackTrace()
     }
   }
 
   def invokeUnliftedMain(cls: Class[_], args: Array[String]): Unit = {
     try {
-      val m = cls.getMethod("main", classOf[Array[String]])
+      val m         = cls.getMethod("main", classOf[Array[String]])
       val modifiers = m.getModifiers
       if (Modifier.isPublic(modifiers) && Modifier.isStatic(modifiers) && m.getReturnType.getName == "void")
         m.invoke(null, args)
     } catch {
-      case _: NoSuchMethodException => println(s"No unlifted main method found in ${cls.getName}, aborting")
+      case _: NoSuchMethodException =>
+        println(s"No unlifted main method found in ${cls.getName}, aborting")
       case e => e.printStackTrace()
     }
   }
