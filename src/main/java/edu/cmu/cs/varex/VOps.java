@@ -2,9 +2,9 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
+import edu.cmu.cs.vbc.VException;
 import edu.cmu.cs.vbc.config.Settings;
 import edu.cmu.cs.vbc.config.VERuntime;
-import edu.cmu.cs.vbc.VException;
 import edu.cmu.cs.vbc.vbytecode.Owner;
 import model.java.lang.StringBuilder;
 import org.apache.commons.beanutils.BeanUtilsBean;
@@ -588,12 +588,10 @@ public class VOps {
 
     /**
      * Used in our try-catch to detect conditional exceptions.
-     *
+     * <p>
      * If a conditional exception is detected, we wrap it into a VException with its context and throw it.
-     *
-     * @cpwTODO: remove the redundant mCtx parameter (why is it redundant?)
      */
-    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx, FeatureExpr mCtx) {
+    public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx) {
         V<? extends Throwable> selected = vT.select(ctx);
         assert selected instanceof One : "Is a CHOICE possible here?";
         FeatureExpr expCtx = selected.getConfigSpace();

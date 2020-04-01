@@ -33,7 +33,7 @@ import org.objectweb.asm._
   *
   * @author chupanw
   */
-object InvokeDynamicUtils {
+object InvokeDynamicUtils { // cpwTODO: also update contexts when using invokedynamic in lambda calls
 
   val biFuncType = "Ljava/util/function/BiFunction;"
   val biConsumerType = "Ljava/util/function/BiConsumer;"
@@ -239,8 +239,7 @@ object InvokeDynamicUtils {
           callVCreateOne(mv, m => m.visitVarInsn(ALOAD, nArg))
           mv.visitInsn(DUP)
           mv.visitVarInsn(ALOAD, nArg)
-          mv.visitVarInsn(ALOAD, nArg)
-          mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype$fexprclasstype)V"), false)
+          mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkAndThrow"), MethodDesc(s"($vclasstype$fexprclasstype)V"), false)
           if (MethodDesc(lambdaDesc).isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
         }
         mv.visitMaxs(10, 10)
