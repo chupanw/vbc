@@ -1007,6 +1007,7 @@ public class VOps {
         if (VERuntime.curBlockCount() > Settings.maxBlockCount()) {
             if (VERuntime.shouldPostpone(ctx)) {
                 VERuntime.postponeExceptionCtx(ctx);
+                VERuntime.resetBlockCount();
             }
             else {
                 VERuntime.throwExceptionCtx(ctx);

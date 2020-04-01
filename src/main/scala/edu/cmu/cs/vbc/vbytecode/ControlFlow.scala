@@ -202,6 +202,7 @@ case class Block(instr: Seq[Instruction], exceptionHandlers: Seq[VBCHandler], ex
     if (Settings.blockCounting) {
       loadFExpr(mv, env, env.getVBlockVar(this))
       mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkBlockCount"), MethodDesc(s"($fexprclasstype)V"), false)
+      updateBlockCtxIfNotThrowingException(mv, env, this)
     }
   }
 

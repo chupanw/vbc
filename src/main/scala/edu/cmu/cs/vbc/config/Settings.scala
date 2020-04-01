@@ -15,6 +15,8 @@ object Settings {
   private val config = ConfigFactory.load("reference.conf")
   private val logger = LoggerFactory.getLogger("genprog")
 
+  val fastMode: Boolean = config.getBoolean("fastMode")
+
   val logTrace: Boolean                 = config.getBoolean("logging.logTrace")
   val detectComplexLoop: Boolean        = config.getBoolean("misc.detectComplexLoop")
   val printContext: Boolean             = config.getBoolean("printing.printContext")
@@ -49,6 +51,7 @@ object Settings {
     val message = s"""**********************************************************************
                      |*                              Settings                              *
                      |**********************************************************************
+                     |fastMode: $fastMode
                      |maxInteractionDegree: $maxInteractionDegree
                      |maxBlockCount: $maxBlockCount
                      |earlyFail: $earlyFail
@@ -94,9 +97,12 @@ object VERuntime {
   private val formattedMaxBlock = numFormatter.format(Settings.maxBlockCount)
   def incrementBlockCount(): Unit = {
     curBlockCount += 1
-    if (curBlockCount % 100000000 == 0)
+    if (curBlockCount % (Settings.maxBlockCount / 10) == 0)
       println(
         s"#Blocks executed: ${numFormatter.format(curBlockCount)} out of max $formattedMaxBlock")
+  }
+  def resetBlockCount(): Unit = {
+    curBlockCount = 0
   }
 
   /**
