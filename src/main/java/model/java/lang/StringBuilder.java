@@ -33,6 +33,7 @@ public class StringBuilder implements Appendable {
         vActual = vCapacity.smap(ctx, c -> new java.lang.StringBuilder(c.intValue()));
     }
 
+    // perf: very slow for extensive string manipulation such as introclass digits
     public V<?> append__Ljava_lang_String__Lmodel_java_lang_StringBuilder(V<? extends String> vS, FeatureExpr ctx) {
         vActual = vActual.sflatMap(ctx, (fe, sb) -> {
             if (vS instanceof One)
