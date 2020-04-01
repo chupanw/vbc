@@ -1,10 +1,8 @@
 package edu.cmu.cs.vbc.testutils
 
-import java.io.{BufferedWriter, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 
-import de.fosd.typechef.featureexpr.bdd.{BDDFeatureExpr, FExprBuilder}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.{One, V}
 import edu.cmu.cs.vbc.VException
@@ -12,8 +10,6 @@ import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
-
-import scala.collection.mutable
 
 /**
   * JUnit 4 support:
@@ -170,34 +166,57 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   def isAbstract: Boolean = Modifier.isAbstract(c.getModifiers)
 
   // todo: rewrite the filtering part
-  def runTests(): Unit = {
+  def runTests(): Boolean = {
     val allTests = getOrderedTestCases
-    if (allTests.isEmpty) { VTestStat.skipClass(className); return }
+    if (allTests.isEmpty) {
+      VTestStat.skipClass(className); return true
+    }
     if (isAbstract) {
       VTestStat.skipClass(className)
-      return
+      return true
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
     allTests.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
-    if (!isParameterized)
+    if (Settings.fastMode) {
+      val incompleteSolutionsFound = runTestsWithMode(allTests, isFastMode = true, shouldAbort = !overallSolutionsFound())
+      if (incompleteSolutionsFound) {
+        println("-------------------- Fast Mode Results --------------------")
+        return incompleteSolutionsFound
+      }
+      else {
+        println("-------------------- fast mode failed, going back to complete mode --------------------")
+      }
+    }
+    runTestsWithMode(allTests, isFastMode = false, shouldAbort = shouldAbortCompleteMode())
+  }
+
+  def runTestsWithMode(allTests: List[Method], isFastMode: Boolean, shouldAbort: => Boolean): Boolean = {
+    if (!isParameterized) {
       for (x <- allTests if !isSkipped(x)) {
-        executeOnce(None, x, FeatureExprFactory.True, FeatureExprFactory.False)
+        executeOnce(None,
+          x,
+          FeatureExprFactory.True,
+          FeatureExprFactory.False,
+          isFastMode = isFastMode)
         writeBDD(c.getName, x.getName)
-        checkAbort()
-      } else
+        if (shouldAbort) return false
+      }
+    } else {
       for (x <- getParameters;
            y <- allTests if !isSkipped(y)) {
         executeOnce(Some(x.asInstanceOf[Array[V[_]]]),
-                    y,
-                    FeatureExprFactory.True,
-                    FeatureExprFactory.False)
+          y,
+          FeatureExprFactory.True,
+          FeatureExprFactory.False,
+          isFastMode = isFastMode)
         writeBDD(c.getName, y.getName)
-        checkAbort()
+        if (shouldAbort) return false
       }
-
+    }
+    overallSolutionsFound()
   }
 
-  def checkAbort(): Unit = {
+  def shouldAbortCompleteMode(): Boolean = {
     if (Settings.earlyFail) {
       val fe = VTestStat.getOverallPassingCond
       if (!fe.isSatisfiable()) {
@@ -207,14 +226,20 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
         System.exit(-1)
       }
     }
+    false
+  }
+
+  def overallSolutionsFound(): Boolean = {
+    VTestStat.getOverallPassingCond.isSatisfiable()
   }
 
   def executeOnce(
-      params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
-      x: Method, // test case to be executed
-      context: FeatureExpr, // current context
-      exploredContext: FeatureExpr // used to filter examined contexts
-  ): Unit = {
+                   params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
+                   x: Method, // test case to be executed
+                   context: FeatureExpr, // current context
+                   exploredContext: FeatureExpr, // used to filter examined contexts
+                   isFastMode: Boolean
+                 ): Unit = {
     if (context.isContradiction()) return
     System.out.println(
       s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
@@ -229,8 +254,9 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       val succeedingContext = VERuntime.getExploredContext(context)
       VTestStat.succeed(className, x.getName, succeedingContext)
       val exploredSoFar = succeedingContext.or(exploredContext)
-      val nextContext   = exploredSoFar.not()
-      if (nextContext.isSatisfiable()) executeOnce(params, x, nextContext, exploredSoFar)
+      val nextContext = exploredSoFar.not()
+      if (!isFastMode && nextContext.isSatisfiable())
+        executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
@@ -243,15 +269,17 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
               VTestStat.succeed(className, x.getName, t.ctx)
             }
             val exploredSoFar = t.ctx.or(exploredContext)
-            val nextContext   = exploredSoFar.not()
-            if (nextContext.isSatisfiable()) executeOnce(params, x, nextContext, exploredSoFar)
+            val nextContext = exploredSoFar.not()
+            if (!isFastMode && nextContext.isSatisfiable())
+              executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
           case t =>
             if (!verifyException(t, x, FeatureExprFactory.True, context))
               throw new RuntimeException("Something wrong, not a VException", t)
         }
       }
       case e =>
-        throw new RuntimeException(s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
+        throw new RuntimeException(
+          s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
     }
   }
 
