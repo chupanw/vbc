@@ -47,5 +47,5 @@ case class VException(e: Throwable, ctx: FeatureExpr) extends RuntimeException {
   override def toString: String =
     s"[VException ${if (Settings.printContext) ctx else "hidden context..."}]: " + e.toString + "\n" + getTracesAsString
   def getTracesAsString: String =
-    e.getStackTrace.toList mkString ("[VException]\t", "\n[VException]\t", "\n")
+    e.getStackTrace.toList.take(20) mkString("[VException]\t", "\n[VException]\t", "\n")
 }
