@@ -145,7 +145,33 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
   override def updateStack(s: VBCFrame, env: VMethodEnv): UpdatedFrame = (s, Set())
 }
 
+case class InstrINIT_FIELD_TO_ONE() extends Instruction {
+
+  import InstrINIT_CONDITIONAL_FIELDS._
+
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = {}
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val isStatic = env.method.name == "___clinit___"
+    if (isStatic) {
+      env.clazz.fields.filter(_.isStatic).foreach(f => {
+        createOne(f, mv, env, block)
+        mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+      })
+    } else {
+      env.clazz.fields.filterNot(_.isStatic).foreach(f => {
+        mv.visitVarInsn(ALOAD, 0)
+        createOne(f, mv, env, block)
+        mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
+      })
+    }
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = (s, Set())
+}
+
 case object InstrINIT_CONDITIONAL_FIELDS {
+
   import LiftUtils._
 
   def createChoice(fName: String, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {

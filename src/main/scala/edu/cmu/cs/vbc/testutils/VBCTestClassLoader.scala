@@ -6,15 +6,16 @@ import java.net.{URL, URLClassLoader}
 
 import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.utils.MyClassWriter
-import edu.cmu.cs.vbc.vbytecode.VBCClassNode
+import edu.cmu.cs.vbc.vbytecode.{VBCClassNode, VBCMethodNode}
 import org.objectweb.asm.{ClassReader, ClassWriter}
 
 class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
                          testClasspath: String,
+                         rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                          config: Option[String] = Some("intro-class.conf"),
-                         useModel: Boolean,
-                         reuseLifted: Boolean = false) extends VBCClassLoader(parentClassLoader = parent, configFile = config, useModel = useModel, reuseLifted = reuseLifted) {
+                         useModel: Boolean = false,
+                         reuseLifted: Boolean = false) extends VBCClassLoader(parentClassLoader = parent, rewriter = rewriter, configFile = config, useModel = useModel, reuseLifted = reuseLifted) {
 
   require(mainClasspath.endsWith(".jar") || mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
   require(testClasspath.endsWith(".jar") || testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")

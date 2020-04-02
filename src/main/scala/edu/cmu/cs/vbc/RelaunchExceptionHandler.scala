@@ -2,9 +2,8 @@ package edu.cmu.cs.vbc
 
 import java.lang.reflect.{InvocationTargetException, Method}
 
-import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import de.fosd.typechef.featureexpr.FeatureExpr
 import edu.cmu.cs.vbc.config.{Settings, VERuntime}
-import edu.cmu.cs.vbc.config.VERuntime
 
 trait RelaunchExceptionHandler {
 
@@ -14,7 +13,7 @@ trait RelaunchExceptionHandler {
                   context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(context, context)
+    VERuntime.init(x, context, context)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)

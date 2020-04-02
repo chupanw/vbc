@@ -178,19 +178,22 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     require(checkAnnotations, s"Unsupported annotation in $c")
     allTests.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
     if (Settings.fastMode) {
-      val incompleteSolutionsFound = runTestsWithMode(allTests, isFastMode = true, shouldAbort = !overallSolutionsFound())
+      val incompleteSolutionsFound =
+        runTestsWithMode(allTests, isFastMode = true, shouldAbort = !overallSolutionsFound())
       if (incompleteSolutionsFound) {
         println("-------------------- Fast Mode Results --------------------")
         return incompleteSolutionsFound
-      }
-      else {
-        println("-------------------- fast mode failed, going back to complete mode --------------------")
+      } else {
+        println(
+          "-------------------- fast mode failed, going back to complete mode --------------------")
       }
     }
     runTestsWithMode(allTests, isFastMode = false, shouldAbort = shouldAbortCompleteMode())
   }
 
-  def runTestsWithMode(allTests: List[Method], isFastMode: Boolean, shouldAbort: => Boolean): Boolean = {
+  def runTestsWithMode(allTests: List[Method],
+                       isFastMode: Boolean,
+                       shouldAbort: => Boolean): Boolean = {
     if (!isParameterized) {
       for (x <- allTests if !isSkipped(x)) {
         executeOnce(None,
@@ -233,6 +236,39 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     VTestStat.getOverallPassingCond.isSatisfiable()
   }
 
+  def countBlockForAllTests(): Unit = {
+    val allTests = getOrderedTestCases
+    if (!isParameterized) {
+      for (t <- allTests if !isSkipped(t)) {
+        countBlockForTest(None, t)
+      }
+    } else {
+      for (p <- getParameters;
+           t <- allTests if !isSkipped(t)) {
+        countBlockForTest(Some(p.asInstanceOf[Array[V[_]]]), t)
+      }
+    }
+  }
+
+  def countBlockForTest(params: Option[Array[V[_]]], x: Method): Unit = {
+    val context = FeatureExprFactory.True
+    try {
+      println(s"[INFO] Counting blocks for $className.${x.getName}")
+      val testObject = createObject(params, context)
+      before.map(_.invoke(testObject, context))
+      x.invoke(testObject, context)
+      after.map(_.invoke(testObject, context))
+      System.gc()
+    } catch {
+      case e: InvocationTargetException => e.getCause match {
+        case ve: VException => if (!verifyException(ve.e, x)) println(ve.e.toString)
+        case _ => e.printStackTrace()
+      }
+      case e: Throwable => e.printStackTrace()
+    }
+    VERuntime.putMaxBlockForTest(x)
+  }
+
   def executeOnce(
                    params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
                    x: Method, // test case to be executed
@@ -241,10 +277,8 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
                    isFastMode: Boolean
                  ): Unit = {
     if (context.isContradiction()) return
-    System.out.println(
-      s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
-      else "[hidden context]"}")
-    VERuntime.init(context, context)
+    println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context else "[hidden context]"}")
+    VERuntime.init(x, context, context)
     val testObject = createObject(params, context)
     try {
       before.map(_.invoke(testObject, context))
@@ -261,7 +295,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
-            if (!verifyException(t.e, x, t.ctx, context)) {
+            if (!verifyException(t.e, x)) {
               // unexpected exceptions occurred
               VTestStat.fail(className, x.getName)
               println(t)
@@ -273,7 +307,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
             if (!isFastMode && nextContext.isSatisfiable())
               executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
           case t =>
-            if (!verifyException(t, x, FeatureExprFactory.True, context))
+            if (!verifyException(t, x))
               throw new RuntimeException("Something wrong, not a VException", t)
         }
       }
@@ -288,16 +322,13 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
 
   /**
     * Verify if the caught exception is expected by the test case
-    * @param t  the Throwable
-    * @param m  test case method
-    * @param expCtx exception context
-    * @param context  current execution context
+    *
+    * @param t the Throwable
+    * @param m test case method
     * @return true if it is expected
     */
   def verifyException(t: Throwable,
-                      m: Method,
-                      expCtx: FeatureExpr,
-                      context: FeatureExpr): Boolean = {
+                      m: Method): Boolean = {
     if (isJUnit3) false
     else {
       val annotation = m.getAnnotation(classOf[org.junit.Test])

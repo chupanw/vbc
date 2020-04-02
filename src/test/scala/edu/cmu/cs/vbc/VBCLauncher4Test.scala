@@ -15,7 +15,7 @@ trait RelaunchExceptionHandler4Test {
                   context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(context, context)
+    VERuntime.init(x, context, context)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
