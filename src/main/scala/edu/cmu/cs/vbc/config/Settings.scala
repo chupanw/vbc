@@ -105,14 +105,14 @@ object VERuntime {
 
   def incrementBlockCount(): Unit = {
     curBlockCount += 1
-    if (entryMethod != null && curBlockCount % (getMaxBlockCount / 10) == 0) {
-      println(s"#Blocks executed: ${numFormatter.format(curBlockCount)} out of max ${numFormatter.format(getMaxBlockCount)}")
-    }
   }
 
   def getBlockCount: Long = curBlockCount
 
-  def resetBlockCount(): Unit = curBlockCount = 0
+  def resetBlockCount(): Unit = {
+    curBlockCount = 0
+    println("Resetting block count")
+  }
 
   def genMethodKey(m: Method): String = m.getDeclaringClass.getCanonicalName + "#" + m.getName + "(" + m.getParameters.map(x => x.getName + ":" + x.getType.getCanonicalName).mkString("_") + ")"
 
