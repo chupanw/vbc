@@ -184,6 +184,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
         println("-------------------- Fast Mode Results --------------------")
         return incompleteSolutionsFound
       } else {
+        VTestStat.clear() // old incomplete results of test 4 might break complete results of test 1, 2, 3
         println(
           "-------------------- fast mode failed, going back to complete mode --------------------")
       }
