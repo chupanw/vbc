@@ -1,13 +1,8 @@
 scalaVersion := "2.13.1"
 
-//libraryDependencies += "org.ow2.asm" % "asm" % "5.0.4"
-
-//libraryDependencies += "de.fosd.typechef" % "featureexprlib_2.11" % "0.4.1"
-
-//libraryDependencies += "de.fosd.typechef" % "conditionallib_2.11" % "0.4.1"
-
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.0"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.0" % "test"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.1"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % "test"
+libraryDependencies += "com.vladsch.flexmark" % "flexmark-all" % "0.35.10" % "test"
 
 resolvers += "Sonatype OSS Snapshots" at
   "https://oss.sonatype.org/content/repositories/releases"

@@ -38,8 +38,8 @@ trait BinOpInstruction extends Instruction {
     val (v2, prev2, frame2) = frame1.pop()
     val newFrame = frame2.push(V_TYPE(false), Set(this))
     val backtrack: Set[Instruction] =
-      if (v1 == V_TYPE(false) && v2 != V_TYPE(false)) prev2
-      else if (v2 == V_TYPE(false) && v1 != V_TYPE(false)) prev1
+      if ((env.shouldLiftInstr(this) || v1 == V_TYPE(false)) && v2 != V_TYPE(false)) prev2
+      else if ((env.shouldLiftInstr(this) || v2 == V_TYPE(false)) && v1 != V_TYPE(false)) prev1
       else Set()
     (newFrame, backtrack)
   }
@@ -81,8 +81,8 @@ trait BinOpNonIntInstruction extends Instruction {
     val (v2, prev2, frame2) = frame1.pop()
     val newFrame = frame2.push(retVType, Set(this))
     val backtrack: Set[Instruction] =
-      if (!v1.isInstanceOf[V_TYPE] && v2.isInstanceOf[V_TYPE]) prev1
-      else if (!v2.isInstanceOf[V_TYPE] && v1.isInstanceOf[V_TYPE]) prev2
+      if (!v1.isInstanceOf[V_TYPE] && (env.shouldLiftInstr(this) || v2.isInstanceOf[V_TYPE])) prev1
+      else if (!v2.isInstanceOf[V_TYPE] && (env.shouldLiftInstr(this) || v1.isInstanceOf[V_TYPE])) prev2
       else Set()
     (newFrame, backtrack)
   }

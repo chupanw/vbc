@@ -67,10 +67,6 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
     testMain(classOf[InitExample])
   }
 
-  test("Exceptions") {
-    testMain(classOf[ExceptionExample], compareTraceAgainstBruteForce = false)
-  }
-
   test("StringBuilderExample") {
     testMain(classOf[StringBuilderExample])
   }

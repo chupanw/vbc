@@ -1,7 +1,12 @@
 package edu.cmu.cs.vbc
 
 //import de.fosd.typechef.conditional.{ConditionalLib, Opt}
+
+import java.io.PrintWriter
+
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.util.TraceClassVisitor
 //import edu.cmu.cs.vbc.TestOutput.TOpt
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
@@ -21,7 +26,7 @@ trait DiffMethodTestInfrastructure {
 
   case class TestClass(m: VBCMethodNode) {
     private def createClass(testmethod: VBCMethodNode): VBCClassNode = {
-      val constr = new VBCMethodNode(
+      val constr = VBCMethodNode(
         ACC_PUBLIC,
         "<init>",
         "()V",
@@ -32,21 +37,21 @@ trait DiffMethodTestInfrastructure {
             Block(
               InstrALOAD(new Parameter(0, "this", TypeDesc("LTest;"))),
               InstrINVOKESPECIAL(Owner("java/lang/Object"),
-                                 MethodName("<init>"),
-                                 MethodDesc("()V"),
-                                 false),
+                MethodName("<init>"),
+                MethodDesc("()V"),
+                false),
               InstrRETURN()
             )
           ))
       )
-      new VBCClassNode(V1_8,
-                       ACC_PUBLIC,
-                       "Test",
-                       None,
-                       "java/lang/Object",
-                       Nil,
-                       Nil,
-                       List(constr, testmethod))
+      VBCClassNode(V1_8,
+        ACC_PUBLIC,
+        "Test",
+        None,
+        "java/lang/Object",
+        Nil,
+        Nil,
+        List(constr, testmethod))
 
     }
 
@@ -81,21 +86,21 @@ trait DiffMethodTestInfrastructure {
     clazz.toVByteCode(vcw)
     val vbyte = vcw.toByteArray
 
-//    val printer = new TraceClassVisitor(new PrintWriter(System.out))
-//    println(
-//      """
-//        |  ----------------
-//        | | Lifted version |
-//        |  ----------------
-//      """.stripMargin)
-//    new ClassReader(vbyte).accept(printer, 0)
+    val printer = new TraceClassVisitor(new PrintWriter(System.out))
+    println(
+      """
+        |  ----------------
+        | | Lifted version |
+        |  ----------------
+      """.stripMargin)
+    new ClassReader(vbyte).accept(printer, 0)
     val myVClassLoader = new MyClassLoader
     myVClassLoader.defineClass("Test", vbyte)
   }
 
   def testMethod(m: VBCMethodNode, compareBruteForce: Boolean = true): Unit = {
 
-    val clazz = new TestClass(m)
+    val clazz = TestClass(m)
 
     val configOptions: Set[String] = getConfigOptions(m)
 
