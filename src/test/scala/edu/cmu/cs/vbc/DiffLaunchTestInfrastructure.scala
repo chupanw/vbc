@@ -153,22 +153,23 @@ trait DiffLaunchTestInfrastructure {
                        runBenchmark: Boolean = true,
                        fm: (Map[String, Boolean]) => Boolean = _ => true,
                        configFile: Option[String] = None,
-                       useModel: Boolean = false)(main: MethodVisitor => Unit): Unit = {
+                       useModel: Boolean = false,
+                       processTrace: List[(FeatureExpr, String)] => List[(FeatureExpr, String)] = x => x)(main: MethodVisitor => Unit): Unit = {
     import org.objectweb.asm.Opcodes._
     val cw = new ClassWriter(0)
     cw.visit(V1_8, ACC_PUBLIC, testClassName, null, "java/lang/Object", Array.empty)
     val mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC,
-                            "main",
-                            "([Ljava/lang/String;)V",
-                            "([Ljava/lang/String;)V",
-                            Array.empty)
+      "main",
+      "([Ljava/lang/String;)V",
+      "([Ljava/lang/String;)V",
+      Array.empty)
     mv.visitCode()
     main(mv)
     mv.visitMaxs(10, 10) // big enough numbers, will be re-computed by ASM later
     mv.visitEnd()
     cw.visitEnd()
 
-    testMainBase(compareTraceAgainstBruteForce, runBenchmark, fm, configFile, useModel) { loader =>
+    testMainBase(compareTraceAgainstBruteForce, runBenchmark, fm, configFile, useModel, processTrace) { loader =>
       loader.loadClassFromBytes(testClassName, cw.toByteArray)
     }
   }
@@ -178,26 +179,28 @@ trait DiffLaunchTestInfrastructure {
                runBenchmark: Boolean = true,
                fm: (Map[String, Boolean]) => Boolean = _ => true,
                configFile: Option[String] = None,
-               useModel: Boolean = false): Unit = {
-    testMainBase(compareTraceAgainstBruteForce, runBenchmark, fm, configFile, useModel) { loader =>
+               useModel: Boolean = false,
+               processTrace: List[(FeatureExpr, String)] => List[(FeatureExpr, String)] = x => x): Unit = {
+    testMainBase(compareTraceAgainstBruteForce, runBenchmark, fm, configFile, useModel, processTrace) { loader =>
       loader.loadClass(clazz.getName)
     }
   }
 
   private def testMainBase(
-      compareTraceAgainstBruteForce: Boolean = true,
-      runBenchmark: Boolean = true,
-      fm: (Map[String, Boolean]) => Boolean = _ => true,
-      configFile: Option[String] = None,
-      useModel: Boolean = false)(loadClassWith: VBCClassLoader => Class[_]): Unit = {
+                            compareTraceAgainstBruteForce: Boolean = true,
+                            runBenchmark: Boolean = true,
+                            fm: (Map[String, Boolean]) => Boolean = _ => true,
+                            configFile: Option[String] = None,
+                            useModel: Boolean = false,
+                            processTrace: List[(FeatureExpr, String)] => List[(FeatureExpr, String)] = x => x)(loadClassWith: VBCClassLoader => Class[_]): Unit = {
     println("Warning: please make sure conditional fields are not initialized! Otherwise brute-force comparison would fail")
     //test uninstrumented variational execution to see whether it crashes
     val origClassLoader = this.getClass.getClassLoader
     val testCrashLoader: VBCClassLoader = new VBCClassLoader(origClassLoader,
-                                                             true,
-                                                             avoidOutput,
-                                                             configFile = configFile,
-                                                             useModel = useModel)
+      true,
+      avoidOutput,
+      configFile = configFile,
+      useModel = useModel)
     changeClassLoader(testCrashLoader)
     val testCrash = loadClassWith(testCrashLoader)
     VBCLauncher4Test.invokeLiftedMain(testCrash, new Array[String](0))
@@ -241,7 +244,7 @@ trait DiffLaunchTestInfrastructure {
         val ctx = genConfig(sel, desel)
         val selectedVTrace = sortedVTraces.find(p => ctx.implies(p._1).isTautology()).get._2
         val filteredvtrace = selectedVTrace.filter(_._1.evaluate(sel.toSet))
-        compareTraces(sel, atrace.map(_._2).reverse, filteredvtrace.map(_._2).reverse)
+        compareTraces(sel, processTrace(atrace).map(_._2).reverse, processTrace(filteredvtrace).map(_._2).reverse)
       }
     }
 

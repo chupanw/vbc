@@ -19,35 +19,37 @@ import java.io.File;
 public class RunNumberKeeper {
 
     @VConditional
-    public static boolean USE_LOG4J_MONITOR = false;
+    public static boolean USE_LOG4J_MONITOR;
     @VConditional
-    public static boolean USE_NULL_MONITOR = false;
+    public static boolean USE_NULL_MONITOR;
     @VConditional
-    public static boolean USE_BROKEN_CLOCK = false;
+    public static boolean USE_BROKEN_CLOCK;
     @VConditional
-    public static boolean USE_PAUSABLE_CLOCK = false;
+    public static boolean USE_PAUSABLE_CLOCK;
     @VConditional // TODO not working for tutorialTest()
-    public static boolean USE_XSTREAM = false;
-	@VConditional
-    public static boolean USE_TRANSIENT_MODE = false;
+    public static boolean USE_XSTREAM;
     @VConditional
-    public static boolean USE_JOURNAL_DISK_SYNC = false;
+    public static boolean USE_TRANSIENT_MODE;
     @VConditional
-    public static boolean FILE_AGE_THREASHOLD = false;
+    public static boolean USE_JOURNAL_DISK_SYNC;
+    @VConditional
+    public static boolean FILE_AGE_THREASHOLD;
     @VConditional // TODO not working
-    static boolean FILE_SIZE_THREASHOLD = false;
-//    @VConditional // NOTE: not working even unlifted
-    static boolean USE_XSTREAM_JOURNAL = false;
-//    @VConditional // TODO not working
-    static boolean USE_FILTERING = false;
+    public static boolean FILE_SIZE_THREASHOLD;
+    //    @VConditional // NOTE: not working even unlifted
+    public static boolean USE_XSTREAM_JOURNAL;
+    //    @VConditional // TODO not working
+    public static boolean USE_FILTERING;
     private static String NUMBER_KEEPER = "NumberKeeper";
 
     public static void main(String[] args) {
-        RunNumberKeeper run = new RunNumberKeeper();
-        try {
-            run.runNumberKeeper();
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (isValid()) {
+            RunNumberKeeper run = new RunNumberKeeper();
+            try {
+                run.runNumberKeeper();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -74,11 +76,11 @@ public class RunNumberKeeper {
 
         System.out.println("Run the first time");
         primeCalculator.start();
-        System.out.println(prevayler.clock().time());
+//        System.out.println(prevayler.clock().time());
         System.out.println();
         System.out.println("Run the second time");
         primeCalculator.start();
-        System.out.println(prevayler.clock().time());
+//        System.out.println(prevayler.clock().time());
     }
 
     private String clearTempFolder(String folderName) {
@@ -170,5 +172,9 @@ public class RunNumberKeeper {
                 }
             }
         }
+    }
+
+    public static boolean isValid() {
+        return !(USE_BROKEN_CLOCK && USE_PAUSABLE_CLOCK);
     }
 }
