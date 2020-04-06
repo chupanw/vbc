@@ -96,7 +96,7 @@ class SmallExampleTest extends FunSuite with DiffLaunchTestInfrastructure {
     * See [[edu.cmu.cs.vbc.utils.MyClassWriter.computeCommonSuperClass()]] for more detail
     */
   test("VBlockAnalysisTest") {
-    testMain(classOf[VBlockAnalysisTest], compareTraceAgainstBruteForce = false, runBenchmark = false)
+    testMain(classOf[VBlockAnalysisTest])
   }
 
   test("HashMapExample") {
