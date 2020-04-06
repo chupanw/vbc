@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc.utils
 import java.io._
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.vbytecode.{MethodDesc, MethodName, Owner, TypeDesc}
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
@@ -250,8 +251,12 @@ class MyClassWriter(flag: Int, loader: ClassLoader) extends ClassWriter(flag) {
 
   def computeCommonSuperClass(cs1: String, cs2: String): String = {
     try {
-      var c = Class.forName(cs1.replace('/', '.'), false, loader)
-      val d = Class.forName(cs2.replace('/', '.'), false, loader)
+      val l = loader match {
+        case vl: VBCClassLoader => if (vl.isLift) vl else this.getClass.getClassLoader
+        case other => other
+      }
+      var c = Class.forName(cs1.replace('/', '.'), false, l)
+      val d = Class.forName(cs2.replace('/', '.'), false, l)
       if (c.isAssignableFrom(d)) {
         return cs1
       }

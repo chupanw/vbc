@@ -23,7 +23,7 @@ import scala.collection.mutable
   * by default no rewriting is performed
   */
 class VBCClassLoader(parentClassLoader: ClassLoader,
-                     isLift: Boolean = true,
+                     val isLift: Boolean = true,
                      rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                      toFileDebugging: Boolean = true,
                      configFile: Option[String] = None,
