@@ -209,7 +209,9 @@ object Rewrite {
                 Block(
                   List(
                     InstrDUP(),
-                    InstrLDC(x.exceptionType),
+                    // null is possible when finally or synchronized is used, which means catching all possible exceptions
+                    // (see JVM Spec SE 8 Chap. 3.13)
+                    InstrLDC(if (x.exceptionType == null) "java/lang/Throwable" else x.exceptionType),
                     InstrINVOKESTATIC(
                       Owner.getVOps,
                       MethodName("isTypeOf"),

@@ -196,7 +196,7 @@ trait VBlockAnalysis extends CFGAnalysis {
         //  blocks are in the same vblock anyway.
         // 3. Third filter excludes the same vblock
         val predVBlockIdxs = pred.filter(_ != block).filter(!isExceptionHandlerBlockOf(_, block)).map(vblockId).filter(_ != thisVBlockIdx)
-        // condition 1: the first block must be the start of a VBlock todo: add test case
+        // condition 1: the first block must be the start of a VBlock
         // condition 2: all predecessors must come from the same VBlock
         // condition 3: must be in different VBlocks so that they can be merged
         if (thisBlockIdx != 0 && predVBlockIdxs.size == 1 && predVBlockIdxs.head != thisVBlockIdx) {
@@ -257,7 +257,10 @@ trait VBlockAnalysis extends CFGAnalysis {
 
     val succ: Set[Block] = getSuccessors(block)
 
+    val jumpToHeadOfSameVBlock: Boolean = succ.exists(x => isVBlockHead(x) && getVBlock(x) == currentVBlock)
+
     assert(currentVBlock.allBlocks.size == 1 ||
+      jumpToHeadOfSameVBlock || // if one of the edges goes to the head of the current VBlock, the other edge can be either the same or different VBlock
       succ.filter(_ != block).forall(currentVBlock.allBlocks contains _) ||
       succ.filter(_ != block).forall(s => !(currentVBlock.allBlocks contains s)),
       "either all or none of the successors should be in the current VBlock")
