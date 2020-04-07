@@ -130,7 +130,7 @@ public class QueryPlan {
 			index.build();
 			stop = System.currentTimeMillis();
 			building = stop-start;
-			System.out.println(index.getName()+ " build "+ Double.toString(stop - start));
+//			System.out.println(index.getName()+ " build "+ Double.toString(stop - start));
 			
 			if(QUERY_TYPES[EXACT_MATCH_QUERY]){
 				//perform exact match queries with points in data store
@@ -140,13 +140,13 @@ public class QueryPlan {
 					tid = index.search(queries[query]);
 					result.exact(query, tid);
 					if(Features.VERBOSE)
-						if(query%10000==0)
-							System.out.print(query+":"+tid+" ");
+						if (query % 10000 == 0)
+							System.out.println(query + ":" + tid + " ");
 				}
 				stop = System.currentTimeMillis();
 				exactmatch = (stop - start);
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " exact match "+Double.toString(stop-start));
+//				System.out.println(index.getName()+ " exact match "+Double.toString(stop-start));
 			}
 			
 			if(QUERY_TYPES[KNN_QUERY]){
@@ -156,13 +156,13 @@ public class QueryPlan {
 				for(int query=0;query<TIDQueryPointsInStore.length;query++){
 					resultTIDs = index.searchKNN(queries[query], k);
 					result.knn(query, resultTIDs);
-					if(Features.VERBOSE)
-						if(query%10000==0)
-							System.out.print(query+":"+resultTIDs+" ");
+					if (Features.VERBOSE)
+						if (query % 10000 == 0 && resultTIDs != null)
+							System.out.println(query + ":" + resultTIDs.toString() + " ");
 				}
 				stop = System.currentTimeMillis();
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " KNN_QUERY "+Double.toString(stop-start));
+//				System.out.println(index.getName()+ " KNN_QUERY "+Double.toString(stop-start));
 			}
 			/*
 			if(QUERY_TYPES[EPSILON_NN_QUERY]){
@@ -189,20 +189,20 @@ public class QueryPlan {
 					resultTIDs = index.windowQuery(lowerBound[query], upperBound[query]);
 					//result.knn(query, resultTIDs); TODO
 					if(Features.VERBOSE)
-						if(query%10000==0){
+						if(query%10000==0) {
 							Collections.sort(resultTIDs, new Comparator<Integer>() {
 								@Override
 								public int compare(Integer o1, Integer o2) {
 									return o1 - o2;
 								}
 							});
-							System.out.print(query+":"+resultTIDs+" ");
+							System.out.println(query + ":" + resultTIDs.toString() + " ");
 						}
 				}
 				stop = System.currentTimeMillis();
 				range = stop-start;
 				result.exact(stop-start);
-				System.out.println(index.getName()+ " RANGE_QUERY "+Double.toString(stop-start));
+//				System.out.println(index.getName()+ " RANGE_QUERY "+Double.toString(stop-start));
 			}
 		}
 	}

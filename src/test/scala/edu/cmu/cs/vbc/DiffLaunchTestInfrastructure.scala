@@ -225,15 +225,16 @@ trait DiffLaunchTestInfrastructure {
 
     if (compareTraceAgainstBruteForce) {
       val loader: VBCClassLoader = new VBCClassLoader(origClassLoader,
-                                                      false,
-                                                      instrumentMethod,
-                                                      toFileDebugging = false,
-                                                      configFile = configFile,
-                                                      useModel = useModel)
+        false,
+        instrumentMethod,
+        toFileDebugging = false,
+        configFile = configFile,
+        useModel = useModel)
       changeClassLoader(loader)
       val cls = loadClassWith(loader)
       //run against brute force instrumented execution and compare traces
-      for ((sel, desel) <- explode(usedOptions.toList) if fm(configToMap((sel, desel)))) {
+      val configs = if (usedOptions.toList.size < 20) explode(usedOptions.toList) else selectOptRandomly(usedOptions.toList, 1000000)
+      for ((sel, desel) <- configs if fm(configToMap((sel, desel)))) {
         println("executing config [" + sel.mkString(", ") + "]")
         TestTraceOutput.trace = Nil
         TraceConfig.config = configToMap((sel, desel))

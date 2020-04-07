@@ -78,72 +78,72 @@ public class Configuration {
 
 	// query plans
 	@VConditional
-	public static boolean EXACT_MATCH_QUERY = false;
+	public static boolean EXACT_MATCH_QUERY;
 	@VConditional
-	public static boolean KNN_QUERY = false;
+	public static boolean KNN_QUERY;
 	@VConditional
-	public static boolean EPSILON_NN_QUERY = false;
+	public static boolean EPSILON_NN_QUERY;
 	@VConditional
-	public static boolean RANGE_QUERY = true;
+	public static boolean RANGE_QUERY;
 
 	// index types
 	@VConditional
-	public static boolean Dwarf = false;
+	public static boolean Dwarf;
 	@VConditional
-	public static boolean Dwarf_Linearized_Small = false;
+	public static boolean Dwarf_Linearized_Small;
 	@VConditional
-	public static boolean MyKDTree = false;
+	public static boolean MyKDTree;
 	@VConditional
-	public static boolean SeqScan = false;
+	public static boolean SeqScan;
 	@VConditional
-	public static boolean RVariant = false;
+	public static boolean RVariant;
 	@VConditional
-	public static boolean GiSTII = false;
+	public static boolean GiSTII;
 	@VConditional
-	public static boolean VA_SSA = true;
+	public static boolean VA_SSA;
 
 	// select implied abstract features for variability-aware
 	@VConditional
-	public static boolean InsertHeuristics = false;
+	public static boolean InsertHeuristics;
 	@VConditional
-	public static boolean splitAlgos = true;
+	public static boolean splitAlgos;
 	@VConditional
-	public static boolean SplitSize = false;
+	public static boolean SplitSize;
 
 	// split algorithmen 4 Rtree
 	@VConditional
-	public static boolean RStarSplit = true;
+	public static boolean RStarSplit;
 	@VConditional
-	public static boolean LinearSplit = false;
+	public static boolean LinearSplit;
 	@VConditional
-	public static boolean QuadraticCostAlgorithm = false;
+	public static boolean QuadraticCostAlgorithm;
 	@VConditional
-	public static boolean StupidSplitAlgo = false;
+	public static boolean StupidSplitAlgo;
 
 	// Insert Heuristics 4 Rtree
 	@VConditional
-	public static boolean GuttmanInsert = false;
+	public static boolean GuttmanInsert;
 	@VConditional
-	public static boolean RStartInsert = false;
+	public static boolean RStartInsert;
 
 	// Split Size for Rtree
 	@VConditional
-	public static boolean SS11 = false;
+	public static boolean SS11;
 	@VConditional
-	public static boolean SS17 = false;
-	
+	public static boolean SS17;
+
 	@VConditional
-	public static boolean EucleadeanSqrd = false;
+	public static boolean EucleadeanSqrd;
 	@VConditional
-	public static boolean Manhatten = false;
-	
+	public static boolean Manhatten;
+
 	// bit per dimension 4 VAFile
 	@VConditional
-	public static boolean BPD4 = true;
+	public static boolean BPD4;
 	@VConditional
-	public static boolean BPD6 = false;
+	public static boolean BPD6;
 	@VConditional
-	public static boolean BPD7 = false;
+	public static boolean BPD7;
 	
 	
 }

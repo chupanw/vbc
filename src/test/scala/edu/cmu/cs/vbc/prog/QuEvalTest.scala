@@ -10,11 +10,11 @@ import org.scalatest.FunSuite
 class QuEvalTest extends FunSuite with DiffLaunchTestInfrastructure {
   FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
   test("QuEval") {
-    testMain(classOf[queval.queval.MainClass], fm = fm, configFile = Some("queval.conf"), compareTraceAgainstBruteForce = false)  // too many options
+    testMain(classOf[queval.queval.MainClass], fm = fm, configFile = Some("queval.conf"))
   }
 
   def fm(config: Map[String, Boolean]): Boolean = {
     for ((n, v) <- config) classOf[queval.queval.Configuration].getField(n).set(null, v)
-    queval.queval.Configuration.valid()
+    queval.queval.Configuration.validWithoutExceptions()
   }
 }

@@ -50,12 +50,14 @@ public class MainClass {
 //				Configuration.initFeatures(args);
 //
 //			}
+			new MainClass();
+			new Configuration();
 
 			if (!Configuration.validWithoutExceptions()) {
 				// VarexC do not support variational exceptions
 //				throw new RuntimeException("Something with feature selection went wrong!");
 				System.out.println("Wrong config...");
-                return;
+				return;
 			}
 
 			initStaticFields();
@@ -70,7 +72,7 @@ public class MainClass {
 //				return;
 //			}
 
-			new MainClass();
+			run();
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -79,7 +81,7 @@ public class MainClass {
 		} finally {
 		}
 		long end = System.nanoTime();
-		System.out.println("TIME: " + ((end - start) / 1000000) + "ms");
+//		System.out.println("TIME: " + ((end - start) / 1000000) + "ms");
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -116,10 +118,6 @@ public class MainClass {
 	//
 //	 @VConditional
 	 static boolean MDIM = true;
-
-	public MainClass() {
-		run();
-	}
 
 	public static void run() {
 		System.out.println("RUN");
