@@ -90,7 +90,7 @@ public class QueryPlan {
 		
 		int[][] lowerBound = null, upperBound = null;
 		if(QUERY_TYPES[RANGE_QUERY]){
-			long seed = 123456;
+//			long seed = 123456;
 			
 			upperBound = new int[TIDQueryPointsInStore.length][STORE.NUM_DIM];
 			lowerBound = new int[TIDQueryPointsInStore.length][STORE.NUM_DIM];

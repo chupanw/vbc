@@ -34,9 +34,6 @@ jobs:
       - name: Run other small unit tests
         run: sbt "testOnly edu.cmu.cs.vbc.analysis.*Test edu.cmu.cs.vbc.utils.*Test edu.cmu.cs.vbc.vbytecode.*Test"
 
-      - name: Run small examples
-        run: sbt "testOnly edu.cmu.cs.vbc.prog.SmallExampleTest"
-
   example_small:
     name: test with small examples
     runs-on: ubuntu-latest
@@ -58,6 +55,9 @@ jobs:
 
       - name: Run GPL
         run: sbt "testOnly edu.cmu.cs.vbc.prog.GPLTest"
+
+      - name: Run small examples
+        run: sbt "testOnly edu.cmu.cs.vbc.prog.SmallExampleTest"
 
   example_medium:
     name: test with medium examples
