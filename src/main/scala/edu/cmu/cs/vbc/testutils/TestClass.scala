@@ -166,10 +166,11 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   def isAbstract: Boolean = Modifier.isAbstract(c.getModifiers)
 
   // todo: rewrite the filtering part
-  def runTests(): Boolean = {
+  def runTests(isFastMode: Boolean = false): Boolean = {
     val allTests = getOrderedTestCases
     if (allTests.isEmpty) {
-      VTestStat.skipClass(className); return true
+      VTestStat.skipClass(className);
+      return true
     }
     if (isAbstract) {
       VTestStat.skipClass(className)
@@ -177,19 +178,11 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
     allTests.filter(isSkipped).foreach(m => VTestStat.skip(className, m.getName))
-    if (Settings.fastMode) {
-      val incompleteSolutionsFound =
-        runTestsWithMode(allTests, isFastMode = true, shouldAbort = !overallSolutionsFound())
-      if (incompleteSolutionsFound) {
-        println("-------------------- Fast Mode Results --------------------")
-        return incompleteSolutionsFound
-      } else {
-        VTestStat.clear() // old incomplete results of test 4 might break complete results of test 1, 2, 3
-        println(
-          "-------------------- fast mode failed, going back to complete mode --------------------")
-      }
+    if (isFastMode) {
+      runTestsWithMode(allTests, isFastMode = true, shouldAbort = !overallSolutionsFound())
+    } else {
+      runTestsWithMode(allTests, isFastMode = false, shouldAbort = shouldAbortCompleteMode())
     }
-    runTestsWithMode(allTests, isFastMode = false, shouldAbort = shouldAbortCompleteMode())
   }
 
   def runTestsWithMode(allTests: List[Method],

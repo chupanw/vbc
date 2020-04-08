@@ -7,6 +7,7 @@ import edu.cmu.cs.vbc.vbytecode.instructions.{InstrINIT_CONDITIONAL_FIELDS, Inst
 import edu.cmu.cs.vbc.vbytecode.{Block, CFG, VBCClassNode, VBCMethodNode}
 
 import scala.io.Source._
+import scala.util.control.Breaks._
 
 /**
   * Launch JUnit test cases
@@ -55,10 +56,29 @@ abstract class TestLauncher {
       config = Some(configFile),
       reuseLifted = false)
     setClassLoader(testLoader)
+    if (Settings.fastMode) {
+      breakable {
+        for (x <- testClasses) {
+          val failing = failingTests.filter(f => f.className == x).map(_.testName)
+          val testClass = new TestClass(testLoader.loadClass(x), failing)
+          val hasSolutionSoFar = testClass.runTests(isFastMode = true)
+          if (!hasSolutionSoFar) break
+        }
+      }
+      println("-------------------- Fast Mode Results --------------------")
+      VTestStat.printToConsole()
+      if (VTestStat.getOverallPassingCond.isSatisfiable()) return
+      else {
+        println(
+          "-------------------- fast mode failed, going back to complete mode --------------------")
+        VTestStat.clear()
+      }
+    }
+
     testClasses.foreach { x =>
       val failing = failingTests.filter(f => f.className == x).map(_.testName)
       val testClass = new TestClass(testLoader.loadClass(x), failing)
-      testClass.runTests()
+      testClass.runTests(isFastMode = false)
     }
 
     if (Settings.printTestResults) VTestStat.printToConsole()
