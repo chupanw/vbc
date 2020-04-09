@@ -192,6 +192,9 @@ object MathPatchRunner extends App with PatchRunner {
     s"""
        |javaVM = /usr/bin/java
        |popsize = ${ScriptConfig.popSize}
+       |editMode = pre_compute
+       |generations = 50
+       |regenPaths = true
        |seed = ${seed}
        |classTestFolder = target/test-classes
        |workingDir = ${projects4GenProg}${project}
@@ -208,10 +211,9 @@ object MathPatchRunner extends App with PatchRunner {
        |testGranularity = method
        |targetClassName = ${projects4GenProg}${project}targetClasses.txt
        |sourceVersion=1.8
-       |generations=1
+       |sample=0.1
        |compileCommand=python3 ${projects4GenProg}${project}compile.py
-       |edits=append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
-       |debug=true
+       |edits=append;delete;replace;
        |
        |""".stripMargin
 
