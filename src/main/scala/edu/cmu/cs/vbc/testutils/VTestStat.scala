@@ -80,9 +80,11 @@ object VTestStat {
   def printAllSolutions(fe: FeatureExpr): Unit = {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     hasOverallSolution = hasLDSolution
-    if (hasLDSolution)
-      printlnAndLog(s"All test cases can pass if: ${V.getAllLowDegreeSolutions(fe)}")
-    else
+    if (hasLDSolution) {
+      val allLowDegreeSolutions = V.getAllLowDegreeSolutions(fe)
+      val nSolutions = allLowDegreeSolutions.count(c => c == ',') + 1
+      printlnAndLog(s"All test cases can pass if any of the $nSolutions is met: $allLowDegreeSolutions")
+    } else
       printlnAndLog(
         s"To pass all test cases, no solution within ${Settings.maxInteractionDegree} mutations")
   }
