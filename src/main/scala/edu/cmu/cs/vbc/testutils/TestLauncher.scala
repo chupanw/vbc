@@ -1,5 +1,7 @@
 package edu.cmu.cs.vbc.testutils
 
+import java.nio.file.{FileSystems, Path}
+
 import de.fosd.typechef.featureexpr.FeatureExprFactory
 import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.config.{Settings, VERuntime}
@@ -17,49 +19,41 @@ import scala.util.control.Breaks._
 abstract class TestLauncher {
 
   val configFile: String
+  val useModel: Boolean
+
+  def genProject(args: Array[String]): Project
 
   def main(args: Array[String]): Unit = {
     Settings.printSettings()
-    assume(args.length == 2, s"Wrong number of arguments: ${args.length}")
-    assume(args(0).endsWith("/"), s"Not a folder: ${args(0)}")
-
-    val repository = args(0)
-    val version = args(1)
-    val (testClasses, failingTests) = parseRelevantTests(
-      args(0) + "RelevantTests/" + version + ".txt")
-
     FeatureExprFactory.setDefault(FeatureExprFactory.bdd)
-
-    // turn this two into parameters
-    val testClasspath = s"$repository$version/target/test-classes/"
-    val mainClasspath = s"$repository$version/target/classes/"
+    val p: Project = genProject(args)
 
     if (Settings.enablePerTestBlockCount) {
       val blockCountTestLoader = new VBCTestClassLoader(this.getClass.getClassLoader,
-        mainClasspath,
-        testClasspath,
+        p.mainClassPath,
+        p.testClassPath,
         rewriter = replaceInitConditional,
         useModel = false,
         config = Some(configFile),
         reuseLifted = false)
       setClassLoader(blockCountTestLoader)
-      testClasses.foreach { x =>
+      p.testClasses.foreach { x =>
         new TestClass(blockCountTestLoader.loadClass(x)).countBlockForAllTests()
       }
       VTestStat.clear()
     }
 
     val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader,
-      mainClasspath,
-      testClasspath,
+      p.mainClassPath,
+      p.testClassPath,
       useModel = false,
       config = Some(configFile),
       reuseLifted = false)
     setClassLoader(testLoader)
     if (Settings.fastMode) {
       breakable {
-        for (x <- testClasses) {
-          val failing = failingTests.filter(f => f.className == x).map(_.testName)
+        for (x <- p.testClasses) {
+          val failing = p.failingTests.filter(f => f.className == x).map(_.testName)
           val testClass = new TestClass(testLoader.loadClass(x), failing)
           val hasSolutionSoFar = testClass.runTests(isFastMode = true)
           if (!hasSolutionSoFar) break
@@ -75,8 +69,8 @@ abstract class TestLauncher {
       }
     }
 
-    testClasses.foreach { x =>
-      val failing = failingTests.filter(f => f.className == x).map(_.testName)
+    p.testClasses.foreach { x =>
+      val failing = p.failingTests.filter(f => f.className == x).map(_.testName)
       val testClass = new TestClass(testLoader.loadClass(x), failing)
       testClass.runTests(isFastMode = false)
     }
@@ -85,26 +79,6 @@ abstract class TestLauncher {
     //  VTestStat.toMarkdown(version, "org.apache.commons.math3.")
   }
 
-  /**
-    * Parse the text file that specifies relevant test cases.
-    *
-    * There can be an optional section at the end of the file that specifies which tests were failing. We prioritize
-    * these tests to save time.
-    *
-    * @param file Full path to the RelevantTests file.
-    *
-    * @return A list of test classes, and optionally a list of previously failing test cases (empty List if not specified)
-    */
-  def parseRelevantTests(file: String): (List[String], List[TestString]) = {
-    val f = fromFile(file)
-    val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
-    val testClasses = validLines.filterNot(_.startsWith("*"))
-    val failingTests =
-      validLines.filter(_.startsWith("*")).map(x => TestString(x.substring(1).trim))
-    // prioritize test classes that have failing tests
-    val orderedTestClasses = (failingTests.map(_.className) ::: testClasses).distinct
-    (orderedTestClasses, failingTests)
-  }
 
   def replaceInitConditional(m: VBCMethodNode, c: VBCClassNode): VBCMethodNode = {
     def processBlock(b: Block): Block = {
@@ -139,10 +113,42 @@ case class TestString(s: String) {
   }
 }
 
-object IntroClassLauncher extends TestLauncher {
-  override val configFile: String = "intro-class.conf"
-}
+abstract class Project(args: Array[String]) {
+  assume(args.length == 2, s"Wrong number of arguments: ${args.length}")
 
-object ApacheMathLauncher extends TestLauncher {
-  override val configFile: String = "apache-math.conf"
+  val project: String = args(0)
+  val version: String = args(1)
+  val testClassPath: String = mkPath(project, version, "target", "test-classes").toFile.getAbsolutePath
+  val mainClassPath: String = mkPath(project, version, "target", "classes").toFile.getAbsolutePath
+
+  val relevantTestFile: String = getRelevantTestFilePath
+  val (testClasses, failingTests) = parseRelevantTests(relevantTestFile)
+
+  def getRelevantTestFilePath: String
+
+  def mkPath(elements: String*): Path = {
+    val fs = FileSystems.getDefault
+    assert(elements.size > 1, "Need at least one element to make a Path")
+    fs.getPath(elements.head, elements.tail: _*)
+  }
+
+  /**
+    * Parse the text file that specifies relevant test cases.
+    *
+    * There can be an optional section at the end of the file that specifies which tests were failing. We prioritize
+    * these tests to save time.
+    *
+    * @param file Full path to the RelevantTests file.
+    * @return A list of test classes, and optionally a list of previously failing test cases (empty List if not specified)
+    */
+  def parseRelevantTests(file: String): (List[String], List[TestString]) = {
+    val f = fromFile(file)
+    val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
+    val testClasses = validLines.filterNot(_.startsWith("*"))
+    val failingTests =
+      validLines.filter(_.startsWith("*")).map(x => TestString(x.substring(1).trim))
+    // prioritize test classes that have failing tests
+    val orderedTestClasses = (failingTests.map(_.className) ::: testClasses).distinct
+    (orderedTestClasses, failingTests)
+  }
 }
