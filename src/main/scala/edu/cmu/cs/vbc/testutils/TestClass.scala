@@ -272,7 +272,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
                  ): Unit = {
     if (context.isContradiction()) return
     println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context else "[hidden context]"}")
-    VERuntime.init(x, context, context)
+    VERuntime.init(x, context, context, isFastMode)
     val testObject = createObject(params, context)
     try {
       before.map(_.invoke(testObject, context))
@@ -281,7 +281,8 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       System.gc()
       val succeedingContext = VERuntime.getExploredContext(context)
       VTestStat.succeed(className, x.getName, succeedingContext)
-      val exploredSoFar = succeedingContext.or(exploredContext)
+      if (VERuntime.skippedExceptionContext.isSatisfiable()) VTestStat.fail(className, x.getName)
+      val exploredSoFar = succeedingContext.or(exploredContext).or(VERuntime.skippedExceptionContext)
       val nextContext = exploredSoFar.not()
       if (!isFastMode && nextContext.isSatisfiable())
         executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
@@ -295,8 +296,9 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
               println(t)
             } else {
               VTestStat.succeed(className, x.getName, t.ctx)
+              if (VERuntime.skippedExceptionContext.isSatisfiable()) VTestStat.fail(className, x.getName)
             }
-            val exploredSoFar = t.ctx.or(exploredContext)
+            val exploredSoFar = t.ctx.or(exploredContext).or(VERuntime.skippedExceptionContext)
             val nextContext = exploredSoFar.not()
             if (!isFastMode && nextContext.isSatisfiable())
               executeOnce(params, x, nextContext, exploredSoFar, isFastMode)

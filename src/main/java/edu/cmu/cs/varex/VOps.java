@@ -529,13 +529,16 @@ public class VOps {
                 One oneValue = ((VImpl) selected).getOneValue();
                 Object v = oneValue.value;  // HashMap VImpl
                 if (v instanceof AssertionError) {
-                    throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace());
+                    throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace()); // cpwTODO: double check this, are they really all AssertionError?
                 } else {
                     throw new VException((Throwable) v, oneValue.getConfigSpace());
                 }
             }
         } else {
-            VERuntime.postponeExceptionCtx(ctx);
+            Throwable t = null;
+            if (selected instanceof One) t = selected.getOne();
+            else t = (Throwable) ((VImpl) selected).getOneValue().value;    // cpwTODO: seems strange, double check this
+            VERuntime.postponeException(t, ctx);
         }
         // ATHROW should be the end of a block anyway (compiler-enforced), so doing nothing should not affect the rest of the execution
         return VEmpty.instance();
@@ -1002,13 +1005,14 @@ public class VOps {
     public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
+        Error e = new Error("Max block exceeded, potential infinite loop");
         if (VERuntime.isBlockCountReached()) {
             if (VERuntime.shouldPostpone(ctx)) {
-                VERuntime.postponeExceptionCtx(ctx);
+                VERuntime.postponeException(e, ctx);
                 VERuntime.resetBlockCount();
             } else {
                 VERuntime.throwExceptionCtx(ctx);
-                throw new VException(new Error("Max block exceeded, potential infinite loop"), ctx);
+                throw new VException(e, ctx);
             }
         }
     }

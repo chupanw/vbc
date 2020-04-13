@@ -52,6 +52,7 @@ public class ExceptionExample {
 //        example.shouldCatchSameMethodWithFinally();
 //        example.shouldCatchInMethodWithFinally();
 //        example.exceptionWithField();
+//        example.testHappyPath();
     }
 
     // in fact we are returning a One(null) to indicate no exception
@@ -248,12 +249,32 @@ public class ExceptionExample {
         System.out.println("no exception");
     }
 
+    public void testHappyPath() {
+        if (A) {
+            if (B) throw new RuntimeException("exception if A & B");
+            else {
+                System.out.println("no exception if A & !B");
+            }
+        }
+        if (A)
+            throw new RuntimeException("exception if A");
+    }
+
     //////////////////////////////////////////////////
     // Helper methods
     //////////////////////////////////////////////////
-    private void throwArithmeticException() { throw new ArithmeticException("/ by zero"); }
-    private void throwArrayIndexOutOfBoundsException() { throw new ArrayIndexOutOfBoundsException("-1"); }
-    private void throwIOException() throws IOException { throw new IOException("file not exist"); }
+    private void throwArithmeticException() {
+        throw new ArithmeticException("/ by zero");
+    }
+
+    private void throwArrayIndexOutOfBoundsException() {
+        throw new ArrayIndexOutOfBoundsException("-1");
+    }
+
+    private void throwIOException() throws IOException {
+        throw new IOException("file not exist");
+    }
+
     public void implicitThrow() {
         int a = 10;
         int b = 0;
@@ -262,6 +283,7 @@ public class ExceptionExample {
         else
             b = a / 2;
     }
+
     public void implicitThrow2() {
         int a = 0;
         if (C)

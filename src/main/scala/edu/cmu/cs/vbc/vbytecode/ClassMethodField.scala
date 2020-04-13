@@ -48,7 +48,7 @@ case class VBCMethodNode(access: Int,
         MethodDesc(desc).toVs_AppendFE_AppendArgs
     val mv = cw.visitMethod(
       if (name == "<clinit>") access | ACC_PUBLIC else access,
-      MethodName(name).rename(MethodDesc(desc)).liftCLINIT,
+      MethodName.getLiftedMethodName(name, desc),
       liftedMethodDesc,
       liftMethodSignature(desc, signature).getOrElse(null),
       exceptions.toArray

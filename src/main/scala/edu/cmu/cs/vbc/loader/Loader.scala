@@ -2,7 +2,9 @@ package edu.cmu.cs.vbc.loader
 
 import java.io.InputStream
 
-import edu.cmu.cs.vbc.analysis.MethodChopper
+import edu.cmu.cs.vbc.VBCClassLoader
+import edu.cmu.cs.vbc.config.Settings
+import edu.cmu.cs.vbc.utils.ExceptionHandlerAnalyzer
 import edu.cmu.cs.vbc.vbytecode._
 import edu.cmu.cs.vbc.vbytecode.instructions._
 import org.objectweb.asm.Opcodes._
@@ -120,7 +122,17 @@ class Loader {
     }
   }
 
+  def recordExceptions(className: String, m: MethodNode): Unit = {
+    val exceptions = ExceptionHandlerAnalyzer.analyzeMethodNode(m, shouldExcludeOneThrowable = true)
+    VBCClassLoader.putMightHandle(
+      className.replace('/', '.'),
+      MethodName.getLiftedMethodName(m.name, m.desc),
+      exceptions
+    )
+  }
+
   def adaptMethod(owner: String, m: MethodNode): VBCMethodNode = {
+    if (Settings.enableStackTraceCheck) recordExceptions(owner, m)
     //    println("\tMethod: " + m.name)
     val methodAnalyzer = new MethodCFGAnalyzer(owner, m)
     methodAnalyzer.analyze()

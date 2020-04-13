@@ -15,7 +15,7 @@ trait RelaunchExceptionHandler4Test {
                   context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(x, context, context)
+    VERuntime.init(x, context, context, false)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
@@ -23,8 +23,8 @@ trait RelaunchExceptionHandler4Test {
         x.invoke(null, args :+ context: _*)
       System.gc()
       val succeedingContext = VERuntime.getExploredContext(context)
-      val exploredSoFar     = succeedingContext.or(context.not())
-      val nextContext       = exploredSoFar.not()
+      val exploredSoFar = succeedingContext.or(context.not()).or(VERuntime.skippedExceptionContext)
+      val nextContext = exploredSoFar.not()
       if (nextContext.isSatisfiable()) {
         TestTraceOutput.putRestartMark(nextContext)
         executeOnce(o, x, args, nextContext)
@@ -35,8 +35,8 @@ trait RelaunchExceptionHandler4Test {
           case t: VException =>
             TestTraceOutput.trace ::= (t.ctx, t.e.toString)
             println(t)
-            val exploredSoFar = t.ctx.or(context.not())
-            val nextContext   = exploredSoFar.not()
+            val exploredSoFar = t.ctx.or(context.not()).or(VERuntime.skippedExceptionContext)
+            val nextContext = exploredSoFar.not()
             if (nextContext.isSatisfiable()) {
               TestTraceOutput.putRestartMark(nextContext)
               executeOnce(o, x, args, nextContext)

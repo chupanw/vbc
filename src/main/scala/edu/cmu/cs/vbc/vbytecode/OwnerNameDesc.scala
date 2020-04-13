@@ -114,6 +114,10 @@ case class MethodName(name: String) {
 
 object MethodName {
   implicit def methodNameToString(m: MethodName): String = m.name
+
+  def getLiftedMethodName(name: String, desc: String): String = {
+    MethodName(name).rename(MethodDesc(desc)).liftCLINIT
+  }
 }
 
 /**

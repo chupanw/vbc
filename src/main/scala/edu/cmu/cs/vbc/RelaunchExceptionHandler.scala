@@ -13,7 +13,7 @@ trait RelaunchExceptionHandler {
                   context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(x, context, context)
+    VERuntime.init(x, context, context, false)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
@@ -21,16 +21,16 @@ trait RelaunchExceptionHandler {
         x.invoke(null, args :+ context: _*)
       System.gc()
       val succeedingContext = VERuntime.getExploredContext(context)
-      val exploredSoFar     = succeedingContext.or(context.not())
-      val nextContext       = exploredSoFar.not()
+      val exploredSoFar = succeedingContext.or(context.not()).or(VERuntime.skippedExceptionContext)
+      val nextContext = exploredSoFar.not()
       if (nextContext.isSatisfiable()) executeOnce(o, x, args, nextContext)
     } catch {
       case invokeExp: InvocationTargetException => {
         invokeExp.getCause match {
           case t: VException =>
             println(t)
-            val exploredSoFar = t.ctx.or(context.not())
-            val nextContext   = exploredSoFar.not()
+            val exploredSoFar = t.ctx.or(context.not()).or(VERuntime.skippedExceptionContext)
+            val nextContext = exploredSoFar.not()
             if (nextContext.isSatisfiable()) executeOnce(o, x, args, nextContext)
           case t =>
             throw new RuntimeException("Something is wrong, not a VException", t)

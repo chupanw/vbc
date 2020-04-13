@@ -69,16 +69,20 @@ class ExceptionTest extends AnyFunSuite with DiffLaunchTestInfrastructure {
     method("exceptionWithField")
   }
 
+  test("test happy path") {
+    method("testHappyPath")
+  }
+
   def method(mn: String): Unit = {
     import org.objectweb.asm.Opcodes._
     testStaticMethod("ExceptionTest_" + mn) { mv =>
       mv.visitTypeInsn(NEW, "edu/cmu/cs/vbc/prog/ExceptionExample")
       mv.visitInsn(DUP)
       mv.visitMethodInsn(INVOKESPECIAL,
-                         "edu/cmu/cs/vbc/prog/ExceptionExample",
-                         "<init>",
-                         "()V",
-                         false)
+        "edu/cmu/cs/vbc/prog/ExceptionExample",
+        "<init>",
+        "()V",
+        false)
       mv.visitMethodInsn(INVOKEVIRTUAL, "edu/cmu/cs/vbc/prog/ExceptionExample", mn, "()V", false)
       mv.visitInsn(RETURN)
     }

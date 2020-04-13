@@ -110,7 +110,7 @@ class VImpl<T> implements V<T>, Serializable {
                 throw new VException(t, ctx);
             }
         } else {
-            VERuntime.postponeExceptionCtx(ctx);
+            VERuntime.postponeException(t, ctx);
         }
     }
 
@@ -345,7 +345,7 @@ class VImpl<T> implements V<T>, Serializable {
 
     /**
      * Used in cases where we only need one of the values, such as
-     * {@link VOps#extractThrowable(V, FeatureExpr)}.
+     * {@link VOps#extractThrowableAndThrow(V, FeatureExpr)}}.
      */
     public One<T> getOneValue() {
         T one = values.keySet().iterator().next();

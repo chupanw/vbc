@@ -219,5 +219,44 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
 
 object VBCClassLoader {
   val loadedClasses = mutable.Map[String, Class[_]]()
+
   def clearCache(): Unit = loadedClasses.clear
+
+  private val mightGetHandledExceptions: mutable.Map[String, Set[String]] = mutable.Map()
+
+  private def computeKey(className: String, methodName: String): String =
+    className + "#" + methodName
+
+  def putMightHandle(className: String, methodName: String, exceptions: Set[String]) = {
+    val key = computeKey(className, methodName)
+    val existing = mightGetHandledExceptions.getOrElse(key, Set.empty)
+    mightGetHandledExceptions.put(key, exceptions ++ existing)
+  }
+
+  def getMightHandle(className: String, methodName: String): Set[String] = mightGetHandledExceptions.getOrElse(computeKey(className, methodName), Set())
+
+  def potentialHandler(throwable: Throwable, classloader: ClassLoader): Option[StackTraceElement] = {
+    val throwableClass = Class.forName(throwable.getClass.getName, false, classloader)
+    val stackTrace = throwable.getStackTrace
+    // Ignore our helper methods
+    val traceEnd = stackTrace.lastIndexWhere(_.getClassName.startsWith("edu.cmu.cs.vbc"))
+    val filteredTrace =
+      stackTrace
+        .take(traceEnd)
+        .filterNot(x => x.getClassName.startsWith("edu.cmu.cs") && !x.getClassName.startsWith("edu.cmu.cs.vbc.prog."))
+        .filterNot(x =>
+          x.getMethodName.startsWith("lambda$") || x.getMethodName.startsWith("helper$"))
+
+    filteredTrace.find { t =>
+      val key = computeKey(t.getClassName, t.getMethodName)
+      val value = mightGetHandledExceptions.getOrElseUpdate(
+        key, {
+          assert(!LiftingPolicy.shouldLiftClass(Owner(t.getClassName.replace('.', '/'))),
+            "Should only use ExceptionHandlerAnalyzer for unlifted classes")
+          ExceptionHandlerAnalyzer.analyzeMethod(t.getClassName, t.getMethodName, shouldExcludeOneThrowable = false)
+        }
+      )
+      value.exists(x => Class.forName(x, false, classloader).isAssignableFrom(throwableClass))
+    }
+  }
 }

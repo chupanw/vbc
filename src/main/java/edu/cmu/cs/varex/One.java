@@ -36,7 +36,7 @@ public class One<T> implements V<T>, Serializable {
 
     private <U> V<? extends U> interceptThrowable(Throwable t) {
         if (VERuntime.shouldPostpone(configSpace)) {
-            VERuntime.postponeExceptionCtx(configSpace);
+            VERuntime.postponeException(t, configSpace);
             return VEmpty.instance();
         }
         else {
