@@ -149,15 +149,18 @@ object IntroClassPatchRunner extends App with PatchRunner {
   override def project: String                   = args(3)
   override def launch(args: Array[String]): Unit = IntroClassLauncher.main(args)
 
-  override def compileCMD = ???
+  override def compileCMD = Seq("mvn", "-DskipTests=true", "package")
 
-  go(0)
+  go(1)
 
   def template(project: String, seed: Long) = {
     val mainClass = "introclassJava." + project.init.replace('/', '_')
     s"""
        |javaVM = /usr/bin/java
        |popsize = ${ScriptConfig.popSize}
+       |editMode = pre_compute
+       |generations = 50
+       |regenPaths = true
        |seed = $seed
        |classTestFolder = target/test-classes
        |workingDir = $projects4GenProg$project
@@ -169,13 +172,14 @@ object IntroClassPatchRunner extends App with PatchRunner {
        |positiveTests = ${projects4GenProg}${project}pos.tests
        |negativeTests = ${projects4GenProg}${project}neg.tests
        |jacocoPath = ${genprogPath}lib/jacocoagent.jar
+       |srcClassPath = ${projects4GenProg}${project}target/classes
+       |classSourceFolder = ${projects4GenProg}${project}target/classes
        |testClassPath=${projects4GenProg}${project}target/test-classes/
        |testGranularity = method
        |targetClassName = $mainClass
        |sourceVersion=1.8
-       |generations=1
+       |sample = 0.1
        |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
-       |regenPaths = true
       """.stripMargin
   }
 }
