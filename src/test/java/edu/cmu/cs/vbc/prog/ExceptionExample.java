@@ -53,6 +53,7 @@ public class ExceptionExample {
 //        example.shouldCatchInMethodWithFinally();
 //        example.exceptionWithField();
 //        example.testHappyPath();
+//        example.testMaxBlockCount();
     }
 
     // in fact we are returning a One(null) to indicate no exception
@@ -258,6 +259,29 @@ public class ExceptionExample {
         }
         if (A)
             throw new RuntimeException("exception if A");
+    }
+
+    public void testMaxBlockCount() {
+        if (!A && !B)
+            throw new RuntimeException("exception if !A && !B");
+        else {
+            if (A) {
+                // loop so that we get close to the default max block limit of 10 million
+                int sum = 0;
+                for (int i = 0; i < 4000000; i++) {
+                    sum += i;
+                }
+                System.out.println("no exception if A");
+            }
+            if (B) {
+                int sum = 0;
+                for (int i = 0; i < 1000000; i++) {
+                    sum += i;
+                }
+                System.out.println("no exception if B");
+            }
+            System.out.println("end");
+        }
     }
 
     //////////////////////////////////////////////////
