@@ -2,6 +2,7 @@ package edu.cmu.cs.varex;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
+import edu.cmu.cs.vbc.PotentialInfiniteLoopError;
 import edu.cmu.cs.vbc.VException;
 import edu.cmu.cs.vbc.config.Settings;
 import edu.cmu.cs.vbc.config.VERuntime;
@@ -548,7 +549,7 @@ public class VOps {
         if (ctxOfVException.isContradiction())
             return vT;
         V<? extends Throwable> selected = vT.select(ctx.and(ctxOfVException));
-        assert selected instanceof One : "Should have only one VException"; // cpwTODO: can we generalize this to handle multiple exceptions at a time?
+        assert selected instanceof One : "Should have only one VException";
         VException ve = (VException) selected.getOne();
         for (String s : expSet) {
             try {
@@ -992,7 +993,7 @@ public class VOps {
     public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
-        Error e = new Error("Max block exceeded, potential infinite loop");
+        Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
         if (VERuntime.isBlockCountReached()) {
             if (VERuntime.shouldPostpone(ctx)) {
                 VERuntime.postponeException(e, ctx);

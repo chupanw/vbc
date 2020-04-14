@@ -33,7 +33,7 @@ import org.objectweb.asm._
   *
   * @author chupanw
   */
-object InvokeDynamicUtils { // cpwTODO: also update contexts when using invokedynamic in lambda calls
+object InvokeDynamicUtils {
 
   val biFuncType = "Ljava/util/function/BiFunction;"
   val biConsumerType = "Ljava/util/function/BiConsumer;"
