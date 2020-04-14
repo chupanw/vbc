@@ -158,6 +158,7 @@ object VERuntime {
     this.thrownExceptionContext = FeatureExprFactory.False
     this.skippedExceptionContext = FeatureExprFactory.False
     this.isFastMode = isFastMode
+    this.savedRestart = 0
 
     /** Block counting */
     this.entryMethod = entryMethod
