@@ -71,7 +71,7 @@ trait PatchRunner {
   def step3_RunGenProg(): Unit = {
     val serCache = new File("testcache.ser")
     assert(!serCache.exists() || serCache.delete())
-    val jar = genprogPath + "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
+    val jar = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
     val jvmOps = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
     val retCode = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
@@ -142,7 +142,6 @@ trait PatchRunner {
 }
 
 object IntroClassPatchRunner extends App with PatchRunner {
-  assume(args.forall(x => x.endsWith("/")))
   override def genprogPath: String               = args(0)
   override def projects4GenProg: String          = args(1)
   override def projects4VarexC: String           = args(2)
@@ -163,29 +162,28 @@ object IntroClassPatchRunner extends App with PatchRunner {
        |regenPaths = true
        |seed = $seed
        |classTestFolder = target/test-classes
-       |workingDir = $projects4GenProg$project
-       |outputDir = $projects4GenProg${project}tmp
+       |workingDir = ${mkPathString(projects4GenProg, project)}
+       |outputDir = ${mkPathString(projects4GenProg, project, "tmp")}
        |cleanUpVariants = true
-       |libs=${genprogPath}lib/hamcrest-core-1.3.jar:${genprogPath}lib/junit-4.12.jar:${genprogPath}lib/junittestrunner.jar:${genprogPath}lib/varexc.jar
+       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(genprogPath, "lib", "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:${mkPathString(genprogPath, "lib", "varexc.jar")}
        |sanity = yes
        |sourceDir = src/main/java
-       |positiveTests = ${projects4GenProg}${project}pos.tests
-       |negativeTests = ${projects4GenProg}${project}neg.tests
-       |jacocoPath = ${genprogPath}lib/jacocoagent.jar
-       |srcClassPath = ${projects4GenProg}${project}target/classes
-       |classSourceFolder = ${projects4GenProg}${project}target/classes
-       |testClassPath=${projects4GenProg}${project}target/test-classes/
+       |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
+       |negativeTests = ${mkPathString(projects4GenProg, project, "neg.tests")}
+       |jacocoPath = ${mkPathString(genprogPath, "lib", "jacocoagent.jar")}
+       |srcClassPath = ${mkPathString(projects4GenProg, project, "target", "classes")}
+       |classSourceFolder = ${mkPathString(projects4GenProg, project, "target", "classes")}
+       |testClassPath = ${mkPathString(projects4GenProg, project, "target", "test-classes")}
        |testGranularity = method
        |targetClassName = $mainClass
        |sourceVersion=1.8
        |sample = 0.1
-       |edits = append;delete;replace;expadd;exprem;exprep;boundswitch,5.0;
+       |edits = append;delete;replace;
       """.stripMargin
   }
 }
 
 object MathPatchRunner extends App with PatchRunner {
-  assume(args.forall(x => x.endsWith("/")))
   override def genprogPath: String               = args(0)
   override def projects4GenProg: String          = args(1)
   override def projects4VarexC: String           = args(2)
@@ -201,22 +199,22 @@ object MathPatchRunner extends App with PatchRunner {
        |regenPaths = true
        |seed = ${seed}
        |classTestFolder = target/test-classes
-       |workingDir = ${projects4GenProg}${project}
-       |outputDir = ${projects4GenProg}${project}tmp
-       |libs=${genprogPath}lib/hamcrest-core-1.3.jar:${genprogPath}lib/junit-4.12.jar:${genprogPath}lib/junittestrunner.jar:
+       |workingDir = ${mkPathString(projects4GenProg, project)}
+       |outputDir = ${mkPathString(projects4GenProg, project, "tmp")}
+       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(genprogPath, "lib", "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:
        |sanity = yes
        |sourceDir = src/main/java
-       |positiveTests = ${projects4GenProg}${project}pos.tests
-       |negativeTests = ${projects4GenProg}${project}neg.tests
-       |jacocoPath = ${genprogPath}lib/jacocoagent.jar
-       |srcClassPath = ${projects4GenProg}${project}target/classes
-       |classSourceFolder = ${projects4GenProg}${project}target/classes
-       |testClassPath= ${projects4GenProg}${project}target/test-classes
+       |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
+       |negativeTests = ${mkPathString(projects4GenProg, project, "neg.tests")}
+       |jacocoPath = ${mkPathString(genprogPath, "lib", "jacocoagent.jar")}
+       |srcClassPath = ${mkPathString(projects4GenProg, project, "target", "classes")}
+       |classSourceFolder = ${mkPathString(projects4GenProg, project, "target", "classes")}
+       |testClassPath= ${mkPathString(projects4GenProg, project, "target", "test-classes")}
        |testGranularity = method
-       |targetClassName = ${projects4GenProg}${project}targetClasses.txt
+       |targetClassName = ${mkPathString(projects4GenProg, project, "targetClasses.txt")}
        |sourceVersion=1.8
        |sample=0.1
-       |compileCommand=python3 ${projects4GenProg}${project}compile.py
+       |compileCommand=python3 ${mkPathString(projects4GenProg, project, "compile.py")}
        |edits=append;delete;replace;
        |
        |""".stripMargin
@@ -225,14 +223,15 @@ object MathPatchRunner extends App with PatchRunner {
 }
 
 object GenProgVarexCBatch extends App {
-  val exit = "sbt assembly".!
-  assert(exit == 0, "Something wrong with sbt assembly")
+//  val exit = "sbt assembly".!
+//  assert(exit == 0, "Something wrong with sbt assembly")
 
   val pathGenProg = args(0)
   val pathProjects4GenProg = args(1)
   val pathProjects4VarexC = args(2)
 
   for (p <- Grade.runnable) {
-    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.13/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.IntroClassPatchRunner $pathGenProg $pathProjects4GenProg $pathProjects4VarexC $p".!
+//    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.13/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.IntroClassPatchRunner $pathGenProg $pathProjects4GenProg $pathProjects4VarexC $p".!
+    IntroClassPatchRunner.main(args :+ p)
   }
 }
