@@ -519,27 +519,14 @@ public class VOps {
      * Called as part of lifting ATHROW to throw exceptions under method contexts.
      */
     public static V<?> extractThrowableAndThrow(V<? extends Throwable> vT, FeatureExpr ctx) throws Throwable {
-        V<? extends Throwable> selected = vT.select(ctx);
-        FeatureExpr configSpace = selected.getConfigSpace();
-        if (!VERuntime.shouldPostpone(configSpace)) {
-            VERuntime.throwExceptionCtx(configSpace);
-            if (selected instanceof One) {
-                throw new VException(selected.getOne(), configSpace);
+        vT.sforeach(ctx, (fe, t) -> {
+            if (!VERuntime.shouldPostpone(fe)) {
+                VERuntime.throwExceptionCtx(fe);
+                throw new VException(t, fe);
             } else {
-                One oneValue = ((VImpl) selected).getOneValue();
-                Object v = oneValue.value;  // HashMap VImpl
-                if (v instanceof AssertionError) {
-                    throw new VException(new RuntimeException("Multiple assertion errors"), selected.getConfigSpace()); // cpwTODO: double check this, are they really all AssertionError?
-                } else {
-                    throw new VException((Throwable) v, oneValue.getConfigSpace());
-                }
+                VERuntime.postponeException(t, fe);
             }
-        } else {
-            Throwable t = null;
-            if (selected instanceof One) t = selected.getOne();
-            else t = (Throwable) ((VImpl) selected).getOneValue().value;    // cpwTODO: seems strange, double check this
-            VERuntime.postponeException(t, ctx);
-        }
+        });
         // ATHROW should be the end of a block anyway (compiler-enforced), so doing nothing should not affect the rest of the execution
         return VEmpty.instance();
     }
