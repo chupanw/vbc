@@ -53,7 +53,8 @@ fork := true
 // assembly
 test in assembly := {}
 assemblyMergeStrategy in assembly := {
-  case PathList("org", "objectweb", "asm", xs @ _*) => MergeStrategy.first
+  case PathList("org", "objectweb", "asm", xs@_*) => MergeStrategy.first
+  case PathList("org", "apache", "log4j", xs@_*) => MergeStrategy.first
   case x =>
     val default = (assemblyMergeStrategy in assembly).value
     default(x)

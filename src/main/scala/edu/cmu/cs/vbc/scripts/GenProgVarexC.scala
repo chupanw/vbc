@@ -71,7 +71,7 @@ trait PatchRunner {
   def step3_RunGenProg(): Unit = {
     val serCache = new File("testcache.ser")
     assert(!serCache.exists() || serCache.delete())
-    val jar    = genprogPath + "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
+    val jar = genprogPath + "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar"
     val jvmOps = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
     val retCode = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
@@ -111,7 +111,7 @@ trait PatchRunner {
 
   def step4_RunVarexC(): Boolean = {
     // copy source files to the working directory
-    val destProject  = mkPath(projects4VarexC, project)
+    val destProject = mkPath(projects4VarexC, project)
     Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
     if (ScriptConfig.timeout > 0) {
       try {
@@ -221,16 +221,18 @@ object MathPatchRunner extends App with PatchRunner {
        |
        |""".stripMargin
 
-  go(0)
+  go(1)
 }
 
 object GenProgVarexCBatch extends App {
   val exit = "sbt assembly".!
   assert(exit == 0, "Something wrong with sbt assembly")
 
-  val baseDir = args(0)
+  val pathGenProg = args(0)
+  val pathProjects4GenProg = args(1)
+  val pathProjects4VarexC = args(2)
 
-  for (p <- Checksum.runnable) {
-    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.11/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.GenProgVarexCSingle $baseDir $p".!
+  for (p <- Grade.runnable) {
+    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.13/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.IntroClassPatchRunner $pathGenProg $pathProjects4GenProg $pathProjects4VarexC $p".!
   }
 }
