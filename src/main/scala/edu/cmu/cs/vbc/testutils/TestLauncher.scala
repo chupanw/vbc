@@ -33,7 +33,7 @@ abstract class TestLauncher {
         p.mainClassPath,
         p.testClassPath,
         rewriter = replaceInitConditional,
-        useModel = false,
+        useModel = useModel,
         config = Some(configFile),
         reuseLifted = false)
       setClassLoader(blockCountTestLoader)
@@ -46,7 +46,7 @@ abstract class TestLauncher {
     val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader,
       p.mainClassPath,
       p.testClassPath,
-      useModel = false,
+      useModel = useModel,
       config = Some(configFile),
       reuseLifted = false)
     setClassLoader(testLoader)

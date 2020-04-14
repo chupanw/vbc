@@ -17,8 +17,8 @@ class VBCTestClassLoader(parent: ClassLoader,
                          useModel: Boolean = false,
                          reuseLifted: Boolean = false) extends VBCClassLoader(parentClassLoader = parent, rewriter = rewriter, configFile = config, useModel = useModel, reuseLifted = reuseLifted) {
 
-  require(mainClasspath.endsWith(".jar") || mainClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
-  require(testClasspath.endsWith(".jar") || testClasspath.endsWith("/"), "URLClassLoader expects a directory path to end with /")
+  require(mainClasspath.endsWith(".jar") || new File(mainClasspath).isDirectory, "URLClassLoader expects a jar or directory")
+  require(testClasspath.endsWith(".jar") || new File(testClasspath).isDirectory, "URLClassLoader expects a jar or directory")
   private val urlClassLoader = new URLClassLoader(Array(mainClasspath, testClasspath).map(new File(_).toURI.toURL))
 
   override def findClass(name: String): Class[_] = {
