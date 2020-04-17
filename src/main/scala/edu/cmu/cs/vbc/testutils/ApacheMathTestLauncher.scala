@@ -10,3 +10,10 @@ object ApacheMathLauncher extends TestLauncher {
 class ApacheMathProject(args: Array[String]) extends Project(args) {
   override def getRelevantTestFilePath: String = project + "RelevantTests/" + version + ".txt"
 }
+
+object ApacheMathBugs {
+  val all: List[String] = (1 to 106).toList map {x => s"Math-${x}b"}
+  val debug: List[String] = List(
+    60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74
+  ).map{x => s"Math-${x}b"}
+}

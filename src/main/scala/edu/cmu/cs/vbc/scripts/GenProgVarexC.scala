@@ -7,7 +7,7 @@ import java.util.concurrent.{Executors, FutureTask, TimeUnit}
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
 import edu.cmu.cs.vbc.VBCClassLoader
-import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassLauncher, VTestStat}
+import edu.cmu.cs.vbc.testutils.{ApacheMathBugs, ApacheMathLauncher, IntroClassLauncher, VTestStat}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.TimeoutException
@@ -71,9 +71,9 @@ trait PatchRunner {
   def step3_RunGenProg(): Unit = {
     val serCache = new File("testcache.ser")
     assert(!serCache.exists() || serCache.delete())
-    val jar = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
-    val jvmOps = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
-    val retCode = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
+    val jar          = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
+    val jvmOps       = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
+    val retCode      = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
     copyMutatedCode(getLastVariant(variantsPath))
     assert(retCode == 0, "Error running GenProg")
@@ -119,7 +119,7 @@ trait PatchRunner {
         val res = new FutureTask[Boolean](
           new Runnable {
             override def run(): Unit =
-              launch(Array(projects4VarexC, project.substring(0, project.length - 1))) // we assume project ends with '/'
+              launch(Array(projects4VarexC, project))
           },
           VTestStat.hasOverallSolution
         )
@@ -165,7 +165,13 @@ object IntroClassPatchRunner extends App with PatchRunner {
        |workingDir = ${mkPathString(projects4GenProg, project)}
        |outputDir = ${mkPathString(projects4GenProg, project, "tmp")}
        |cleanUpVariants = true
-       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(genprogPath, "lib", "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:${mkPathString(genprogPath, "lib", "varexc.jar")}
+       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(
+         genprogPath,
+         "lib",
+         "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:${mkPathString(
+         genprogPath,
+         "lib",
+         "varexc.jar")}
        |sanity = yes
        |sourceDir = src/main/java
        |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
@@ -201,7 +207,10 @@ object MathPatchRunner extends App with PatchRunner {
        |classTestFolder = target/test-classes
        |workingDir = ${mkPathString(projects4GenProg, project)}
        |outputDir = ${mkPathString(projects4GenProg, project, "tmp")}
-       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(genprogPath, "lib", "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:
+       |libs=${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}:${mkPathString(
+         genprogPath,
+         "lib",
+         "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:
        |sanity = yes
        |sourceDir = src/main/java
        |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
@@ -226,12 +235,12 @@ object GenProgVarexCBatch extends App {
 //  val exit = "sbt assembly".!
 //  assert(exit == 0, "Something wrong with sbt assembly")
 
-  val pathGenProg = args(0)
+  val pathGenProg          = args(0)
   val pathProjects4GenProg = args(1)
-  val pathProjects4VarexC = args(2)
+  val pathProjects4VarexC  = args(2)
 
-  for (p <- Grade.runnable) {
+  for (p <- ApacheMathBugs.debug) {
 //    s"timelimit -t${ScriptConfig.timeout} -T${60} java -cp target/scala-2.13/vbc-assembly-0.1.0-SNAPSHOT.jar edu.cmu.cs.vbc.scripts.IntroClassPatchRunner $pathGenProg $pathProjects4GenProg $pathProjects4VarexC $p".!
-    IntroClassPatchRunner.main(args :+ p)
+    MathPatchRunner.main(args :+ p)
   }
 }
