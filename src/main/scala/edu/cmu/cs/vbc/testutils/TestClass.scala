@@ -191,10 +191,10 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     if (!isParameterized) {
       for (x <- allTests if !isSkipped(x)) {
         executeOnce(None,
-          x,
-          FeatureExprFactory.True,
-          FeatureExprFactory.False,
-          isFastMode = isFastMode)
+                    x,
+                    FeatureExprFactory.True,
+                    FeatureExprFactory.False,
+                    isFastMode = isFastMode)
         writeBDD(c.getName, x.getName)
         if (shouldAbort) return false
       }
@@ -202,10 +202,10 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       for (x <- getParameters;
            y <- allTests if !isSkipped(y)) {
         executeOnce(Some(x.asInstanceOf[Array[V[_]]]),
-          y,
-          FeatureExprFactory.True,
-          FeatureExprFactory.False,
-          isFastMode = isFastMode)
+                    y,
+                    FeatureExprFactory.True,
+                    FeatureExprFactory.False,
+                    isFastMode = isFastMode)
         writeBDD(c.getName, y.getName)
         if (shouldAbort) return false
       }
@@ -219,8 +219,9 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       if (!fe.isSatisfiable()) {
         // print the results so far and abort
         println("-------------------- Abort --------------------")
-        VTestStat.printToConsole()
-        System.exit(-1)
+        //        VTestStat.printToConsole()
+        //        System.exit(-1)
+        return true
       }
     }
     false
@@ -254,24 +255,26 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       after.map(_.invoke(testObject, context))
       System.gc()
     } catch {
-      case e: InvocationTargetException => e.getCause match {
-        case ve: VException => if (!verifyException(ve.e, x)) println(ve.e.toString)
-        case _ => e.printStackTrace()
-      }
+      case e: InvocationTargetException =>
+        e.getCause match {
+          case ve: VException => if (!verifyException(ve.e, x)) println(ve.e.toString)
+          case _              => e.printStackTrace()
+        }
       case e: Throwable => e.printStackTrace()
     }
     VERuntime.putMaxBlockForTest(x)
   }
 
   def executeOnce(
-                   params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
-                   x: Method, // test case to be executed
-                   context: FeatureExpr, // current context
-                   exploredContext: FeatureExpr, // used to filter examined contexts
-                   isFastMode: Boolean
-                 ): Unit = {
+      params: Option[Array[V[_]]], // test case parameters, in case of parameterized test
+      x: Method, // test case to be executed
+      context: FeatureExpr, // current context
+      exploredContext: FeatureExpr, // used to filter examined contexts
+      isFastMode: Boolean
+  ): Unit = {
     if (context.isContradiction()) return
-    println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context else "[hidden context]"}")
+    println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
+    else "[hidden context]"}")
     VERuntime.init(x, context, context, isFastMode)
     val testObject = createObject(params, context)
     try {
@@ -282,7 +285,8 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       val succeedingContext = VERuntime.getExploredContext(context)
       VTestStat.succeed(className, x.getName, succeedingContext)
       if (VERuntime.skippedExceptionContext.isSatisfiable()) VTestStat.fail(className, x.getName)
-      val exploredSoFar = succeedingContext.or(exploredContext).or(VERuntime.skippedExceptionContext)
+      val exploredSoFar =
+        succeedingContext.or(exploredContext).or(VERuntime.skippedExceptionContext)
       val nextContext = exploredSoFar.not()
       if (!isFastMode && nextContext.isSatisfiable())
         executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
@@ -296,10 +300,11 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
               println(t)
             } else {
               VTestStat.succeed(className, x.getName, t.ctx)
-              if (VERuntime.skippedExceptionContext.isSatisfiable()) VTestStat.fail(className, x.getName)
+              if (VERuntime.skippedExceptionContext.isSatisfiable())
+                VTestStat.fail(className, x.getName)
             }
             val exploredSoFar = t.ctx.or(exploredContext).or(VERuntime.skippedExceptionContext)
-            val nextContext = exploredSoFar.not()
+            val nextContext   = exploredSoFar.not()
             if (!isFastMode && nextContext.isSatisfiable())
               executeOnce(params, x, nextContext, exploredSoFar, isFastMode)
           case t =>
@@ -323,8 +328,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     * @param m test case method
     * @return true if it is expected
     */
-  def verifyException(t: Throwable,
-                      m: Method): Boolean = {
+  def verifyException(t: Throwable, m: Method): Boolean = {
     if (isJUnit3) false
     else {
       val annotation = m.getAnnotation(classOf[org.junit.Test])
