@@ -461,13 +461,11 @@ public interface Map<K,V> {
          * <p>The returned comparator is serializable and throws {@link
          * NullPointerException} when comparing an entry with a null key.
          *
-         * @param  <K> the {@link Comparable} type of then map keys
-         * @param  <V> the type of the map values
          * @return a comparator that compares {@link Map.Entry} in natural order on key.
          * @see Comparable
          * @since 1.8
          */
-        public static <K extends Comparable<? super K>, V> model.java.util.Comparator comparingByKey() {
+        public static  model.java.util.Comparator comparingByKey() {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
 
@@ -477,13 +475,11 @@ public interface Map<K,V> {
          * <p>The returned comparator is serializable and throws {@link
          * NullPointerException} when comparing an entry with null values.
          *
-         * @param <K> the type of the map keys
-         * @param <V> the {@link Comparable} type of the map values
          * @return a comparator that compares {@link Map.Entry} in natural order on value.
          * @see Comparable
          * @since 1.8
          */
-        public static <K, V extends Comparable<? super V>> model.java.util.Comparator comparingByValue() {
+        public static  model.java.util.Comparator comparingByValue() {
             throw new RuntimeException("This method was removed because of INVOKEDYNAMIC");
         }
 
