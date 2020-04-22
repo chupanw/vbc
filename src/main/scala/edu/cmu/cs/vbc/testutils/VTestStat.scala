@@ -81,8 +81,8 @@ object VTestStat {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     hasOverallSolution = hasLDSolution
     if (hasLDSolution) {
-      val allLowDegreeSolutions = V.getAllLowDegreeSolutions(fe)
-      val nSolutions = allLowDegreeSolutions.count(c => c == ',') + 1
+      val allLowDegreeSolutions = fe.getAllSolutionsScala
+      val nSolutions = allLowDegreeSolutions.size
       printlnAndLog(s"All test cases can pass if any of the $nSolutions is met: $allLowDegreeSolutions")
     } else
       printlnAndLog(

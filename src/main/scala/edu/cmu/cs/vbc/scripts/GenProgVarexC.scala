@@ -2,7 +2,6 @@ package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
 import java.nio.file.{FileSystems, Files, Path, StandardCopyOption}
-import java.util.concurrent.{Executors, FutureTask, TimeUnit}
 
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
@@ -10,7 +9,6 @@ import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.testutils.{ApacheMathBugs, ApacheMathLauncher, IntroClassLauncher, VTestStat}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.concurrent.TimeoutException
 import scala.sys.process._
 
 object ScriptConfig {
@@ -36,10 +34,12 @@ trait PatchRunner {
   def compileCMD: Seq[String]
   def template(project: String, seed: Long): String
 
+  protected val seed: Long = System.currentTimeMillis()
+  protected def genProgConfig: String = template(project, seed)
+
   val logger: Logger = LoggerFactory.getLogger("genprog")
 
   def go(attempt: Int): Unit = {
-    val seed = System.currentTimeMillis()
     logger.info(s"Project: $project")
     logger.info(s"Attempt: $attempt")
     logger.info(s"Seed: $seed")
@@ -64,7 +64,7 @@ trait PatchRunner {
 
   def step2_GenerateGenProgConfigFile(seed: Long): Unit = {
     val writer = new FileWriter(new File(ScriptConfig.tmpConfigPath))
-    writer.write(template(project, seed))
+    writer.write(genProgConfig)
     writer.close()
   }
 
@@ -110,35 +110,13 @@ trait PatchRunner {
   }
 
   def step4_RunVarexC(): Boolean = {
-    // copy source files to the working directory
     val destProject = mkPath(projects4VarexC, project)
     Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
-    if (ScriptConfig.timeout > 0) {
-      try {
-        val executor = Executors.newFixedThreadPool(1)
-        val res = new FutureTask[Boolean](
-          new Runnable {
-            override def run(): Unit =
-              launch(Array(projects4VarexC, project))
-          },
-          VTestStat.hasOverallSolution
-        )
-        executor.submit(res)
-        val ret = res.get(ScriptConfig.timeout, TimeUnit.SECONDS)
-        executor.shutdown()
-        ret
-      } catch {
-        case _: TimeoutException =>
-          logger.info(s"Terminating after ${ScriptConfig.timeout} ${TimeUnit.SECONDS}...")
-          false
-        case e => throw e
-      }
-    } else {
-      IntroClassLauncher.main(Array(projects4GenProg, project))
-      VTestStat.hasOverallSolution
-    }
-  }
+    launch(Array(projects4VarexC, project))
+    VTestStat.hasOverallSolution
+}
 
+  def notAvailable(fieldName: String): Nothing = throw new RuntimeException(s"The $fieldName field should not be used")
 }
 
 object IntroClassPatchRunner extends App with PatchRunner {

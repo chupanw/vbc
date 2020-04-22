@@ -8,7 +8,7 @@ object ApacheMathLauncher extends TestLauncher {
 }
 
 class ApacheMathProject(args: Array[String]) extends Project(args) {
-  override def getRelevantTestFilePath: String = project + "RelevantTests/" + version + ".txt"
+  override def getRelevantTestFilePath: String = mkPath(project, "RelevantTests", version + ".txt").toFile.getAbsolutePath
 }
 
 object ApacheMathBugs {

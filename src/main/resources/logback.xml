@@ -8,7 +8,7 @@
 
     <timestamp key="bySecond" datePattern="MM-dd-yyyy@HH:mm:ss"/>
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>logs/genprog-${bySecond}.log</file>
+        <file>/tmp/varexc.log</file>
         <append>true</append>
         <immediateFlush>true</immediateFlush>
         <encoder>
