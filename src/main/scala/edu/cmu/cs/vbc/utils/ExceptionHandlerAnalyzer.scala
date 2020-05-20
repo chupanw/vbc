@@ -1,5 +1,7 @@
 package edu.cmu.cs.vbc.utils
 
+import java.io.IOException
+
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree.{ClassNode, MethodNode}
@@ -12,13 +14,20 @@ object ExceptionHandlerAnalyzer {
   val classNodeCache: mutable.Map[String, ClassNode] = mutable.Map()
 
   def analyzeMethod(className: String, methodName: String, shouldExcludeOneThrowable: Boolean): Set[String] = {
-    val classNode = classNodeCache.getOrElseUpdate(className, {
-      val cNode = new ClassNode(ASM5)
-      new ClassReader(className).accept(cNode, 0)
-      cNode
-    })
-    val methodNodes = classNode.methods.asScala.toSet.filter(x => x.name == methodName)
-    methodNodes.flatMap(m => analyzeMethodNode(m, shouldExcludeOneThrowable))
+    try {
+      val classNode = classNodeCache.getOrElseUpdate(className, {
+        val cNode = new ClassNode(ASM5)
+        new ClassReader(className).accept(cNode, 0)
+        cNode
+      })
+      val methodNodes = classNode.methods.asScala.toSet.filter(x => x.name == methodName)
+      methodNodes.flatMap(m => analyzeMethodNode(m, shouldExcludeOneThrowable))
+    } catch {
+      case _: IOException => {
+        System.err.println("Couldn't find class: " + className)
+        Set()
+      }
+    }
   }
 
   def analyzeMethodNode(m: MethodNode, shouldExcludeOneThrowable: Boolean): Set[String] = {
