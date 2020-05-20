@@ -3,6 +3,7 @@ package edu.cmu.cs.varex;
 import de.fosd.typechef.featureexpr.FeatureExpr;
 import de.fosd.typechef.featureexpr.FeatureExprFactory;
 import edu.cmu.cs.vbc.PotentialInfiniteLoopError;
+import edu.cmu.cs.vbc.PotentialStackOverflowError;
 import edu.cmu.cs.vbc.VException;
 import edu.cmu.cs.vbc.config.Settings;
 import edu.cmu.cs.vbc.config.VERuntime;
@@ -990,7 +991,7 @@ public class VOps {
         return c.getResourceAsStream(s);
     }
 
-    public static void checkBlockCount(FeatureExpr ctx) throws Throwable {
+    public static void checkBlockCount(FeatureExpr ctx) {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
         Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
@@ -1001,6 +1002,29 @@ public class VOps {
             } else {
                 VERuntime.throwExceptionCtx(ctx);
                 throw new VException(e, ctx);
+            }
+        }
+    }
+
+    public static void increaseStackDepth() {
+        VERuntime.increaseStackDepth();
+    }
+
+    public static void decreaseStackDepth() {
+        VERuntime.decreaseStackDepth();
+    }
+
+    public static void checkStackDepth(FeatureExpr ctx) {
+        if (ctx.isSatisfiable()) {
+            if (VERuntime.curStackDepth() > Settings.maxStackDepth()) {
+                Error e = new PotentialStackOverflowError("Max stack depth of " + Settings.maxStackDepth() + " reached");
+                if (VERuntime.shouldPostpone(ctx)) {
+                    VERuntime.postponeException(e, ctx);
+                    VERuntime.resetBlockCount();
+                } else {
+                    VERuntime.throwExceptionCtx(ctx);
+                    throw new VException(e, ctx);
+                }
             }
         }
     }

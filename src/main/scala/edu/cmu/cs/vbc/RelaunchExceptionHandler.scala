@@ -13,7 +13,7 @@ trait RelaunchExceptionHandler {
                   context: FeatureExpr): Unit = {
     if (context.isContradiction()) return
     System.out.println(s"[INFO] Executing ${x.getName} under $context")
-    VERuntime.init(x, context, context, false)
+    VERuntime.init(x, context, context, false, None)
     try {
       if (o.isDefined)
         x.invoke(o.get, context)
@@ -52,3 +52,4 @@ case class VException(e: Throwable, ctx: FeatureExpr) extends RuntimeException {
 }
 
 class PotentialInfiniteLoopError(errMsg: String) extends Error(errMsg)
+class PotentialStackOverflowError(errMsg: String) extends Error(errMsg)

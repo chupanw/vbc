@@ -84,9 +84,13 @@ trait MethodInstruction extends Instruction {
   }
 
   def preMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("increaseStackDepth"), MethodDesc(s"()V"), false)
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkStackDepth"), MethodDesc(s"($fexprclasstype)V"), false)
   }
 
   def postMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("decreaseStackDepth"), MethodDesc(s"()V"), false)
     updateBlockCtxIfNotThrowingException(mv, env, block)
   }
 
@@ -907,9 +911,13 @@ case class InstrINVOKEDYNAMIC(name: MethodName,
   }
 
   def preMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("increaseStackDepth"), MethodDesc(s"()V"), false)
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("checkStackDepth"), MethodDesc(s"($fexprclasstype)V"), false)
   }
 
   def postMethod(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("decreaseStackDepth"), MethodDesc(s"()V"), false)
     updateBlockCtxIfNotThrowingException(mv, env, block)
   }
 

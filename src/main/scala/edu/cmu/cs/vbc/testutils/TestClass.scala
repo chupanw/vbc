@@ -275,7 +275,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     if (context.isContradiction()) return
     println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
     else "[hidden context]"}")
-    VERuntime.init(x, context, context, isFastMode)
+    VERuntime.init(x, context, context, isFastMode, getExpectedException(x))
     val testObject = createObject(params, context)
     try {
       before.map(_.invoke(testObject, context))
@@ -329,12 +329,16 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     * @return true if it is expected
     */
   def verifyException(t: Throwable, m: Method): Boolean = {
-    if (isJUnit3) false
+    val expected = getExpectedException(m)
+    expected.exists(x => x.isInstance(t))
+  }
+
+  def getExpectedException(m: Method): Option[Class[_]] = {
+    if (isJUnit3) None
     else {
       val annotation = m.getAnnotation(classOf[org.junit.Test])
       assert(annotation != null, "No @Test annotation in method: " + m.getName)
-      val expected = annotation.expected()
-      expected.isInstance(t)
+      Some(annotation.expected())
     }
   }
 

@@ -5,7 +5,7 @@ import java.text.NumberFormat
 
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
-import edu.cmu.cs.vbc.VBCClassLoader
+import edu.cmu.cs.vbc.{VBCClassLoader, VException}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -17,17 +17,20 @@ object Settings {
   private val config = ConfigFactory.load("reference.conf")
   private val logger = LoggerFactory.getLogger("genprog")
 
-  val fastMode: Boolean = config.getBoolean("varexc.fastMode")
+  val fastMode: Boolean              = config.getBoolean("varexc.fastMode")
   val enableStackTraceCheck: Boolean = config.getBoolean("varexc.enableStackTraceCheck")
 
-  val logTrace: Boolean = config.getBoolean("varexc.logging.logTrace")
+  val logTrace: Boolean          = config.getBoolean("varexc.logging.logTrace")
   val detectComplexLoop: Boolean = config.getBoolean("varexc.misc.detectComplexLoop")
-  val printContext: Boolean = config.getBoolean("varexc.printing.printContext")
+  val printContext: Boolean      = config.getBoolean("varexc.printing.printContext")
   val printExpandArrayWarnings: Boolean =
     config.getBoolean("varexc.printing.printExpandArrayWarnings")
   val printTestResults: Boolean = config.getBoolean("varexc.printing.printTestResults")
-  val writeBDDs: Boolean = config.getBoolean("varexc.logging.writeBDDs")
-  val earlyFail: Boolean = config.getBoolean("varexc.earlyFail")
+  val writeBDDs: Boolean        = config.getBoolean("varexc.logging.writeBDDs")
+  val earlyFail: Boolean        = config.getBoolean("varexc.earlyFail")
+
+  // execute `java -XX:+PrintFlagsFinal -version` and look for MaxJavaStackTraceDepth
+  val maxStackDepth: Int = config.getInt("varexc.maxStackDepth")
 
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
@@ -48,7 +51,7 @@ object Settings {
     *
     * This limit is intentionally large because we hope identify infinite loops so that we can remove them.
     */
-  val maxBlockCount: Long = config.getLong("varexc.blockCount.maxBlockCount")
+  val maxBlockCount: Long          = config.getLong("varexc.blockCount.maxBlockCount")
   val enableBlockCounting: Boolean = config.getBoolean("varexc.blockCount.enableBlockCounting")
   val enablePerTestBlockCount: Boolean =
     config.getBoolean("varexc.blockCount.enablePerTestBlockCount")
@@ -57,7 +60,7 @@ object Settings {
   def validate(): Unit = {
     if (!enableBlockCounting)
       assert(maxBlockCount == -1 && !enablePerTestBlockCount,
-        "Should not set maxBlockCount and perTestCount when blockCounting is false")
+             "Should not set maxBlockCount and perTestCount when blockCounting is false")
     else if (enablePerTestBlockCount) {
       assert(maxBlockCount == -1, "Should not set maxBlockCount when perTestCount is true")
       assert(maxBlockCountFactor >= 10, "maxBlockCountFactor should be at least 10")
@@ -94,13 +97,16 @@ object VERuntime {
     * To explore the contexts that have exceptions, we restart variational execution.
     */
   var postponedExceptionContext: FeatureExpr = FeatureExprFactory.False
-  var thrownExceptionContext: FeatureExpr = FeatureExprFactory.False
-  var skippedExceptionContext: FeatureExpr = FeatureExprFactory.False
-  var globalContext: FeatureExpr = FeatureExprFactory.False
-  private var curBlockCount: Long = 0
-  private val maxBlockPerTest = mutable.Map[String, Long]()
-  var entryMethod: Method = _
-  var isFastMode: Boolean = false
+  var thrownExceptionContext: FeatureExpr    = FeatureExprFactory.False
+  var skippedExceptionContext: FeatureExpr   = FeatureExprFactory.False
+  var globalContext: FeatureExpr             = FeatureExprFactory.False
+  private var curBlockCount: Long            = 0
+  private val maxBlockPerTest                = mutable.Map[String, Long]()
+  var entryMethod: Method                    = _
+  var isFastMode: Boolean                    = false
+  var curStackDepth: Int                     = 0 // excluding internal method calls
+
+  var expectedException: Option[Class[_]] = None
 
   var classloader: Option[ClassLoader] = None
 
@@ -113,6 +119,14 @@ object VERuntime {
 
   def incrementBlockCount(): Unit = {
     curBlockCount += 1
+  }
+
+  def increaseStackDepth(): Unit = {
+    curStackDepth += 1
+  }
+
+  def decreaseStackDepth(): Unit = {
+    curStackDepth -= 1
   }
 
   def getBlockCount: Long = curBlockCount
@@ -135,8 +149,8 @@ object VERuntime {
     if (entryMethod == null) false else curBlockCount > getMaxBlockCount
 
   def putMaxBlockForTest(m: Method): Unit = {
-    val cnt = curBlockCount * Settings.maxBlockCountFactor
-    val key = genMethodKey(m)
+    val cnt   = curBlockCount * Settings.maxBlockCountFactor
+    val key   = genMethodKey(m)
     val value = Math.max(maxBlockPerTest.getOrElse(key, 0L), cnt)
     maxBlockPerTest.put(key, value)
     println("Setting max block to " + numFormatter.format(value))
@@ -150,7 +164,11 @@ object VERuntime {
     *
     * MUST BE CALLED BEFORE EACH RESTART OF VARIATIONAL EXECUTION.
     */
-  def init(entryMethod: Method, initContext: FeatureExpr, boundaryCtx: FeatureExpr, isFastMode: Boolean): Unit = {
+  def init(entryMethod: Method,
+           initContext: FeatureExpr,
+           boundaryCtx: FeatureExpr,
+           isFastMode: Boolean,
+           expectedException: Option[Class[_]]): Unit = {
 
     /** Exception handling  */
     this.globalContext = initContext
@@ -159,6 +177,8 @@ object VERuntime {
     this.skippedExceptionContext = FeatureExprFactory.False
     this.isFastMode = isFastMode
     this.savedRestart = 0
+    this.curStackDepth = 0
+    this.expectedException = expectedException
 
     /** Block counting */
     this.entryMethod = entryMethod
@@ -171,16 +191,20 @@ object VERuntime {
   }
 
   var savedRestart: Int = 0 // debug
-  def postponeException(e: Throwable, ctx: FeatureExpr): Unit = {
+  def postponeException(t: Throwable, ctx: FeatureExpr): Unit = {
+    val e = t match {
+      case ve: VException => ve.e
+      case _ => t
+    }
     postponedExceptionContext = postponedExceptionContext or ctx
     if (!isFastMode && Settings.enableStackTraceCheck) {
       val handler = VBCClassLoader.potentialHandler(e, classloader.get)
       if (handler.nonEmpty) {
         println(
-          s"Restart needed for <${e.getClass.getName}>, can be handled: ${handler.get.toString} with ${
-            VBCClassLoader
-              .getMightHandle(handler.get.getClassName, handler.get.getMethodName)
-          }")
+          s"Restart needed for <${e.getClass.getName}> as it can be handled: ${handler.get.toString} with ${VBCClassLoader
+            .getMightHandle(handler.get.getClassName, handler.get.getMethodName)}")
+      } else if (expectedException.exists(_.isInstance(e))) {
+        println(s"Restart needed for <${e.getClass.getName}> as it is expected by the test case")
       } else {
         savedRestart += 1
         skippedExceptionContext = skippedExceptionContext or ctx
