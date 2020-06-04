@@ -12,6 +12,7 @@ import org.objectweb.asm.{ClassReader, ClassWriter}
 class VBCTestClassLoader(parent: ClassLoader,
                          mainClasspath: String,
                          testClasspath: String,
+                         libJars: Array[String] = Array(),
                          rewriter: (VBCMethodNode, VBCClassNode) => VBCMethodNode = (a, b) => a,
                          config: Option[String] = Some("intro-class.conf"),
                          useModel: Boolean = false,
@@ -19,7 +20,9 @@ class VBCTestClassLoader(parent: ClassLoader,
 
   require(mainClasspath.endsWith(".jar") || new File(mainClasspath).isDirectory, "URLClassLoader expects a jar or directory")
   require(testClasspath.endsWith(".jar") || new File(testClasspath).isDirectory, "URLClassLoader expects a jar or directory")
-  private val urlClassLoader = new URLClassLoader(Array(mainClasspath, testClasspath).map(new File(_).toURI.toURL))
+  require(libJars.forall(_.endsWith(".jar")), "libJars should only contain jars")
+  val allClasspaths = Array(mainClasspath, testClasspath) ++ libJars
+  private val urlClassLoader = new URLClassLoader(allClasspaths.map(new File(_).toURI.toURL), null)
 
   override def findClass(name: String): Class[_] = {
     val resource: String = name.replace('.', '/') + ".class"
@@ -44,7 +47,7 @@ class VBCTestClassLoader(parent: ClassLoader,
     val is: InputStream = urlClassLoader.getResourceAsStream(resource)
     if (is == null) throw new ClassNotFoundException(name)
     val cr = new ClassReader(is)
-    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
+    val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, urlClassLoader) // COMPUTE_FRAMES implies COMPUTE_MAX
     cr.accept(cw, 0)
     defineClass(name, cw.toByteArray, 0, cw.toByteArray.length)
   }

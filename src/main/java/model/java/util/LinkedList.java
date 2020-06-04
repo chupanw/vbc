@@ -5,7 +5,6 @@ import edu.cmu.cs.varex.V;
 import edu.cmu.cs.vbc.utils.Profiler;
 import model.Contexts;
 
-import java.util.Collection;
 import java.util.function.Function;
 
 /**
@@ -78,6 +77,11 @@ public class LinkedList implements List {
         return vActual.smap(ctx, l -> l.iterator());
     }
 
+    @Override
+    public V<?> iterator____Lmodel_java_util_Iterator(FeatureExpr ctx) {
+        throw new RuntimeException("Not implemented");
+    }
+
     public V<?> addFirst__Ljava_lang_Object__V(V<?> vElem, FeatureExpr ctx) {
         vElem.sforeach(ctx, (fe, e) -> {
             split(fe);
@@ -93,6 +97,16 @@ public class LinkedList implements List {
 
     public V<?> indexOf__Ljava_lang_Object__I(V<?> vElem, FeatureExpr ctx) {
         return vActual.sflatMap(ctx, (fe, list) -> vElem.smap(fe, (fe2, e) -> list.indexOf(e)));
+    }
+
+    @Override
+    public V<?> toArray__Array_Ljava_lang_Object__Array_Ljava_lang_Object(V<V[]> vObject, FeatureExpr ctx) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public V<?> addAll__Lmodel_java_util_Collection__Z(V<?> vCollection, FeatureExpr ctx) {
+        throw new RuntimeException("Not implemented");
     }
 
 
@@ -179,6 +193,31 @@ public class LinkedList implements List {
     }
 
     @Override
+    public boolean remove(Object o) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean addAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean retainAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean removeAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean containsAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
     public java.util.Iterator iterator() {
         return actual.iterator();
     }
@@ -225,7 +264,7 @@ public class LinkedList implements List {
 }
 
 class MyLinkedList extends java.util.LinkedList {
-    MyLinkedList(Collection c) {
+    MyLinkedList(java.util.Collection c) {
         super(c);
     }
     MyLinkedList() {

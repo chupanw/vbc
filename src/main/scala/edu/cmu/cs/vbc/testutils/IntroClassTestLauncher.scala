@@ -13,4 +13,6 @@ class IntroClassProject(args: Array[String]) extends Project(args) {
     val split = version.split('/')
     mkPath(project, split(0), split(1), "RelevantTests", split(2) + ".txt").toFile.getAbsolutePath
   }
+
+  override val libJars: Array[String] = Array("lib/junit-4.12-recompiled.jar")
 }

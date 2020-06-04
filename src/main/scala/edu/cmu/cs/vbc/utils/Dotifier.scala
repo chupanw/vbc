@@ -84,6 +84,8 @@ class Dotifier() extends Printer(Opcodes.ASM5) {
 
   override def visitMethodAttribute(attr: Attribute) = {}
 
+  override def visitMethodTypeAnnotation(typeRef: Int, typePath: TypePath, desc: String, visible: Boolean): Printer = this
+
   override def visitCode() = {}
 
   override def visitFrame(`type`: Int, nLocal: Int, local: Array[AnyRef], nStack: Int, stack: Array[AnyRef]) = {}

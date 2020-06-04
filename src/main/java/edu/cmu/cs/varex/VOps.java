@@ -956,6 +956,13 @@ public class VOps {
         });
     }
 
+    public static V<?> initVStrings__Array_B__V(V<V<java.lang.Integer>[]> vA, FeatureExpr ctx) {
+        return vA.sflatMap(ctx, (fe, a) -> {
+            V<byte[]> vB = (V<byte[]>) ArrayOps.expandBArray(a, fe);
+            return vB.smap(fe, (fe2, b) -> new String(b));
+        });
+    }
+
     public static V<?> initVStrings__Array_C_I_I__V(V<V<java.lang.Integer>[]> vA, V<java.lang.Integer> vOffset, V<java.lang.Integer> vCount, FeatureExpr ctx) {
         return vA.sflatMap(ctx, (fe, a) -> {
             return vOffset.sflatMap(fe, (fe2, offset) -> {

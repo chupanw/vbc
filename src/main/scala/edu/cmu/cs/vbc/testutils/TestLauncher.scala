@@ -32,6 +32,7 @@ abstract class TestLauncher {
       val blockCountTestLoader = new VBCTestClassLoader(this.getClass.getClassLoader,
         p.mainClassPath,
         p.testClassPath,
+        p.libJars,
         rewriter = replaceInitConditional,
         useModel = useModel,
         config = Some(configFile),
@@ -46,6 +47,7 @@ abstract class TestLauncher {
     val testLoader = new VBCTestClassLoader(this.getClass.getClassLoader,
       p.mainClassPath,
       p.testClassPath,
+      p.libJars,
       useModel = useModel,
       config = Some(configFile),
       reuseLifted = false)
@@ -120,6 +122,7 @@ abstract class Project(args: Array[String]) {
   val version: String = args(1)
   val testClassPath: String = mkPath(project, version, "target", "test-classes").toFile.getAbsolutePath
   val mainClassPath: String = mkPath(project, version, "target", "classes").toFile.getAbsolutePath
+  val libJars: Array[String] = Array()
 
   val relevantTestFile: String = getRelevantTestFilePath
   val (testClasses, failingTests) = parseRelevantTests(relevantTestFile)

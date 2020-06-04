@@ -89,7 +89,13 @@ case class VBCMethodNode(access: Int,
 
   def visitAnnotations(mv: MethodVisitor): Unit = {
     import scala.collection.JavaConverters._
-    if (annotationDefault != null) mv.visitAnnotationDefault().visit("", annotationDefault)  // name not used in the library
+    if (annotationDefault != null) {
+      if (annotationDefault.isInstanceOf[java.util.List[_]]) {
+        val visitor = mv.visitAnnotationDefault().visitArray("")  // name not used in the library
+        annotationDefault.asInstanceOf[java.util.List[_]].asScala.foreach(x => visitor.visit("", x))
+      } else
+        mv.visitAnnotationDefault().visit("", annotationDefault)  // name not used in the library
+    }
     invisibleAnnotations.foreach(x => x.accept(mv.visitAnnotation(x.desc, false)))
     visibleAnnotations.foreach(x => x.accept(mv.visitAnnotation(x.desc, true)))
     invisibleLocalVariableAnnotations.foreach(x =>

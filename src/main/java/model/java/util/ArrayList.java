@@ -47,6 +47,31 @@ public class ArrayList implements List {
     }
 
     @Override
+    public boolean remove(Object o) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean addAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean retainAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean removeAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public boolean containsAll(java.util.Collection c) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
     public java.util.Iterator iterator() {
         return actual.iterator();
     }
@@ -189,6 +214,12 @@ public class ArrayList implements List {
         return res;
     }
 
+    @Override
+    public V<?> iterator____Lmodel_java_util_Iterator(FeatureExpr ctx) {
+        V<? extends java.util.Iterator> vI = vActual.smap(ctx, l -> l.iterator());
+        return V.one(ctx, new IteratorImpl(vI));
+    }
+
     public V<? extends Boolean> remove__Ljava_lang_Object__Z(V<?> vo, FeatureExpr ctx) {
         String id = "ArrayList#remove#";
         Profiler.startTimer(id);
@@ -205,6 +236,14 @@ public class ArrayList implements List {
         return vCollection.sflatMap(ctx, (fe, collection) -> {
             split(fe);
             return vActual.smap(fe, l -> l.addAll(collection));
+        });
+    }
+
+    @Override
+    public V<?> addAll__Lmodel_java_util_Collection__Z(V<?> vCollection, FeatureExpr ctx) {
+        return vCollection.sflatMap(ctx, (fe, collection) -> {
+            split(fe);
+            return vActual.smap(fe, (fe2, l) -> l.addAll((java.util.Collection) collection));
         });
     }
 

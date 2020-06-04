@@ -34,7 +34,13 @@ object LiftingPolicy {
   def shouldLiftClass(owner: Owner): Boolean = {
     if (currentConfig.jdkLiftingClasses.exists(n => owner.name.matches("model.*" + n))) return true
     if (currentConfig.libraryLiftingClasses.exists(n => owner.name.matches(".*" + n))) true
-    else if ((owner.name.startsWith("org/apache/commons/validator") || owner.name.startsWith("org/apache/commons/clivbc") || owner.name.startsWith("edu/uclm/esi/iso5/juegos/monopoly") || owner.name.startsWith("org/apache/commons/math") || owner.name.startsWith("edu/cmu/cs/vbc/prog/")) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n)))
+    else if ((owner.name.startsWith("org/apache/commons/validator")
+      || owner.name.startsWith("org/apache/commons/clivbc")
+      || owner.name.startsWith("edu/uclm/esi/iso5/juegos/monopoly")
+      || owner.name.startsWith("org/apache/commons/math")
+      || owner.name.startsWith("edu/cmu/cs/vbc/prog/")
+      || owner.name.startsWith("com/google/javascript/jscomp")
+      ) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n)))
       true
     else false
   }
@@ -171,6 +177,10 @@ object LiftingPolicy {
       case ("java/lang/Object", "toString", "()Ljava/lang/String;") =>
         LiftedCall(owner, name, desc, isLifting = true)
       case ("edu/cmu/cs/varex/VOps", _, _) =>
+        LiftedCall(owner, name, desc, isLifting = false)
+      case (cls, _, _) if cls.startsWith("com/google/common/collect") =>
+        LiftedCall(owner, name, desc, isLifting = false)
+      case (cls, _, _) if cls.startsWith("com/google/javascript/jscomp/CommandLineRunner$Flags") =>
         LiftedCall(owner, name, desc, isLifting = false)
       case _ => LiftedCall(owner.toModel, name, desc.toModels, isLifting = false)
     }

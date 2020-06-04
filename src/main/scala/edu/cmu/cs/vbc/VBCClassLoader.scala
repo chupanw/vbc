@@ -56,11 +56,18 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
                    .startsWith("org.eclipse.jetty") && !name.startsWith(
                    "org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
           loadClassAndUseModelClasses(name)
-        else if (name.startsWith("org.apache.commons.validator") || name.startsWith(
-                   "org.apache.commons.clivbc") || name.startsWith(
-                   "edu.uclm.esi.iso5.juegos.monopoly") || name.startsWith(
-                   "org.apache.commons.math") || name.startsWith("antlr") || name.startsWith(
-                   "org.eclipse.jetty.util.log")) // todo: do this more systematically
+        else if (name.startsWith("org.apache.commons.validator")
+          || name.startsWith("org.apache.commons.clivbc")
+          || name.startsWith("edu.uclm.esi.iso5.juegos.monopoly")
+          || name.startsWith("org.apache.commons.math")
+          || name.startsWith("antlr")
+          || name.startsWith("org.eclipse.jetty.util.log")
+          || name.startsWith("com.google.javascript")
+          || name.startsWith("com.google.common.io")
+          || name.startsWith("org.json")
+          || name.startsWith("org.kohsuke.args4j")
+          || name.startsWith("org.mozilla.classfile")
+        ) // todo: do this more systematically
           loadClassWithoutChanges(name) // avoid LinkageError
         else if (name.startsWith("org.apache.commons.digester"))
           loadClassAndReplaceCalls(name)
