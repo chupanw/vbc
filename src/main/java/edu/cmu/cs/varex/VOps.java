@@ -541,7 +541,7 @@ public class VOps {
         String[] exps = handledExceptions.split(";");
         HashSet<String> expSet = new HashSet<>();
         for (int i = 0; i < exps.length; i++) {
-            if (exps[i] != "null")
+            if (!exps[i].equalsIgnoreCase("null"))
                 expSet.add(exps[i]);
             else
                 expSet.add("java/lang/Throwable");
