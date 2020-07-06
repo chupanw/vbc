@@ -148,6 +148,7 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
         mv.visitFieldInsn(GETFIELD, owner.toModel, name, "Ledu/cmu/cs/varex/V;")
       else {
         mv.visitFieldInsn(GETFIELD, owner, name, desc)
+        boxReturnValue(Type.getType(desc.desc).getSort, mv)
         callVCreateOne(mv, loadCurrentCtx(_, env, block))
       }
     }
@@ -179,6 +180,7 @@ case class InstrGETFIELD(owner: Owner, name: FieldName, desc: TypeDesc) extends 
           visitor.visitFieldInsn(GETFIELD, owner, name, vclasstype)
         else {
           visitor.visitFieldInsn(GETFIELD, owner, name, desc)
+          boxReturnValue(Type.getType(desc).getSort, visitor)
           callVCreateOne(visitor, (m) => m.visitVarInsn(ALOAD, 0))
         }
         visitor.visitInsn(ARETURN)

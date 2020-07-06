@@ -67,8 +67,8 @@ object LiftUtils {
   def pushConstantTRUE(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "True", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", false)
 
-//  def callFExprIsSatisfiable(mv: MethodVisitor) =
-//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isSatisfiable", "()Z", true)
+  //  def callFExprIsSatisfiable(mv: MethodVisitor) =
+  //    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isSatisfiable", "()Z", true)
 
   /**
     * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
@@ -77,11 +77,12 @@ object LiftUtils {
     mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "isSatisfiable", s"($fexprclasstype)Z", false)
   }
 
-//  def callFExprIsContradiction(mv: MethodVisitor) =
-//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isContradiction", "()Z", true)
+  //  def callFExprIsContradiction(mv: MethodVisitor) =
+  //    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "isContradiction", "()Z", true)
 
   /**
     * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    *
     * @param mv
     */
   def callFExprIsContradiction(mv: MethodVisitor) =
@@ -90,21 +91,23 @@ object LiftUtils {
   def callFExprOr(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "or", "(Lde/fosd/typechef/featureexpr/FeatureExpr;)Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
 
-//  def callFExprAnd(mv: MethodVisitor) =
-//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "and", "(Lde/fosd/typechef/featureexpr/FeatureExpr;)Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
+  //  def callFExprAnd(mv: MethodVisitor) =
+  //    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "and", "(Lde/fosd/typechef/featureexpr/FeatureExpr;)Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
 
   /**
     * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    *
     * @param mv
     */
   def callFExprAnd(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, "edu/cmu/cs/varex/VCache", "and", s"($fexprclasstype$fexprclasstype)$fexprclasstype", false)
 
-//  def callFExprNot(mv: MethodVisitor) =
-//    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "not", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
+  //  def callFExprNot(mv: MethodVisitor) =
+  //    mv.visitMethodInsn(INVOKEINTERFACE, fexprclassname, "not", "()Lde/fosd/typechef/featureexpr/FeatureExpr;", true)
 
   /**
     * This version uses caching, via [[edu.cmu.cs.varex.VCache]]
+    *
     * @param mv
     */
   def callFExprNot(mv: MethodVisitor) =
@@ -117,7 +120,7 @@ object LiftUtils {
     mv.visitVarInsn(ALOAD, env.getVarIdx(v))
 
   def loadCurrentCtx(mv: MethodVisitor, env: VMethodEnv, block: Block) =
-    /*if (env.isMain) pushConstantTRUE(mv) else */loadFExpr(mv, env, env.getVBlockVar(block))
+  /*if (env.isMain) pushConstantTRUE(mv) else */ loadFExpr(mv, env, env.getVBlockVar(block))
 
   def loadMethodCtx(mv: MethodVisitor, env: VMethodEnv): Unit = mv.visitVarInsn(ALOAD, env.getVarIdx(env.ctxParameter))
 
@@ -181,20 +184,61 @@ object LiftUtils {
 
   def int2Integer(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+
   def Integer2int(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getInt, "intValue", MethodDesc("()I"), false)
+
   def long2Long(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getLong, "valueOf", MethodDesc(s"(J)${TypeDesc.getLong}"), false)
+
   def Long2long(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getLong, "longValue", MethodDesc("()J"), false)
+
   def Character2char(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getChar, "charValue", MethodDesc("()C"), false)
+
   def char2Character(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getChar, "valueOf", MethodDesc(s"(C)${TypeDesc.getChar}"), false)
+
   def double2Double(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getDouble, "valueOf", MethodDesc(s"(D)${TypeDesc.getDouble}"), false)
+
   def Double2double(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKEVIRTUAL, Owner.getDouble, "doubleValue", MethodDesc("()D"), false)
+
   def float2Float(mv: MethodVisitor) =
     mv.visitMethodInsn(INVOKESTATIC, Owner.getFloat, "valueOf", MethodDesc(s"(F)${TypeDesc.getFloat}"), false)
+
+  def boxReturnValue(typeSort: Int, mv: MethodVisitor): Unit = {
+    typeSort match {
+      case Type.INT | Type.BOOLEAN | Type.BYTE | Type.CHAR | Type.SHORT =>
+        mv.visitMethodInsn(INVOKESTATIC,
+          Owner.getInt,
+          MethodName("valueOf"),
+          MethodDesc(s"(I)${TypeDesc.getInt}"),
+          false)
+      case Type.LONG =>
+        mv.visitMethodInsn(INVOKESTATIC,
+          Owner.getLong,
+          MethodName("valueOf"),
+          MethodDesc(s"(J)${TypeDesc.getLong}"),
+          false)
+      case Type.DOUBLE =>
+        mv.visitMethodInsn(INVOKESTATIC,
+          Owner.getDouble,
+          MethodName("valueOf"),
+          MethodDesc(s"(D)${TypeDesc.getDouble}"),
+          false)
+      case Type.FLOAT =>
+        mv.visitMethodInsn(INVOKESTATIC,
+          Owner.getFloat,
+          MethodName("valueOf"),
+          MethodDesc(s"(F)${TypeDesc.getFloat}"),
+          false)
+      case Type.OBJECT => // do nothing
+      case Type.VOID => // do nothing
+      case Type.ARRAY => // do nothing
+      case _ => ???
+    }
+  }
 }
