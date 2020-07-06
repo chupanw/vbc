@@ -110,7 +110,10 @@ case class InstrATHROW() extends Instruction {
     /** If this is the last VBlock, we need to insert a return instr to avoid the GOTO we add when transforming block structure */
     if (env.getNextVBlock(env.getVBlock(block)).isEmpty) {
       if (env.method.isInit) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
-    } else {
+    } else if (block.instr.last == this) {
+      if (env.method.isInit) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
+    }
+    else {
       mv.visitInsn(POP)
     }
   }
