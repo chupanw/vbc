@@ -54,6 +54,7 @@ public class ExceptionExample {
 //        example.exceptionWithField();
 //        example.testHappyPath();
 //        example.testMaxBlockCount();
+        example.testThrowInFinally();
     }
 
     // in fact we are returning a One(null) to indicate no exception
@@ -281,6 +282,16 @@ public class ExceptionExample {
                 System.out.println("no exception if B");
             }
             System.out.println("end");
+        }
+    }
+
+    public void testThrowInFinally() {
+        try {
+            throw new RuntimeException("under true");
+        } finally {
+            if (A) {
+                throw new RuntimeException("under A");
+            }
         }
     }
 
