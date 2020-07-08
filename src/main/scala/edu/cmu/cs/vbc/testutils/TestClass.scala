@@ -103,7 +103,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     }
 
   def getOrderedTestCases: List[Method] = {
-    val tests       = getTestCases
+    val tests       = getTestCases.sortBy(_.getName)
     val prioritized = tests.filter(t => failingTests.exists(f => t.getName.startsWith(f + "__")))
     (prioritized ::: tests).distinct
   }
