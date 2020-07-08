@@ -210,8 +210,21 @@ public class VOps {
     }
 
     // no runtime exception
-    public static V<? extends Integer> ior(V<? extends Integer> value1, V<? extends Integer> value2, FeatureExpr ctx) {
-        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.intValue() | v2.intValue()));
+    public static V<?> ior(V<?> value1, V<?> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> {
+            int vv1, vv2;
+            if (v1 instanceof Boolean) {
+                vv1 = ((Boolean) v1) ? 1 : 0;
+            } else {
+                vv1 = ((Integer) v1).intValue();
+            }
+            if (v2 instanceof Boolean) {
+                vv2 = ((Boolean) v2) ? 1 : 0;
+            } else {
+                vv2 = ((Integer) v2).intValue();
+            }
+            return vv1 | vv2;
+        }));
     }
 
     // no runtime exception
