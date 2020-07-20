@@ -2,12 +2,12 @@ package edu.cmu.cs.vbc.loader
 
 import java.util
 
-import org.objectweb.asm.{Label, Opcodes}
 import org.objectweb.asm.tree._
 import org.objectweb.asm.tree.analysis.{Analyzer, SourceInterpreter, SourceValue}
+import org.objectweb.asm.{Label, Opcodes}
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 /**
   * Rewrite init methods so that init sequence is ahead of anything else.
@@ -61,7 +61,9 @@ object InitRewriter {
       }
     val (prefix, rest) = instructions.splitAt(aload0Idx) // prefix not including ALOAD0
     val (initSeq, postfix) = rest.splitAt(invokeSpecialIdx + 1 - aload0Idx) // postfix not including invokespecial
-    val initSeqWithLabel: Array[AbstractInsnNode] = initSeq :+ new LabelNode(new Label("EndOfInitSeq"))
+    val endLabel = new Label()
+    endLabel.info = "EndOfInitSeq"
+    val initSeqWithLabel: Array[AbstractInsnNode] = initSeq :+ new LabelNode(endLabel)
     (initSeqWithLabel ++ prefix ++ postfix) foreach {i => m.instructions.add(i)}
     m
   }

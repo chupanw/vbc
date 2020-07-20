@@ -3,6 +3,10 @@ import com.typesafe.sbt.packager.docker.DockerPermissionStrategy
 
 scalaVersion := "2.13.1"
 
+libraryDependencies += "org.ow2.asm" % "asm" % "8.0.1"
+libraryDependencies += "org.ow2.asm" % "asm-tree" % "8.0.1"
+libraryDependencies += "org.ow2.asm" % "asm-util" % "8.0.1"
+
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % "test"
 libraryDependencies += "com.vladsch.flexmark" % "flexmark-all" % "0.35.10" % "test"

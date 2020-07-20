@@ -1,7 +1,7 @@
 package edu.cmu.cs.vbc.loader
 
-import org.objectweb.asm.{Label, Opcodes}
 import org.objectweb.asm.tree.{InsnNode, LabelNode, MethodNode, TryCatchBlockNode}
+import org.objectweb.asm.{Label, Opcodes}
 
 object TryCatchBlock {
 
@@ -12,7 +12,7 @@ object TryCatchBlock {
         val instructions = m.instructions.toArray
         val initLabel: LabelNode =
           instructions.find(
-            x => x.isInstanceOf[LabelNode] && x.asInstanceOf[LabelNode].getLabel.toString.endsWith("EndOfInitSeq")
+            x => x.isInstanceOf[LabelNode] && x.asInstanceOf[LabelNode].getLabel.info != null && x.asInstanceOf[LabelNode].getLabel.info.equals("EndOfInitSeq")
           ).get.asInstanceOf[LabelNode]
         initLabel
       }
@@ -20,7 +20,9 @@ object TryCatchBlock {
         m.instructions.getFirst match {
           case n: LabelNode => n
           case _ =>
-            val s = new LabelNode(new Label("methodStart"))
+            val methodStartLabel = new Label()
+            methodStartLabel.info = "methodStart"
+            val s = new LabelNode(methodStartLabel)
             m.instructions.insert(s)
             s
         }
@@ -28,7 +30,9 @@ object TryCatchBlock {
     val endL: LabelNode = m.instructions.getLast match {
       case n: LabelNode => n
       case _ =>
-        val e = new LabelNode(new Label("methodEnd"))
+        val methodEndLabel = new Label()
+        methodEndLabel.info = "methodEnd"
+        val e = new LabelNode(methodEndLabel)
         m.instructions.add(e)
         e
     }

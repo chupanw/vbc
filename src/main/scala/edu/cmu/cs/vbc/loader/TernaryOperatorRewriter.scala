@@ -95,7 +95,7 @@ object TernaryOperatorRewriter {
   * When we find a invokespecial init call, we extract the ternary operators and store
   * the results before loading the caller of invokespecial.
   */
-class TernaryOperatorAnalyzer(mn: MethodNode) extends SourceInterpreter {
+class TernaryOperatorAnalyzer(mn: MethodNode) extends SourceInterpreter(Opcodes.ASM5) {
   /**
     * Pairs of INVOKESPECIAL index and indexes of its sources
     */

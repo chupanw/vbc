@@ -23,7 +23,8 @@ class MethodEnv(val clazz: VBCClassNode, val method: VBCMethodNode) extends CFGA
   val thisParameter: Parameter = new Parameter(0, "this", Owner(clazz.name).getTypeDesc)
 
   def freshLabel(name: String = "<unknown>") = {
-    val l = new Label(name)
+    val l = new Label()
+    l.info = name
     labels ::= l
     l
   }

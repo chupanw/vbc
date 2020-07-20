@@ -329,7 +329,11 @@ class VMethodEnv(clazz: VBCClassNode, method: VBCMethodNode)
       }
     }
 
-  val blockEndLabel: List[Label] = for (i <- blocks.indices.toList) yield new Label(s"END_OF_BLOCK_$i")
+  val blockEndLabel: List[Label] = for (i <- blocks.indices.toList) yield {
+    val label = new Label()
+    label.info = s"END_OF_BLOCK_$i"
+    label
+  }
   val allHandlerBlocks: List[Block] = blocks.flatMap(_.exceptionHandlers).distinct.map(handler => getBlock(handler.handlerBlockIdx))
   def isHandlerBlock(b: Block): Boolean = allHandlerBlocks.contains(b)
   def getBlockEndLabel(b: Block): Label = blockEndLabel(blocks.indexOf(b))
