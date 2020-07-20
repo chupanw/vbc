@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc.testutils
 object ClosureTestLauncher extends TestLauncher {
   override val configFile: String = "closure.conf"
   override val useModel: Boolean = true
+  override val reuseLifted: Boolean = false
 
   override def genProject(args: Array[String]): Project = new ClosureProject(args)
 }

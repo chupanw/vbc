@@ -20,6 +20,7 @@ abstract class TestLauncher {
 
   val configFile: String
   val useModel: Boolean
+  val reuseLifted: Boolean
 
   def genProject(args: Array[String]): Project
 
@@ -36,7 +37,7 @@ abstract class TestLauncher {
         rewriter = replaceInitConditional,
         useModel = useModel,
         config = Some(configFile),
-        reuseLifted = false)
+        reuseLifted = reuseLifted)
       setClassLoader(blockCountTestLoader)
       p.testClasses.foreach { x =>
         new TestClass(blockCountTestLoader.loadClass(x)).countBlockForAllTests()
@@ -50,7 +51,7 @@ abstract class TestLauncher {
       p.libJars,
       useModel = useModel,
       config = Some(configFile),
-      reuseLifted = false)
+      reuseLifted = reuseLifted)
     setClassLoader(testLoader)
     if (Settings.fastMode) {
       breakable {

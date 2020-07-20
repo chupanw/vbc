@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc.testutils
 object ApacheMathLauncher extends TestLauncher {
   override val configFile: String = "apache-math.conf"
   override val useModel: Boolean = false
+  override val reuseLifted: Boolean = false
 
   override def genProject(args: Array[String]): Project = new ApacheMathProject(args)
 }
