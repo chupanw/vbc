@@ -94,7 +94,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   //todo: also search for superclasses
   def getTestCases: List[Method] =
     if (isJUnit3)
-      c.getMethods.toList.filter(x => x.getName.startsWith("test"))
+      c.getMethods.toList.filter(x => x.getName.startsWith("test") && x.getParameterCount == 1)
     else {
       val allTests = c.getMethods.toList.filter { x =>
         x.isAnnotationPresent(classOf[org.junit.Test])
