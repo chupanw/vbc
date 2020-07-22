@@ -1124,4 +1124,10 @@ public class VOps {
             }
         });
     }
+
+    public static Object terminate(String msg) {
+        System.err.println(msg);
+        System.exit(6);
+        return null;
+    }
 }

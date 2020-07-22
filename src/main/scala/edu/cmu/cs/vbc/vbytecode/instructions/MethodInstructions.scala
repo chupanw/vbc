@@ -988,41 +988,46 @@ case class InstrINVOKEDYNAMIC(name: MethodName,
       // we are not lifting the interface, that means we need to explode the captured
       //  arguments and create a V of functional object
       // todo: the following implementation is not complete
-      ???
-      val capturedArgs = desc.getArgs
-      if (capturedArgs.length == 0) {
-        mv.visitInvokeDynamicInsn(name, desc, bsm, toModelBsmArgs(bsmArgs): _*)
-        callVCreateOne(mv, loadCurrentCtx(_, env, block))
-      } else {
-        val firstCapturedArgString = capturedArgs.head.toModel.toString
-        val restCapturedArgsString = capturedArgs.tail.map(_.toModel).mkString("(", "", ")")
-
-        InvokeDynamicUtils.invokeWithCacheClear(
-          VCall.sflatMap,
-          mv,
-          env,
-          loadCtx = loadCurrentCtx(_, env, block),
-          lambdaName = "EXPLODE_INVOKEDYNMAIC_OF_" + name.name,
-          desc = firstCapturedArgString + restCapturedArgsString + vclasstype,
-          nExplodeArgs = capturedArgs.length - 1,
-          expandArgArray = true
-        ) { (m: MethodVisitor) =>
-          {
-            if (capturedArgs.length == 1)
-              m.visitVarInsn(ALOAD, 1)
-            else {
-              0 until capturedArgs.length - 1 foreach { i =>
-                m.visitVarInsn(ALOAD, i)
-              }                                          // load the first n-1 arguments
-              m.visitVarInsn(ALOAD, capturedArgs.length) // load the last argument
-            }
-            m.visitInvokeDynamicInsn(name, desc.toModels, bsm, toModelBsmArgs(bsmArgs): _*)
-            callVCreateOne(m,
-                           (mm: MethodVisitor) => mm.visitVarInsn(ALOAD, capturedArgs.length - 1))
-            m.visitInsn(ARETURN)
-          }
-        }
+      desc.getArgs.indices foreach {_ =>
+        mv.visitInsn(POP)
       }
+      mv.visitLdcInsn("Lifting INVOKEDYNAMIC, terminating...")
+      mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("terminate"), MethodDesc("(Ljava/lang/String;)Ljava/lang/Object;"), false)
+//      ???
+//      val capturedArgs = desc.getArgs
+//      if (capturedArgs.length == 0) {
+//        mv.visitInvokeDynamicInsn(name, desc, bsm, toModelBsmArgs(bsmArgs): _*)
+//        callVCreateOne(mv, loadCurrentCtx(_, env, block))
+//      } else {
+//        val firstCapturedArgString = capturedArgs.head.toModel.toString
+//        val restCapturedArgsString = capturedArgs.tail.map(_.toModel).mkString("(", "", ")")
+//
+//        InvokeDynamicUtils.invokeWithCacheClear(
+//          VCall.sflatMap,
+//          mv,
+//          env,
+//          loadCtx = loadCurrentCtx(_, env, block),
+//          lambdaName = "EXPLODE_INVOKEDYNMAIC_OF_" + name.name,
+//          desc = firstCapturedArgString + restCapturedArgsString + vclasstype,
+//          nExplodeArgs = capturedArgs.length - 1,
+//          expandArgArray = true
+//        ) { (m: MethodVisitor) =>
+//          {
+//            if (capturedArgs.length == 1)
+//              m.visitVarInsn(ALOAD, 1)
+//            else {
+//              0 until capturedArgs.length - 1 foreach { i =>
+//                m.visitVarInsn(ALOAD, i)
+//              }                                          // load the first n-1 arguments
+//              m.visitVarInsn(ALOAD, capturedArgs.length) // load the last argument
+//            }
+//            m.visitInvokeDynamicInsn(name, desc.toModels, bsm, toModelBsmArgs(bsmArgs): _*)
+//            callVCreateOne(m,
+//                           (mm: MethodVisitor) => mm.visitVarInsn(ALOAD, capturedArgs.length - 1))
+//            m.visitInsn(ARETURN)
+//          }
+//        }
+//      }
     }
     postMethod(mv, env, block)
   }
