@@ -211,7 +211,7 @@ class Loader {
       annotationDefault = m.annotationDefault,
       invisibleAnnotations = if (m.invisibleAnnotations == null) Nil else m.invisibleAnnotations.asScala.toList,
       invisibleLocalVariableAnnotations = if (m.invisibleLocalVariableAnnotations == null) Nil else m.invisibleLocalVariableAnnotations.asScala.toList,
-      invisibleParameterAnnotations = if (m.invisibleParameterAnnotations == null) Array.empty else m.invisibleParameterAnnotations.map(_.asScala.toList),
+      invisibleParameterAnnotations = if (m.invisibleParameterAnnotations == null) Array.empty else m.invisibleParameterAnnotations.filter(_ != null).map(_.asScala.toList),
       invisibleTypeAnnotations = if (m.invisibleTypeAnnotations == null) Nil else m.invisibleTypeAnnotations.asScala.toList,
       visibleAnnotations = if (m.visibleAnnotations == null) Nil else m.visibleAnnotations.asScala.toList,
       visibleLocalVariableAnnotations = if (m.visibleLocalVariableAnnotations == null) Nil else m.visibleLocalVariableAnnotations.asScala.toList,
