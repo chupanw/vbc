@@ -930,6 +930,13 @@ public class VOps {
     public static V<? extends Integer> hashCode(Object o1, FeatureExpr ctx) {
         try {
             Method liftedHashCode = o1.getClass().getMethod("hashCode____I", FeatureExpr.class);
+            // check recursive hashCode calls
+            StackTraceElement[] currentTrace = Thread.currentThread().getStackTrace();
+            for (int i = 0; i < currentTrace.length; i++) {
+                if (currentTrace[i].getClassName().equalsIgnoreCase(liftedHashCode.getDeclaringClass().getName()) && currentTrace[i].getMethodName().equals(liftedHashCode.getName())) {
+                    return V.one(ctx, o1.hashCode());
+                }
+            }
             liftedHashCode.setAccessible(true);
             return (V<? extends Integer>) liftedHashCode.invoke(o1, ctx);
         } catch (NoSuchMethodException e) {
