@@ -108,10 +108,11 @@ case class InstrATHROW() extends Instruction {
     /** If not thrown, we update current block context before it gets propagated */
     updateBlockCtxIfNotThrowingException(mv, env, block)
     /** If this is the last VBlock, we need to insert a return instr to avoid the GOTO we add when transforming block structure */
+    val unconditional = env.getJumpTargets(block)._1.get
     if (env.getNextVBlock(env.getVBlock(block)).isEmpty) {
       if (env.method.isInit) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
-    } else if (block.instr.last == this) {
-      if (env.method.isInit) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
+    } else if (unconditional.exceptions.nonEmpty && !env.isVBlockHead(unconditional)) {
+      // do nothing, avoid the POP below
     }
     else {
       mv.visitInsn(POP)
