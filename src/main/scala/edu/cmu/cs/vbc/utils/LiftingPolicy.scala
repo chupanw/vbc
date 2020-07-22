@@ -40,6 +40,10 @@ object LiftingPolicy {
       || owner.name.startsWith("org/apache/commons/math")
       || owner.name.startsWith("edu/cmu/cs/vbc/prog/")
       || owner.name.startsWith("com/google/javascript/jscomp")
+      || owner.name.startsWith("com/google/javascript/rhino")
+      || owner.name.startsWith("com/google/debugging")
+      || owner.name.startsWith("com/google/common/base")
+      || owner.name.startsWith("com/google/common/primitives")
       ) && !currentConfig.programNotLiftingClasses.exists(n => owner.name.matches(".*" + n)))
       true
     else false
@@ -50,7 +54,7 @@ object LiftingPolicy {
     *
     * The parameter ``owner`` might be renamed to model classes later.
     */
-  def shouldLiftMethodCall(owner: Owner, name: MethodName, desc: MethodDesc): Boolean = {
+  def shouldLiftMethodCall(owner: Owner, name: MethodName, desc: MethodDesc, env: VMethodEnv): Boolean = {
     if (currentConfig.notLiftingClasses.exists(n => owner.name.matches(n))) false
     else if (currentConfig.notLiftingClasses.exists(n => (VBCModel.prefix + "/" + owner.name).matches(n))){
       // Sometimes we create model classes, but use them like other JDK classes that we don't lift
@@ -58,7 +62,7 @@ object LiftingPolicy {
       false
     }
     else if (owner == Owner.getVOps) false
-    else true
+    else specialCaseCheck(owner, name, desc, env)
   }
 
   /**
@@ -132,8 +136,8 @@ object LiftingPolicy {
 
   case class LiftedCall(owner: Owner, name: MethodName, desc: MethodDesc, isLifting: Boolean)
 
-  def liftCall(owner: Owner, name: MethodName, desc: MethodDesc): LiftedCall = {
-    val shouldLiftMethod = LiftingPolicy.shouldLiftMethodCall(owner, name, desc)
+  def liftCall(owner: Owner, name: MethodName, desc: MethodDesc, env: VMethodEnv): LiftedCall = {
+    val shouldLiftMethod = LiftingPolicy.shouldLiftMethodCall(owner, name, desc, env)
     if (shouldLiftMethod) {
       if (name.contentEquals("<init>")) {
         LiftedCall(owner.toModel, name, desc.toVs_AppendFE_AppendArgs, isLifting = true)
@@ -143,6 +147,17 @@ object LiftingPolicy {
     }
     else {
       replaceCall(owner, name, desc, isVE = true)
+    }
+  }
+
+  def specialCaseCheck(owner: Owner, name: MethodName, desc: MethodDesc, env: VMethodEnv): Boolean = {
+    (owner.name, name.name, desc.descString) match {
+      // in case we are trying to get an iterator of an unlifted object in lifted code
+      case ("java/util/Iterator", _, _)
+        if env.clazz.name == "com/google/javascript/jscomp/parsing/IRFactory$TransformDispatcher" && env.method.name == "processAstRoot" => false
+      case ("java/util/Iterator", _, _)
+        if env.clazz.name == "com/google/javascript/jscomp/parsing/IRFactory$TransformDispatcher" && env.method.name == "processGeneric" => false
+      case _ => true
     }
   }
 
@@ -181,6 +196,12 @@ object LiftingPolicy {
       case (cls, _, _) if cls.startsWith("com/google/common/collect") =>
         LiftedCall(owner, name, desc, isLifting = false)
       case (cls, _, _) if cls.startsWith("com/google/javascript/jscomp/CommandLineRunner$Flags") =>
+        LiftedCall(owner, name, desc, isLifting = false)
+      case (cls, mtd, _) if cls == "com/google/javascript/rhino/head/ast/AstRoot" && mtd == "iterator" =>
+        LiftedCall(owner, name, desc, isLifting = false)
+      case (cls, mtd, _) if cls == "com/google/javascript/rhino/head/Node" && mtd == "iterator" =>
+        LiftedCall(owner, name, desc, isLifting = false)
+      case ("java/util/Iterator", _, _) =>
         LiftedCall(owner, name, desc, isLifting = false)
       case _ => LiftedCall(owner.toModel, name, desc.toModels, isLifting = false)
     }

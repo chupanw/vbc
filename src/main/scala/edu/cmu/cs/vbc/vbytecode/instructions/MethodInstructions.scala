@@ -26,7 +26,7 @@ trait MethodInstruction extends Instruction {
   ): Unit = {
     val nArgs      = Type.getArgumentTypes(desc).length
     val hasVArgs   = nArgs > 0
-    val liftedCall = liftCall(owner, name, desc)
+    val liftedCall = liftCall(owner, name, desc, env)
     val objType    = Type.getObjectType(liftedCall.owner).toString
     val argTypeDesc: String = desc.getArgs
       .map { t =>
@@ -76,7 +76,7 @@ trait MethodInstruction extends Instruction {
           // perf: Necessary because we assume V[] everywhere.
           toVArray(liftedCall, mv, nArgs)
         }
-        if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc) && !isReturnVoid)
+        if (!LiftingPolicy.shouldLiftMethodCall(owner, name, desc, env) && !isReturnVoid)
           callVCreateOne(mv, (m) => m.visitVarInsn(ALOAD, nArgs))
         if (isReturnVoid) mv.visitInsn(RETURN) else mv.visitInsn(ARETURN)
       }
@@ -460,11 +460,11 @@ trait MethodInstruction extends Instruction {
       desc: MethodDesc
   ): UpdatedFrame = {
 //    val shouldLift = LiftingPolicy.shouldLiftMethodCall(owner, name, desc)
-    val shouldLift                                 = LiftingPolicy.liftCall(owner, name, desc).isLifting
+    val shouldLift                                 = LiftingPolicy.liftCall(owner, name, desc, env).isLifting
     val nArg                                       = Type.getArgumentTypes(desc).length
     val argList: List[(VBCType, Set[Instruction])] = s.stack.take(nArg)
     val hasVArgs                                   = argList.exists(_._1.isInstanceOf[V_TYPE])
-    val hasArrayArgs                               = LiftingPolicy.liftCall(owner, name, desc).desc.getArgs.exists(_.isArray)
+    val hasArrayArgs                               = LiftingPolicy.liftCall(owner, name, desc, env).desc.getArgs.exists(_.isArray)
 
     // object reference
     var frame = s
@@ -571,7 +571,7 @@ case class InstrINVOKESPECIAL(owner: Owner, name: MethodName, desc: MethodDesc, 
       invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     } else {
       val hasVArgs   = env.getTag(this, env.TAG_HAS_VARG)
-      val liftedCall = liftCall(owner, name, desc)
+      val liftedCall = liftCall(owner, name, desc, env)
 
       if (liftedCall.isLifting) loadCurrentCtx(mv, env, block)
       if (name.contentEquals("<init>") && hasVArgs && !liftedCall.isLifting) {
@@ -740,7 +740,7 @@ case class InstrINVOKEVIRTUAL(owner: Owner, name: MethodName, desc: MethodDesc, 
       invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     } else {
       val hasVArgs   = env.getTag(this, env.TAG_HAS_VARG)
-      val liftedCall = liftCall(owner, name, desc)
+      val liftedCall = liftCall(owner, name, desc, env)
 
       if (!liftedCall.isLifting && hasVArgs) {
         loadCurrentCtx(mv, env, block)
@@ -785,7 +785,7 @@ case class InstrINVOKESTATIC(owner: Owner, name: MethodName, desc: MethodDesc, i
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     preMethod(mv, env, block)
     val hasVArgs   = env.getTag(this, env.TAG_HAS_VARG)
-    val liftedCall = liftCall(owner, name, desc)
+    val liftedCall = liftCall(owner, name, desc, env)
 
     if (!liftedCall.isLifting && hasVArgs) {
       explodeVArgs(liftedCall, mv, env, block)
@@ -858,7 +858,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
     preMethod(mv, env, block)
     if (env.shouldLiftInstr(this)) {
-      val lifted = liftCall(owner, name, desc)
+      val lifted = liftCall(owner, name, desc, env)
       if (lifted.owner == Owner("model/java/lang/Comparable") && lifted.name == MethodName(
             "compareTo__Ljava_lang_Object__I")) {
         loadCurrentCtx(mv, env, block)
@@ -871,7 +871,7 @@ case class InstrINVOKEINTERFACE(owner: Owner, name: MethodName, desc: MethodDesc
         invokeDynamic(owner, name, desc, itf, mv, env, loadCurrentCtx(_, env, block))
     } else {
       val hasVArgs   = env.getTag(this, env.TAG_HAS_VARG)
-      val liftedCall = liftCall(owner, name, desc)
+      val liftedCall = liftCall(owner, name, desc, env)
 
       if (!liftedCall.isLifting && hasVArgs) {
         loadCurrentCtx(mv, env, block)
