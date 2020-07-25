@@ -143,9 +143,10 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
     }
     import scala.jdk.CollectionConverters._
     val cw = new MyClassWriter(ClassWriter.COMPUTE_FRAMES, this) // COMPUTE_FRAMES implies COMPUTE_MAX
-    val dotifier = new Dotifier()
+//    val dotifier = new Dotifier()
     val textifier = new Textifier()
-    val cv = new TraceClassVisitor(new TraceClassVisitor(cw, textifier, null), dotifier, null)
+//    val cv = new TraceClassVisitor(new TraceClassVisitor(cw, textifier, null), dotifier, null)
+    val cv = new TraceClassVisitor(cw, textifier, null)
     try {
       if (isLift) {
         logger.info(s"lifting $name")
