@@ -69,7 +69,7 @@ object InitRewriter {
   }
 }
 
-class InitAnalyzer(cn: ClassNode, mn: MethodNode) extends SourceInterpreter {
+class InitAnalyzer(cn: ClassNode, mn: MethodNode) extends SourceInterpreter(Opcodes.ASM5) {
   /**
     * Pairs of ALOAD 0 index and INVOKESPECIAL index
     */

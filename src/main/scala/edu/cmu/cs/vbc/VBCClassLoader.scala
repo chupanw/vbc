@@ -52,9 +52,11 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
           }
         } else if (shouldLift(name))
           findClass(name)
-        else if (name.startsWith("edu.cmu.cs.vbc.prog") || name.startsWith("org.prevayler") || (name
-                   .startsWith("org.eclipse.jetty") && !name.startsWith(
-                   "org.eclipse.jetty.util.log")) || name.startsWith("javax.servlet"))
+        else if (name.startsWith("edu.cmu.cs.vbc.prog")
+          || name.startsWith("org.prevayler")
+          || (name.startsWith("org.eclipse.jetty") && !name.startsWith("org.eclipse.jetty.util.log"))
+          || name.startsWith("javax.servlet")
+        )
           loadClassAndUseModelClasses(name)
         else if (name.startsWith("org.apache.commons.validator")
           || name.startsWith("org.apache.commons.clivbc")
@@ -63,10 +65,12 @@ class VBCClassLoader(parentClassLoader: ClassLoader,
           || name.startsWith("antlr")
           || name.startsWith("org.eclipse.jetty.util.log")
           || name.startsWith("com.google.javascript")
+          || name.startsWith("com.google.debugging")
           || name.startsWith("com.google.common.io")
           || name.startsWith("org.json")
           || name.startsWith("org.kohsuke.args4j")
           || name.startsWith("org.mozilla.classfile")
+          || name.startsWith("com.google.common")
         ) // todo: do this more systematically
           loadClassWithoutChanges(name) // avoid LinkageError
         else if (name.startsWith("org.apache.commons.digester"))

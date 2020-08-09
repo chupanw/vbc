@@ -83,7 +83,11 @@ case class VBCMethodNode(access: Int,
     }
 
 
-    mv.visitMaxs(0, 0)
+    try {
+      mv.visitMaxs(0, 0)
+    } catch {
+      case t: Throwable => println(s"Exception in ${clazz.name}.$name"); throw t
+    }
     mv.visitEnd()
   }
 
@@ -316,6 +320,27 @@ case class VBCClassNode(
       createUnliftedRunOfTimerTask(cv)
     if (name.startsWith("org/apache/commons/validator/"))
       ValidatorBeanBridge.bridge(name, cv)
+    if (name == "com/google/javascript/jscomp/Compiler") {
+      createUnliftedAccess000(cv, MethodDesc(methods.find(_.name == "access$000").get.desc))
+      createUnliftedAccess200(cv, MethodDesc(methods.find(_.name == "access$200").get.desc))
+      createUnliftedGetResult(cv)
+    }
+    if (interfaces.contains("com/google/common/base/Predicate"))
+      createUnliftedApply_Predicate(cv)
+//    if (interfaces.contains("com/google/common/base/Function"))
+//      createUnliftedApply_Function(cv)
+//    if (interfaces.contains("java/util/concurrent/Callable"))
+//      createUnliftedCall(cv, methods.find(_.name == "call").get)
+    if (methods.exists(_.name == "clone")) {
+      createUnliftedClone(cv)
+    }
+    if (name == "com/google/javascript/jscomp/RhinoErrorReporter$NewRhinoErrorReporter") {
+      createUnliftedWarning(cv)
+      createUnliftedWarning2(cv)
+      createUnliftedError(cv)
+      createUnliftedError2(cv)
+      createUnliftedRuntimeError(cv)
+    }
     // create <clinit> method
     if (hasStaticConditionalFields) createCLINIT(cv, rewriter)
     // Write lambda methods
@@ -446,6 +471,227 @@ case class VBCClassNode(
     pushConstantTRUE(mv)
     mv.visitMethodInsn(INVOKEVIRTUAL, name, MethodName("run").rename(MethodDesc("()V")), MethodDesc("()V").appendFE.toVReturnTypeIfReturningVoid, false)
     mv.visitInsn(RETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedAccess200(cv: ClassVisitor, originDesc: MethodDesc): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC | ACC_STATIC, "access$200", s"(L${name};)I", s"(L${name};)I", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKESTATIC, name, MethodName("access$200").rename(originDesc), s"($vclasstype$fexprclasstype)$vclasstype", false)
+    val ret = originDesc.getReturnType
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "java/lang/Integer")
+    mv.visitMethodInsn(INVOKEVIRTUAL, IntClass, "intValue", "()I", false)
+    mv.visitInsn(IRETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedAccess000(cv: ClassVisitor, originDesc: MethodDesc): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC | ACC_STATIC, "access$000", s"(L${name};)${originDesc.toModels.getReturnType.getOrElse("V")}", s"(L${name};)${originDesc.toModels.getReturnType.getOrElse("V")}", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKESTATIC, name, MethodName("access$000").rename(originDesc), s"($vclasstype$fexprclasstype)$vclasstype", false)
+    val ret = originDesc.getReturnType
+    if (ret.isEmpty) {
+      mv.visitInsn(POP)
+      mv.visitInsn(RETURN)
+    } else {
+      mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+      mv.visitTypeInsn(CHECKCAST, ret.get.toModel.getOwner.get) // todo: does not work for primitive types
+      mv.visitInsn(ARETURN)
+    }
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedApply_Predicate(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "apply", "(Ljava/lang/Object;)Z", "(Ljava/lang/Object;)Z", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "apply__Ljava_lang_Object__Z", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "java/lang/Integer")
+    mv.visitMethodInsn(INVOKEVIRTUAL, IntClass, "intValue", "()I", false)
+    mv.visitInsn(IRETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedApply_Function(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "apply", "(Ljava/lang/Object;)Ljava/lang/Object;", "(Ljava/lang/Object;)Ljava/lang/Object;", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "apply__Ljava_lang_Object__Ljava_lang_Object", s"($vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitInsn(ARETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedClone(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "clone", "()Ljava/lang/Object;", "()Ljava/lang/Objects;", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "clone____Ljava_lang_Object", s"($fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitInsn(ARETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedGetResult(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "getResult", "()Lcom/google/javascript/jscomp/Result;", "()Lcom/google/javascript/jscomp/Result;", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "getResult____Lcom_google_javascript_jscomp_Result", s"($fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "com/google/javascript/jscomp/Result")
+    mv.visitInsn(ARETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedCall(cv: ClassVisitor, originMethod: VBCMethodNode): Unit = {
+    val newMethodName = MethodName(originMethod.name).rename(MethodDesc(originMethod.desc))
+    val mv = cv.visitMethod(ACC_PUBLIC, "call", "()Ljava/lang/Object;", "()Ljava/lang/Object;", Array("java/lang/Exception"))
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, newMethodName.name, s"($fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitInsn(ARETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedWarning(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "warning", "(Ljava/lang/String;Ljava/lang/String;II)V", "(Ljava/lang/String;Ljava/lang/String;II)V", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 2)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 3)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 4)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "warning__Ljava_lang_String_Ljava_lang_String_I_I__V", s"($vclasstype$vclasstype$vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitInsn(POP)
+    mv.visitInsn(RETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedWarning2(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "warning", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)V", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)V", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 2)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 3)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 4)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 5)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "warning__Ljava_lang_String_Ljava_lang_String_I_Ljava_lang_String_I__V", s"($vclasstype$vclasstype$vclasstype$vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitInsn(POP)
+    mv.visitInsn(RETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedError(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "error", "(Ljava/lang/String;Ljava/lang/String;II)V", "(Ljava/lang/String;Ljava/lang/String;II)V", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 2)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 3)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 4)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "error__Ljava_lang_String_Ljava_lang_String_I_I__V", s"($vclasstype$vclasstype$vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitInsn(POP)
+    mv.visitInsn(RETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedError2(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "error", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)V", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)V", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 2)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 3)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 4)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 5)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "error__Ljava_lang_String_Ljava_lang_String_I_Ljava_lang_String_I__V", s"($vclasstype$vclasstype$vclasstype$vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitInsn(POP)
+    mv.visitInsn(RETURN)
+    mv.visitMaxs(10, 10)
+    mv.visitEnd()
+  }
+
+  def createUnliftedRuntimeError(cv: ClassVisitor): Unit = {
+    val mv = cv.visitMethod(ACC_PUBLIC, "runtimeError", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)Lcom/google/javascript/rhino/head/EvaluatorException;", "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;I)Lcom/google/javascript/rhino/head/EvaluatorException;", Array.empty)
+    mv.visitCode()
+    mv.visitVarInsn(ALOAD, 0)
+    mv.visitVarInsn(ALOAD, 1)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 2)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 3)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ALOAD, 4)
+    callVCreateOne(mv, pushConstantTRUE)
+    mv.visitVarInsn(ILOAD, 5)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, MethodName("valueOf"), MethodDesc(s"(I)${TypeDesc.getInt}"), false)
+    callVCreateOne(mv, pushConstantTRUE)
+    pushConstantTRUE(mv)
+    mv.visitMethodInsn(INVOKEVIRTUAL, this.name, "runtimeError__Ljava_lang_String_Ljava_lang_String_I_Ljava_lang_String_I__Lcom_google_javascript_rhino_head_EvaluatorException", s"($vclasstype$vclasstype$vclasstype$vclasstype$vclasstype$fexprclasstype)$vclasstype", false)
+    mv.visitMethodInsn(INVOKEINTERFACE, vclassname, "getOne", "()Ljava/lang/Object;", true)
+    mv.visitTypeInsn(CHECKCAST, "com/google/javascript/rhino/head/EvaluatorException")
+    mv.visitInsn(ARETURN)
     mv.visitMaxs(10, 10)
     mv.visitEnd()
   }

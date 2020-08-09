@@ -1,6 +1,7 @@
 package model.java.util;
 
 import de.fosd.typechef.featureexpr.FeatureExpr;
+import edu.cmu.cs.varex.UnimplementedModelClassMethodException;
 import edu.cmu.cs.varex.V;
 import edu.cmu.cs.vbc.utils.Profiler;
 import model.Contexts;
@@ -44,6 +45,23 @@ public class LinkedList implements List {
     }
 
     @Override
+    public V<?> toArray____Array_Ljava_lang_Object(FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("toArray");
+    }
+
+    public V<?> push__Ljava_lang_Object__V(V<?> vObject, FeatureExpr ctx) {
+        vObject.sforeach(ctx, (fe, obj) -> {
+            split(fe);
+            vActual.sforeach(fe, (fe2, l) -> l.push(obj));
+        });
+        return null;
+    }
+
+    public V<?> pop____Ljava_lang_Object(FeatureExpr ctx) {
+        return vActual.smap(ctx, (fe, l) -> l.pop());
+    }
+
+    @Override
     public V<?> get__I__Ljava_lang_Object(V<? extends Integer> index, FeatureExpr ctx) {
         String id = "LinkedList#get#";
         Profiler.startTimer(id);
@@ -78,6 +96,25 @@ public class LinkedList implements List {
     }
 
     @Override
+    public V<?> listIterator____Lmodel_java_util_ListIterator(FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("listIterator");
+    }
+
+    @Override
+    public V<?> listIterator__I__Lmodel_java_util_ListIterator(V<? extends Integer> vI, FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("listIterator");
+    }
+
+    @Override
+    public V<?> containsAll__Lmodel_java_util_Collection__Z(V<?> vObjects, FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("containsAll");
+    }
+
+    public V<?> getLast____Ljava_lang_Object(FeatureExpr ctx) {
+        return vActual.smap(ctx, (fe, l) -> l.getLast());
+    }
+
+    @Override
     public V<?> iterator____Lmodel_java_util_Iterator(FeatureExpr ctx) {
         throw new RuntimeException("Not implemented");
     }
@@ -109,12 +146,22 @@ public class LinkedList implements List {
         throw new RuntimeException("Not implemented");
     }
 
+    @Override
+    public V<?> removeAll__Lmodel_java_util_Collection__Z(V<?> vCollection, FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("removeAll");
+    }
+
 
     public V<?> remove__I__Ljava_lang_Object(V<? extends Integer> vIndex, FeatureExpr ctx) {
         return vIndex.sflatMap(ctx, (fe, i) -> {
             split(fe);
             return vActual.smap(fe, list -> list.remove(i.intValue()));
         });
+    }
+
+    @Override
+    public V<?> subList__I_I__Lmodel_java_util_List(V<? extends Integer> vBegin, V<? extends Integer> vEnd, FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("subList");
     }
 
 
@@ -128,10 +175,20 @@ public class LinkedList implements List {
         return null;    // dummy value, will never use
     }
 
+    @Override
+    public V<?> set__I_Ljava_lang_Object__Ljava_lang_Object(V<? extends Integer> vI, V<?> vObject, FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("set");
+    }
+
     public V<?> clear____V(FeatureExpr ctx) {
         split(ctx);
         vActual.sforeach(ctx, java.util.LinkedList::clear);
         return null;    // dummy value, will never use
+    }
+
+    @Override
+    public V<?> hashCode____I(FeatureExpr ctx) {
+        throw new UnimplementedModelClassMethodException("hashCode");
     }
 
     @Override

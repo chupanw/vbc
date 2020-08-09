@@ -7,4 +7,6 @@ public interface Iterator {
     V<?> hasNext____Z(FeatureExpr ctx);
 
     V<?> next____Ljava_lang_Object(FeatureExpr ctx);
+
+    V<?> remove____V(FeatureExpr ctx);
 }

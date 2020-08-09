@@ -24,6 +24,14 @@ public class Arrays {
         }));
     }
 
+    public static V<?> copyOf__Array_J_I__Array_J(V<V[]> original, V<Integer> vNewLength, FeatureExpr ctx) {
+        return original.sflatMap(ctx, (fe, va) -> vNewLength.smap(fe, integer -> {
+            V[] copied = java.util.Arrays.copyOf(va, integer);
+            if (integer > va.length)
+                java.util.Arrays.fill(copied, va.length, integer, V.one(fe, 0L)); return copied;
+        }));
+    }
+
     public static char[] copyOf(char[] original, int newLength) {
         return java.util.Arrays.copyOf(original, newLength);
     }
@@ -53,6 +61,21 @@ public class Arrays {
         return null;    // dummy return value
     }
 
+    public static V<?> fill__Array_Ljava_lang_Object_I_I_Ljava_lang_Object__V(V<V[]> varray, V<Integer> vFromIdx, V<Integer> vToIdx, V<?> vObj, FeatureExpr ctx) {
+        vFromIdx.sforeach(ctx, (fe1, fromIdx) -> {
+            vToIdx.sforeach(fe1, (fe2, toIdx) -> {
+                vObj.sforeach(fe2, (fe3, obj) -> {
+                    varray.sforeach(fe3, (fe4, array) -> {
+                        for (int i = fromIdx; i < toIdx; i++) {
+                            array[i] = V.choice(fe4, V.one(fe4, obj), array[i]);
+                        }
+                    });
+                });
+            });
+        });
+        return null;    // dummy return value
+    }
+
     public static <T> void sort(T[] array, model.java.util.Comparator comparator) {
         java.util.Arrays.sort(array, comparator::compare);
     }
@@ -65,6 +88,17 @@ public class Arrays {
                 V[] compressed = ArrayOps.compressArray(expanded);
                 ArrayOps.copyVArray(compressed, array);
             });
+        });
+        return null;    // dummy return value
+    }
+
+    public static <T> V<?> sort__Array_Ljava_lang_Object__V(V<V<T>[]> vArray, FeatureExpr ctx) {
+        vArray.sforeach(ctx, (FeatureExpr fe, V<T>[] array) -> {
+            V<T[]> expanded = ArrayOps.expandArray(array, Object[].class, fe);
+            Contexts.model_java_util_Comparator_compare = fe;
+            expanded.sforeach(fe, (T[] expandedArray) -> java.util.Arrays.sort(expandedArray));
+            V[] compressed = ArrayOps.compressArray(expanded);
+            ArrayOps.copyVArray(compressed, array);
         });
         return null;    // dummy return value
     }
@@ -90,6 +124,10 @@ public class Arrays {
         return null;    // dummy return value
     }
 
+    public static V<?> sort__Array_C__V(V<V<Integer>[]> vArray, FeatureExpr ctx) {
+        return sort__Array_I__V(vArray, ctx);
+    }
+
     public static int binarySearch(int[] array, int key) {
         return java.util.Arrays.binarySearch(array, key);
     }
@@ -103,6 +141,14 @@ public class Arrays {
             V<Integer[]> expanded = ArrayOps.expandArray(vArray, Integer[].class, fe2);
             return (V) expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
         }));
+    }
+
+    public static V<?> binarySearch__Array_C_C__I(V<V<Integer>[]> vCArray, V<Integer> key, FeatureExpr ctx) {
+        V<?> ret = key.sflatMap(ctx, (fe, k) -> vCArray.sflatMap(fe, (FeatureExpr fe2, V<Integer>[] vArray) -> {
+            V<Integer[]> expanded = ArrayOps.expandArray(vArray, Integer[].class, fe2);
+            return (V) expanded.smap(fe2, array -> java.util.Arrays.binarySearch(array, k));
+        }));
+        return ret;
     }
 
     public static V<?> binarySearch__Array_D_D__I(V<V<Double>[]> vDoubleArray, V<Double> key, FeatureExpr ctx) {
@@ -140,8 +186,16 @@ public class Arrays {
         return list;
     }
 
+    public static List asListV(Object[] array, FeatureExpr ctx) {
+        ArrayList l = new ArrayList(ctx);
+        for (int i = 0; i < array.length; i++) {
+            l.add__Ljava_lang_Object__Z(V.one(ctx, array[i]), ctx);
+        }
+        return l;
+    }
+
     public static V<? extends List> asList__Array_Ljava_lang_Object__Lmodel_java_util_List(V<Object[]> vObjectArrays, FeatureExpr ctx) {
-        return vObjectArrays.smap(ctx, Arrays::asList);
+        return vObjectArrays.smap(ctx, (fe, a) -> asListV(a, fe));
     }
 
     public static int[] copyOfRange(int[] original, int from, int to) {

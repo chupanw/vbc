@@ -13,7 +13,7 @@ import java.util.function.*;
 /**
  * internal implementation of V
  */
-class VImpl<T> implements V<T>, Serializable {
+public class VImpl<T> implements V<T>, Serializable {
 
     static int expensiveWarningThreshold = 1024;
 
@@ -341,6 +341,25 @@ class VImpl<T> implements V<T>, Serializable {
         } else {
             return new VImpl<T>(simplified);
         }
+    }
+
+    public <U> VImpl<T> merge(Function<T, U> conversion) {
+        HashMap<U, T> cache = new HashMap<>();
+        HashMap<T, FeatureExpr> merged = new HashMap<>();
+        for (Map.Entry<T, FeatureExpr> entry : values.entrySet()) {
+            U equivalence = conversion.apply(entry.getKey());
+            if (cache.containsKey(equivalence)) {
+                T cached = cache.get(equivalence);
+                FeatureExpr existing = merged.get(cached);
+                merged.put(cached, existing.or(entry.getValue()));
+            }
+            else {
+                cache.put(equivalence, entry.getKey());
+                merged.put(entry.getKey(), entry.getValue());
+            }
+        }
+//        System.err.println("shrinking value map from " + values.size() + " to " + merged.size());
+        return new VImpl<>(merged);
     }
 
     /**

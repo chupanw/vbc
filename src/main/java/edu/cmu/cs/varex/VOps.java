@@ -1034,8 +1034,8 @@ public class VOps {
     public static void checkBlockCount(FeatureExpr ctx) {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
-        Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
         if (VERuntime.isBlockCountReached()) {
+            Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
             if (VERuntime.shouldPostpone(ctx)) {
                 VERuntime.postponeException(e, ctx);
                 VERuntime.resetBlockCount();
