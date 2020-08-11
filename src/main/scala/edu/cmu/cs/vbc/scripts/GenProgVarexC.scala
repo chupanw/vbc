@@ -162,7 +162,7 @@ object IntroClassPatchRunner extends App with PatchRunner {
        |targetClassName = $mainClass
        |sourceVersion=1.8
        |sample = 0.1
-       |edits = append;delete;replace;
+       |edits = append;delete;replace;aor;ror;lcr;uoi;abs;
       """.stripMargin
   }
 }
