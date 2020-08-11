@@ -630,8 +630,22 @@ public class VOps {
             throw new VException(x, expCtx);
     }
 
+    /**
+     * When calling <clinit>, we should disable this flag to avoid problematic static initialization.
+     *
+     * For example, test A might trigger a <clinit> when some exceptions were postponed, and then test B (which should pass) would have a corrupted
+     * static initialization.
+     *
+     * Then only place this field gets changed is at the creation of <clinit>
+     */
+    public static boolean enableUpdateCtxFromGlobal = true; // when call <clinit>, we need to disable update context so that intialization is not affect
     public static FeatureExpr updateCurrentContextFromGlobal(FeatureExpr ctx) {
-        return ctx.and(VERuntime.postponedExceptionContext().not());
+        if (enableUpdateCtxFromGlobal) {
+            return ctx.and(VERuntime.postponedExceptionContext().not());
+        }
+        else {
+            return ctx;
+        }
     }
     /**
      * Not really used anymore.
@@ -1035,10 +1049,16 @@ public class VOps {
         VERuntime.incrementBlockCount();
         // We throw Error to avoid exceptions being caught, such as the catchers in Monopoli
         if (VERuntime.isBlockCountReached()) {
+            // need to make sure getOneSolution returns the minimal solution
+            if (ctx.getOneSolution().equals("{}")) {
+                // {} should not time out
+                VERuntime.resetBlockCount(false);
+                return;
+            }
             Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
             if (VERuntime.shouldPostpone(ctx)) {
                 VERuntime.postponeException(e, ctx);
-                VERuntime.resetBlockCount();
+                VERuntime.resetBlockCount(true);
             } else {
                 VERuntime.throwExceptionCtx(ctx);
                 throw new VException(e, ctx);
@@ -1060,7 +1080,7 @@ public class VOps {
                 Error e = new PotentialStackOverflowError("Max stack depth of " + Settings.maxStackDepth() + " reached");
                 if (VERuntime.shouldPostpone(ctx)) {
                     VERuntime.postponeException(e, ctx);
-                    VERuntime.resetBlockCount();
+                    VERuntime.resetBlockCount(true);
                 } else {
                     VERuntime.throwExceptionCtx(ctx);
                     throw new VException(e, ctx);

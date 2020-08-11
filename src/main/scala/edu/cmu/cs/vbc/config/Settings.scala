@@ -131,9 +131,9 @@ object VERuntime {
 
   def getBlockCount: Long = curBlockCount
 
-  def resetBlockCount(): Unit = {
+  def resetBlockCount(warn: Boolean): Unit = {
     curBlockCount = 0
-    println("Resetting block count")
+    if (warn) println("Resetting block count")
   }
 
   def genMethodKey(m: Method): String =
@@ -154,7 +154,7 @@ object VERuntime {
     val value = Math.max(maxBlockPerTest.getOrElse(key, 0L), cnt)
     maxBlockPerTest.put(key, value)
     println("Setting max block to " + numFormatter.format(value))
-    resetBlockCount()
+    resetBlockCount(false)
   }
 
   /**
