@@ -37,7 +37,7 @@ trait PatchRunner {
   protected val seed: Long = System.currentTimeMillis()
   protected def genProgConfig: String = template(project, seed)
 
-  val logger: Logger = LoggerFactory.getLogger("genprog")
+  val logger: Logger = LoggerFactory.getLogger("varexc")
 
   def go(attempt: Int): Unit = {
     logger.info(s"Project: $project")

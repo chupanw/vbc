@@ -16,7 +16,7 @@
         </encoder>
     </appender>
 
-    <logger name="genprog" additivity="false">
+    <logger name="varexc" additivity="false">
         <level>INFO</level>
         <appender-ref ref="FILE"/>
     </logger>

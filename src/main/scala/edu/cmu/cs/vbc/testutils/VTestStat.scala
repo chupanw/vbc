@@ -13,7 +13,7 @@ import scala.collection.mutable
 object VTestStat {
   val skippedClasses              = mutable.ListBuffer[String]()
   val classes                     = mutable.HashMap[String, VTestStatClass]()
-  private val genprogLogger       = LoggerFactory.getLogger("genprog")
+  private val genprogLogger       = LoggerFactory.getLogger("varexc")
   var hasOverallSolution: Boolean = false
 
   def skipClass(c: String): Unit       = skippedClasses += c

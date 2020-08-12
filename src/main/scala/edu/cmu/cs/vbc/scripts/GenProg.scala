@@ -71,7 +71,7 @@ object GenProg extends App {
         "median/fe9d5fb9/000/",
         "median/fe9d5fb9/002/"
   )
-  val logger = LoggerFactory.getLogger("genprog")
+  val logger = LoggerFactory.getLogger("varexc")
 
   programs.foreach(x => go(x, 1))
 

@@ -10,6 +10,7 @@ import edu.cmu.cs.vbc.config.{Settings, VERuntime}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
+import org.slf4j.LoggerFactory
 
 /**
   * JUnit 4 support:
@@ -31,6 +32,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
 
   val isJUnit3: Boolean        = isSubclassOfTestCase(c)
   val isParameterized: Boolean = isParameterizedTest(c)
+  val logger = LoggerFactory.getLogger("varexc")
 
   def isParameterizedTest(c: Class[_]): Boolean =
     c.isAnnotationPresent(classOf[RunWith]) && c
@@ -122,9 +124,15 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       else createJUnit4Object(ctx)
     } catch {
       case t: Throwable =>
-        System.err.println(s"Error creating test object for $c")
-        t.printStackTrace()
+        val msg = s"Error creating test object for ${c}"
+        printlnAndLog(msg)
+        printlnAndLog(t.toString)
     }
+  }
+
+  def printlnAndLog(msg: String): Unit = {
+    println(msg)
+    logger.debug(msg + "\n")
   }
 
   def createJUnit3Object(): Any = {
@@ -220,7 +228,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       val fe = VTestStat.getOverallPassingCond
       if (!fe.isSatisfiable()) {
         // print the results so far and abort
-        println("-------------------- Abort --------------------")
+        printlnAndLog("-------------------- Abort --------------------")
         //        VTestStat.printToConsole()
         //        System.exit(-1)
         return true
@@ -250,7 +258,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
   def countBlockForTest(params: Option[Array[V[_]]], x: Method): Unit = {
     val context = FeatureExprFactory.True
     try {
-      println(s"[INFO] Counting blocks for $className.${x.getName}")
+      printlnAndLog(s"[INFO] Counting blocks for $className.${x.getName}")
       val testObject = createObject(params, context)
       before.map(_.invoke(testObject, context))
       x.invoke(testObject, context)
@@ -259,7 +267,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     } catch {
       case e: InvocationTargetException =>
         e.getCause match {
-          case ve: VException => if (!verifyException(ve.e, x)) println(ve.e.toString)
+          case ve: VException => if (!verifyException(ve.e, x)) printlnAndLog(ve.e.toString)
           case _              => e.printStackTrace()
         }
       case e: Throwable => e.printStackTrace()
@@ -275,7 +283,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       isFastMode: Boolean
   ): Unit = {
     if (context.isContradiction()) return
-    println(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
+    printlnAndLog(s"[INFO] Executing ${className}.${x.getName} under ${if (Settings.printContext) context
     else "[hidden context]"}")
     VERuntime.init(x, context, context, isFastMode, getExpectedException(x))
     val testObject = createObject(params, context)
@@ -299,7 +307,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
             if (!verifyException(t.e, x)) {
               // unexpected exceptions occurred
               VTestStat.fail(className, x.getName)
-              println(t)
+              printlnAndLog(t.toString)
             } else {
               VTestStat.succeed(className, x.getName, t.ctx)
               if (VERuntime.skippedExceptionContext.isSatisfiable())

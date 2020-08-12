@@ -15,7 +15,7 @@ import scala.collection.mutable
   */
 object Settings {
   private val config = ConfigFactory.load("reference.conf")
-  private val logger = LoggerFactory.getLogger("genprog")
+  private val logger = LoggerFactory.getLogger("varexc")
 
   val fastMode: Boolean              = config.getBoolean("varexc.fastMode")
   val enableStackTraceCheck: Boolean = config.getBoolean("varexc.enableStackTraceCheck")
