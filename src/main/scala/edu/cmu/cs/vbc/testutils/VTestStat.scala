@@ -87,6 +87,9 @@ object VTestStat {
       val allLowDegreeSolutions = fe.getAllSolutionsScala
       val nSolutions = allLowDegreeSolutions.size
       printlnAndLog(s"All test cases can pass if any of the $nSolutions is met: ${allLowDegreeSolutions.take(100)}")
+      val solutionsWriter = new FileWriter("/tmp/solutions.txt")
+      solutionsWriter.write(allLowDegreeSolutions.toString())
+      solutionsWriter.close()
     } else
       printlnAndLog(
         s"To pass all test cases, no solution within ${Settings.maxInteractionDegree} mutations")
