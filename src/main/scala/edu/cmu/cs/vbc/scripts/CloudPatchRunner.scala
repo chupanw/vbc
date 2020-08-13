@@ -186,6 +186,7 @@ trait CloudPatchGenerator extends PatchRunner {
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junit-4.12.jar")), mkPath("junit-4.12.jar"))
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junittestrunner.jar")), mkPath("junittestrunner.jar"))
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "varexc.jar")), mkPath("varexc.jar"))
+        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "jacocoagent.jar")), mkPath("jacocoagent.jar"))
         zipEntry(archive, new File("coverage.path.neg"), mkPath("coverage.path.neg"))
         zipEntry(archive, new File("coverage.path.pos"), mkPath("coverage.path.pos"))
         zipEntry(archive, new File("FaultyStmtsAndWeights.txt"), mkPath("FaultyStmtsAndWeights.txt"))
@@ -200,7 +201,7 @@ trait CloudPatchGenerator extends PatchRunner {
     }
 
     def shouldFilter(path: Path): Boolean = {
-      path.startsWith("target") || path.startsWith(".git")
+      path.startsWith(".git") // genprog needs the target folder as running maven in Docker has permission issues
     }
 
     def zipEntry(archive: ZipArchiveOutputStream, f: File, relativePath: Path): Unit = {
@@ -239,25 +240,41 @@ trait CloudPatchRunner extends PatchRunner {
     *
     * @return start time, end time, can fix or not, array of solutions
     */
-  def runVarexC(): Unit = {
+  def run(): Unit = {
     val (collectionName, attemptObjectId) = sqsReceive()
     val (db, collection)                  = connectMongo(collectionName)
+    val isGenProg = collectionName.endsWith("-genprog")
     updateStatusTo("RUNNING", collection, attemptObjectId)
-    val project = downloadSetupFromMongo(db, collection, attemptObjectId)
-    unzip(project)
-    val destProject = mkPath("/tmp", project)
-    Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
+    val projectName = downloadSetupFromMongo(db, collection, attemptObjectId)
+    unzip(projectName)
+    val destProject = mkPath("/tmp", projectName)
+    Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(printlnAndLog)
     val startTime = new Date()
-    launch(Array("/tmp", project))
+    if (isGenProg)
+      launch(Array(collectionName, projectName))
+    else
+      launch(Array("/tmp", projectName))
     val endTime = new Date()
-
-    val logObjectId = uploadLog(db)
 
     val startTimeUpdate = Updates.set("executionStartTime", startTime)
     val endTimeUpdate   = Updates.set("executionEndTime", endTime)
-    val canFixUpdate    = Updates.set("canFix", VTestStat.hasOverallSolution)
-    val solutionsUpdate = Updates.set("solutions", VTestStat.getOverallPassingCond.getAllSolutions) // change this to a file
+
+    val logPathString =
+      if (isGenProg) mkPathString("/tmp", projectName, "genprog.log")
+      else mkPathString("/tmp", "varexc.log")
+    LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext].stop()
+    val logObjectId = uploadFile(db, logPathString, s"$projectName-log.txt")
     val logUpdate       = Updates.set("log", logObjectId)
+
+    val solutionsPathString = if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt") else "solutions.txt"
+    val canFix = if (isGenProg) new File(solutionsPathString).length() > 0 else VTestStat.hasOverallSolution
+    val canFixUpdate    = Updates.set("canFix", canFix)
+    val solutionsUpdate =
+      if (canFix) {
+        val solutionsObjectId = uploadFile(db, solutionsPathString, s"$projectName-solutions.txt")
+        Updates.set("solutions", solutionsObjectId)
+      }
+      else Updates.set("solutions", "none")
 
     collection.updateOne(
       Filters.eq(attemptObjectId),
@@ -265,14 +282,12 @@ trait CloudPatchRunner extends PatchRunner {
     updateStatusTo("EXECUTED", collection, attemptObjectId)
   }
 
-  def runGenProg(): Unit = {}
 
-  def uploadLog(db: MongoDatabase): ObjectId = {
-    LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext].stop()
+  def uploadFile(db: MongoDatabase, filePathString: String, uploadFileName: String): ObjectId = {
     val gridFSBucket = GridFSBuckets.create(db)
-    val toUpload     = new FileInputStream(new File("/tmp/varexc.log"))
-    println("Uploading log file to MongoDB")
-    gridFSBucket.uploadFromStream("varexc.log", toUpload)
+    val toUpload     = new FileInputStream(new File(filePathString))
+    println(s"Uploading ${filePathString} to MongoDB")
+    gridFSBucket.uploadFromStream(uploadFileName, toUpload)
   }
 
   def connectMongo(collectionName: String): (MongoDatabase, MongoCollection[Document]) = {
@@ -319,31 +334,37 @@ trait CloudPatchRunner extends PatchRunner {
     */
   def downloadSetupFromMongo(db: MongoDatabase,
                              collection: MongoCollection[Document],
-                             attemptObjectId: ObjectId): String = {
+                             attemptObjectId: ObjectId
+                            ): String = {
     val attempt               = collection.find(Filters.eq(attemptObjectId)).first()
-    val project               = attempt.get("bug").asInstanceOf[String]
-    val zipObjectId           = attempt.get("setupZip").asInstanceOf[ObjectId]
+    val projectName               = attempt.get("bug").asInstanceOf[String]
+    val approach = attempt.get("approach").asInstanceOf[String]
+    val zipObjectId           =
+      if (approach == "genprog")
+        attempt.get("genprogSetup").asInstanceOf[ObjectId]
+      else
+        attempt.get("varexcSetup").asInstanceOf[ObjectId]
     val relevantTestsObjectId = attempt.get("relevantTests").asInstanceOf[ObjectId]
     val gridFSBucket          = GridFSBuckets.create(db)
-    val zipOutputStream       = new FileOutputStream(mkPathString("/tmp", project + ".zip"))
+    val zipOutputStream       = new FileOutputStream(mkPathString("/tmp", projectName + ".zip"))
     val relevantTestsFolder   = new File("/tmp/RelevantTests")
     if (!relevantTestsFolder.exists()) relevantTestsFolder.mkdir()
     val relevantTestsOutputStream = new FileOutputStream(
-      mkPathString("/tmp", "RelevantTests", project + ".txt"))
+      mkPathString("/tmp", "RelevantTests", projectName + ".txt"))
     gridFSBucket.downloadToStream(zipObjectId, zipOutputStream)
     gridFSBucket.downloadToStream(relevantTestsObjectId, relevantTestsOutputStream)
     zipOutputStream.close()
     relevantTestsOutputStream.close()
-    project
+    projectName
   }
 
-  def unzip(project: String): Unit = {
+  def unzip(projectName: String): Unit = {
     try {
       val archive = new ZipArchiveInputStream(
-        new BufferedInputStream(new FileInputStream(mkPathString("/tmp", project + ".zip"))))
+        new BufferedInputStream(new FileInputStream(mkPathString("/tmp", projectName + ".zip"))))
       var entry = archive.getNextZipEntry
       while (entry != null) {
-        val fp = mkPath("/tmp", project, entry.getName)
+        val fp = mkPath("/tmp", projectName, entry.getName)
         println(s"Unzipping file - ${fp.toFile.toString}")
         val parent = fp.getParent
         if (parent != null) {
@@ -408,5 +429,5 @@ object MathCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
   override def compileCMD                        = Seq("ant", "compile.tests")
 
-  runVarexC()
+  run()
 }

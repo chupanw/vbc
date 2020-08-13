@@ -81,12 +81,20 @@ dockerExposedPorts ++= Seq(9000)
 dockerUpdateLatest := true
 dockerRepository := Some("chupanw")
 defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value + "/docker"
+// VarexC:
+//dockerEntrypoint := Seq(
+//  "timeout", "-k", "60", "3h",
+//  "/home/" + (daemonUser in Docker).value + "/docker/bin/math-cloud-patch-runner",
+//  "-J-Xmx8g",
+//  "-Dvarexc.maxInteractionDegree=3",
+//  "-Dvarexc.enableStackTraceCheck=true",
+//  "-Dvarexc.blockCount.enablePerTestBlockCount=true",
+//  "-Dvarexc.blockCount.maxBlockCount=-1"
+//)
+
+// GenProg:
 dockerEntrypoint := Seq(
-  "timeout", "-k", "60", "3h",
-  "/home/" + (daemonUser in Docker).value + "/docker/bin/math-cloud-patch-runner",
+  "timeout", "-k", "60", "3h",  // should terminate before this limit, leaving some time to upload files
+  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-gen-prog-cloud-patch-runner",
   "-J-Xmx8g",
-  "-Dvarexc.maxInteractionDegree=3",
-  "-Dvarexc.enableStackTraceCheck=true",
-  "-Dvarexc.blockCount.enablePerTestBlockCount=true",
-  "-Dvarexc.blockCount.maxBlockCount=-1"
 )
