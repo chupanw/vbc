@@ -186,6 +186,11 @@ trait CloudPatchGenerator extends PatchRunner {
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junit-4.12.jar")), mkPath("junit-4.12.jar"))
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junittestrunner.jar")), mkPath("junittestrunner.jar"))
         zipEntry(archive, new File(mkPathString(genprogPath, "lib", "varexc.jar")), mkPath("varexc.jar"))
+        zipEntry(archive, new File("coverage.path.neg"), mkPath("coverage.path.neg"))
+        zipEntry(archive, new File("coverage.path.pos"), mkPath("coverage.path.pos"))
+        zipEntry(archive, new File("FaultyStmtsAndWeights.txt"), mkPath("FaultyStmtsAndWeights.txt"))
+        zipEntry(archive, new File("jacoco.exec"), mkPath("jacoco.exec"))
+        zipEntry(archive, new File(mkPathString(genprogPath, "target", "uber-GenProg4Java-0.0.1-SNAPSHOT.jar")), mkPath("uber-GenProg4Java-0.0.1-SNAPSHOT.jar"))
       }
       archive.finish()
     } catch {
