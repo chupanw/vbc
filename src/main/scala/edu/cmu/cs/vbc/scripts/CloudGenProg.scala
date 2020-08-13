@@ -8,7 +8,7 @@ object IntroClassCloudPatchGenerator extends App with CloudPatchGenerator {
   override def numMut: NumMutations = Eight
   override def relevantTestFilePathString: String = {
     val split = project.split('/')
-    mkPathString(projects4GenProg, split(0), split(1), "RelevantTests", split(2) + ".txt")
+    mkPathString(projects4VarexC, split(0), split(1), "RelevantTests", split(2) + ".txt")
   }
   override def mongoCollectionName = {
     val split = project.split('/')
