@@ -75,7 +75,7 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
     }
   }
 
-  override def compileCMD: Seq[String] = Seq("echo", "skipping-compile")
+  override def compileCMD: Seq[String] = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   /**
     * Generate a template that works in Docker
