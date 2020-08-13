@@ -21,19 +21,43 @@ import org.slf4j.LoggerFactory
 import scala.sys.process.Process
 
 trait CloudPatchGenerator extends PatchRunner {
-  val sqsURI: String   = System.getProperty("sqsURI")
+  sealed trait Approach
+  case object VarexC extends Approach {
+    override def toString: String = "varexc"
+  }
+  case object GenProg extends Approach {
+    override def toString: String = "genprog"
+  }
+
+  sealed trait NumMutations
+  case object Three extends NumMutations {
+    override def toString: String = "3mut"
+  }
+  case object Eight extends NumMutations {
+    override def toString: String = "8mut"
+  }
+
+  val sqsURIVarexC: String   = System.getProperty("sqsURIVarexC")
+  val sqsURIGenProg: String = System.getProperty("sqsURIGenProg")
   val mongoURI: String = System.getProperty("mongoURI")
 
-  private def zipPathString = mkPathString("/tmp", s"$project.zip")
-  private def relevantTestFilePathString =
-    mkPathString(projects4VarexC, "RelevantTests", project + ".txt")
-  private def genprogConfigPathString = mkPathString("/tmp", "tmp.config")
-  private def mongoCollectionName =
-    if (project contains "-") project.split("-")(0).toLowerCase()
-    else project.split("/")(0).toLowerCase()
+  // Needs to be configured
+  def numMut: NumMutations
+  def relevantTestFilePathString: String
+  def mongoCollectionName: String // e.g., median-8op-genprog, math-3op-varexc
+
+  def varexcSetupZipPathString  = mkPathString("/tmp", s"$projectName.zip")
+  def genprogSetupZipPathString = mkPathString("/tmp", s"$projectName-genprog.zip")
+  def genprogConfigPathString = mkPathString("/tmp", "tmp.config")
 
   override def launch(args: Array[String]): Unit = notAvailable("launch")
   override def compileCMD: Seq[String]           = notAvailable("compileCMD")
+
+  def edits(): String = {
+    if (numMut == Three) "append;delete;replace;"
+    else if (numMut == Eight) "append;delete;replace;aor;ror;lcr;uoi;abs;"
+    else throw new RuntimeException("Unexpected number of mutations")
+  }
 
   def start(): Unit = {
     logger.info(s"Project: $project")
@@ -48,15 +72,19 @@ trait CloudPatchGenerator extends PatchRunner {
     * Called by the patch generator
     */
   def step3_1_SetupMongoAndKafka(): Unit = {
-    zip()
-    val attemptObjectId = putInMongo()
-    sqsSend(attemptObjectId)
+    val projectFolder4GenProg = mkPath(projects4GenProg, project)
+    zipSetup(projectFolder4GenProg, genprogSetupZipPathString, GenProg)
+    val projectFolder4VarexC = mkPath(projects4VarexC, project)
+    zipSetup(projectFolder4VarexC, varexcSetupZipPathString, VarexC)
+    val (varexcObjectId, genprogObjectId) = putInMongo()
+    sqsSend(sqsURIVarexC, mongoCollectionName + s"-$VarexC", varexcObjectId)
+    sqsSend(sqsURIGenProg, mongoCollectionName + s"-$GenProg", genprogObjectId)
   }
 
-  def connectMongo(): (MongoDatabase, MongoCollection[Document]) = {
+  def connectMongo(): (MongoDatabase, MongoCollection[Document], MongoCollection[Document]) = {
     val mongoClient = MongoClients.create(mongoURI)
     val varexpDB    = mongoClient.getDatabase("varexp")
-    (varexpDB, varexpDB.getCollection(mongoCollectionName))
+    (varexpDB, varexpDB.getCollection(mongoCollectionName + s"-$VarexC"), varexpDB.getCollection(mongoCollectionName + s"-$GenProg"))
   }
 
   /**
@@ -67,59 +95,82 @@ trait CloudPatchGenerator extends PatchRunner {
     *   date: java.util.Date
     *   approach: String (varexc | genprog)
     *   genprogConfig: String
-    *   setupZip: ObjectId  (reference to a zip file)
+    *   varexcSetup: ObjectId  (reference to a zip file)
+    *   genprogSetup: ObjectId (reference to a zip file)
     *   relevantTests: ObjectId (reference to a txt file)
     *   canFix: Boolean
-    *   solutions: Array[String]
-    *   log: ObjectId (reference to a execution log for debugging)
+    *   solutions: ObjectId (reference to a txt file)
+    *   log: ObjectId (reference to a execution log file for debugging)
     *   executionStartTime: java.util.Date
     *   executionEndTime: java.util.Date
     * }
     */
-  def putInMongo(): ObjectId = {
+  def putInMongo(): (ObjectId, ObjectId) = {
 
-    case class UploadedObjects(zipObjectID: ObjectId,
+    case class UploadedObjects(varexcSetupZipObjectId: ObjectId,
+                               genprogSetupZipObjectId: ObjectId,
                                relevantTestsObjectId: ObjectId,
                                genprogConfigObjectId: ObjectId)
 
     def uploadFiles(db: MongoDatabase): UploadedObjects = {
-      val gridFSBucket          = GridFSBuckets.create(db)
-      val toUploadZip           = new FileInputStream(new File(zipPathString))
-      val toUploadRelevantTests = new FileInputStream(new File(relevantTestFilePathString))
-      val toUploadGenProgConfig = new FileInputStream(new File(genprogConfigPathString))
-      println("Uploading relevant test file")
+      val gridFSBucket      = GridFSBuckets.create(db)
+
+      println("Uploading relevant test file to MongoDB")
+      val relevantTestsFile = new FileInputStream(new File(relevantTestFilePathString))
       val relevantTestObjectId =
-        gridFSBucket.uploadFromStream(s"$project.txt", toUploadRelevantTests)
+        gridFSBucket.uploadFromStream(s"$projectName-relTests.txt", relevantTestsFile)
+
       println("Uploading GenProg config to MongoDB")
+      val genprogConfigFile = new FileInputStream(new File(genprogConfigPathString))
       val genprogConfigObjectId =
-        gridFSBucket.uploadFromStream(s"$project.zip", toUploadGenProgConfig)
-      println("Uploading zip to MongoDB")
-      val zipObjectId = gridFSBucket.uploadFromStream(s"$project.zip", toUploadZip)
-      UploadedObjects(zipObjectId, relevantTestObjectId, genprogConfigObjectId)
+        gridFSBucket.uploadFromStream(s"$projectName.config", genprogConfigFile)
+
+      println("Uploading GenProg setup to MongoDB")
+      val genprogSetupZip   = new FileInputStream(new File(genprogSetupZipPathString))
+      val genprogSetupObjectId =
+        gridFSBucket.uploadFromStream(s"$projectName-genprog.zip", genprogSetupZip)
+
+      println("Uploading VarexC setup to MongoDB")
+      val varexcSetupZip    = new FileInputStream(new File(varexcSetupZipPathString))
+      val varexcSetupObjectId = gridFSBucket.uploadFromStream(s"$projectName-varexc.zip", varexcSetupZip)
+
+      UploadedObjects(varexcSetupObjectId, genprogSetupObjectId, relevantTestObjectId, genprogConfigObjectId)
     }
 
-    val (mongoDB, mongoCollection) = connectMongo()
+    val (mongoDB, varexcCollection, genprogCollection) = connectMongo()
     val uploadedObjects            = uploadFiles(mongoDB)
-    val attemptObjectId            = new ObjectId()
+    val varexcObjectId            = new ObjectId()
+    val genprogObjectId = new ObjectId()
 
-    val attempt = new Document("_id", attemptObjectId)
-    attempt
-      .append("bug", project)
+    val varexcAttempt = new Document("_id", varexcObjectId)
+    varexcAttempt
+      .append("bug", projectName)
       .append("status", "CREATED")
       .append("date", new java.util.Date())
       .append("approach", "varexc")
       .append("genprogConfig", uploadedObjects.genprogConfigObjectId)
-      .append("setupZip", uploadedObjects.zipObjectID)
+      .append("varexcSetup", uploadedObjects.varexcSetupZipObjectId)
+      .append("genprogSetup", uploadedObjects.genprogSetupZipObjectId)
       .append("relevantTests", uploadedObjects.relevantTestsObjectId)
-    mongoCollection.insertOne(attempt)
+    varexcCollection.insertOne(varexcAttempt)
 
-    attemptObjectId
+    val genprogAttempt = new Document("_id", genprogObjectId)
+    genprogAttempt
+      .append("bug", projectName)
+      .append("status", "CREATED")
+      .append("date", new java.util.Date())
+      .append("approach", "genprog")
+      .append("genprogConfig", uploadedObjects.genprogConfigObjectId)
+      .append("genprogSetup", uploadedObjects.genprogSetupZipObjectId)
+      .append("relevantTests", uploadedObjects.relevantTestsObjectId)
+    genprogCollection.insertOne(genprogAttempt)
+
+    (varexcObjectId, genprogObjectId)
   }
 
-  def zip(): Unit = {
-    val folder = mkPath(projects4VarexC, project)
+  def zipSetup(folder: Path, outputPathString: String, approach: Approach): Unit = {
     try {
-      val archive = new ZipArchiveOutputStream(new FileOutputStream(zipPathString))
+      val archive = new ZipArchiveOutputStream(new FileOutputStream(outputPathString))
       archive.setLevel(Deflater.BEST_COMPRESSION)
       Files
         .walk(folder)
@@ -127,14 +178,15 @@ trait CloudPatchGenerator extends PatchRunner {
           val f            = p.toFile
           val relativePath = folder.relativize(p)
           if (!f.isDirectory && !shouldFilter(relativePath)) {
-            println(s"Zipping file - ${relativePath.toFile.toString}")
-            val entry = new ZipArchiveEntry(f, relativePath.toFile.toString)
-            archive.putArchiveEntry(entry)
-            val fis = new FileInputStream(f)
-            IOUtils.copy(fis, archive)
-            archive.closeArchiveEntry()
+            zipEntry(archive, f, relativePath)
           }
         })
+      if (approach == GenProg) {
+        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")), mkPath("hamcrest-core-1.3.jar"))
+        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junit-4.12.jar")), mkPath("junit-4.12.jar"))
+        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junittestrunner.jar")), mkPath("junittestrunner.jar"))
+        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "varexc.jar")), mkPath("varexc.jar"))
+      }
       archive.finish()
     } catch {
       case x: IOException =>
@@ -145,14 +197,23 @@ trait CloudPatchGenerator extends PatchRunner {
     def shouldFilter(path: Path): Boolean = {
       path.startsWith("target") || path.startsWith(".git")
     }
+
+    def zipEntry(archive: ZipArchiveOutputStream, f: File, relativePath: Path): Unit = {
+      println(s"Zipping file - ${relativePath.toFile.toString}")
+      val entry = new ZipArchiveEntry(f, relativePath.toFile.toString)
+      archive.putArchiveEntry(entry)
+      val fis = new FileInputStream(f)
+      IOUtils.copy(fis, archive)
+      archive.closeArchiveEntry()
+    }
   }
 
-  def sqsSend(attemptObjectId: ObjectId): Unit = {
+  def sqsSend(uri: String, collection: String, attemptObjectId: ObjectId): Unit = {
     val sqs = AmazonSQSClientBuilder.defaultClient()
     val send_msg_request = new SendMessageRequest()
-      .withQueueUrl(sqsURI)
-      .withMessageBody(mongoCollectionName + " " + attemptObjectId.toString)
-      .withMessageGroupId(mongoCollectionName)
+      .withQueueUrl(uri)
+      .withMessageBody(collection + " " + attemptObjectId.toString)
+      .withMessageGroupId(collection)
       .withMessageDeduplicationId(System.currentTimeMillis().toString)
     sqs.sendMessage(send_msg_request)
   }
@@ -190,7 +251,7 @@ trait CloudPatchRunner extends PatchRunner {
     val startTimeUpdate = Updates.set("executionStartTime", startTime)
     val endTimeUpdate   = Updates.set("executionEndTime", endTime)
     val canFixUpdate    = Updates.set("canFix", VTestStat.hasOverallSolution)
-    val solutionsUpdate = Updates.set("solutions", VTestStat.getOverallPassingCond.getAllSolutions)
+    val solutionsUpdate = Updates.set("solutions", VTestStat.getOverallPassingCond.getAllSolutions) // change this to a file
     val logUpdate       = Updates.set("log", logObjectId)
 
     collection.updateOne(
@@ -198,6 +259,8 @@ trait CloudPatchRunner extends PatchRunner {
       Updates.combine(startTimeUpdate, endTimeUpdate, canFixUpdate, solutionsUpdate, logUpdate))
     updateStatusTo("EXECUTED", collection, attemptObjectId)
   }
+
+  def runGenProg(): Unit = {}
 
   def uploadLog(db: MongoDatabase): ObjectId = {
     LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext].stop()
@@ -229,7 +292,7 @@ trait CloudPatchRunner extends PatchRunner {
     } else {
       val message = messages.get(0)
       val body    = message.getBody.split(" ")
-      println(s"Processing message: collection=${body(0)}, value=${body(1)}")
+      printlnAndLog(s"Processing message: collection=${body(0)}, value=${body(1)}")
       val attemptObjectId = new ObjectId(body(1))
       sqs.deleteMessage(sqsURI, message.getReceiptHandle)
       (body(0), attemptObjectId)
@@ -297,6 +360,10 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
   override def projects4GenProg: String = args(1)
   override def projects4VarexC: String  = args(2)
   override def project: String          = args(3)
+  override def relevantTestFilePathString =
+    mkPathString(projects4VarexC, "RelevantTests", project + ".txt")
+  override def mongoCollectionName: String = project.split("-")(0).toLowerCase()
+  override def numMut = Three
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
@@ -325,7 +392,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
        |sourceVersion=1.8
        |sample=0.1
        |compileCommand=python3 ${mkPathString(projects4GenProg, project, "compile.py")}
-       |edits=append;delete;replace;
+       |edits=${edits()}
        |
        |""".stripMargin
 

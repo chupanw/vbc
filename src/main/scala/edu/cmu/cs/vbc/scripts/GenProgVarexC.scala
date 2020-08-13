@@ -30,6 +30,9 @@ trait PatchRunner {
   def projects4GenProg: String // e.g., /Users/.../Math-GenProg/
   def projects4VarexC: String  // e.g., /Users/.../Math-VarexC/
   def project: String          // e.g., checksum/e9c74e27/000/
+  def projectName: String = {
+    (if (project.endsWith("/")) project.init else project).replace('/', '-')
+  }
   def launch(args: Array[String]): Unit
   def compileCMD: Seq[String]
   def template(project: String, seed: Long): String
@@ -38,6 +41,10 @@ trait PatchRunner {
   protected def genProgConfig: String = template(project, seed)
 
   val logger: Logger = LoggerFactory.getLogger("varexc")
+  def printlnAndLog(s: String): Unit = {
+    println(s)
+    logger.info(s)
+  }
 
   def go(attempt: Int): Unit = {
     logger.info(s"Project: $project")
