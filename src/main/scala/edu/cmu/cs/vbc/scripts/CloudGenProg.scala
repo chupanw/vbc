@@ -53,6 +53,21 @@ object IntroClassCloudPatchGenerator extends App with CloudPatchGenerator {
 
 }
 
+object Batch extends App {
+  for (p <- Median.runnable) {
+    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
+  }
+  for (p <- Smallest.runnable) {
+    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
+  }
+  for (p <- Grade.runnable) {
+    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
+  }
+  for (p <- Digits.runnable) {
+    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
+  }
+}
+
 object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit = {
     val collectionName = args(0)
