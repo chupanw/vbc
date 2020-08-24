@@ -52,17 +52,11 @@ public class SwitchExample {
             else
                 foo.switch3(3);
         }
+        int a = 0;
         if (foo.A) {
-            if (foo.B)
-                foo.switch4("hell");
-            else
-                foo.switch4("hellb");
-        } else {
-            if (foo.B)
-                foo.switch4("world");
-            else
-                foo.switch4("worl");
+            a = 1;
         }
+        foo.testSwitch(a);
     }
 
     /**
@@ -136,6 +130,22 @@ public class SwitchExample {
                 System.out.println("world");
             default:
                 System.out.println("Not recognized");
+        }
+    }
+
+    void testSwitch(int i) {
+        switch (i) {
+            case 1:
+                System.out.println("1");
+                return;
+            default:
+                System.out.println("default");
+                if (i == 0) {
+                    System.out.println(0);
+                }
+                else {
+                    System.out.println("not zero");
+                }
         }
     }
 }

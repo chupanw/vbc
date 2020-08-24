@@ -89,7 +89,7 @@ class Loader {
             new JumpInsnNode(IFEQ, table.labels.get(num - table.min))
           )
         })
-        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, table.dflt))
+        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new InsnNode(ICONST_1), new JumpInsnNode(IFNE, table.dflt))
       case lookup: LookupSwitchInsnNode =>
         val switchValueIdx = m.maxLocals
         m.localVariables.add(new LocalVariableNode(s"switch${util.Random.nextInt()}", "I", "I", null, null, switchValueIdx))
@@ -102,7 +102,7 @@ class Loader {
             new JumpInsnNode(IFEQ, lookup.labels.get(index))
           )
         })
-        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new JumpInsnNode(GOTO, lookup.dflt))
+        List(new VarInsnNode(ISTORE, switchValueIdx)) ::: ifs ::: List(new InsnNode(ICONST_1), new JumpInsnNode(IFNE, lookup.dflt))
       case _ => List(i)
     })
     m.instructions.clear()

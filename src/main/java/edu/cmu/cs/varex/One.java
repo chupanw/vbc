@@ -118,8 +118,8 @@ public class One<T> implements V<T>, Serializable {
     @Override
     public V<T> select(@Nonnull FeatureExpr selectConfigSpace) {
         assert selectConfigSpace != null;
-        assert selectConfigSpace.implies(configSpace).isTautology() :
-                "selecting under broader condition (" + selectConfigSpace + ") than the configuration space described by One (" + configSpace + ")";
+//        assert selectConfigSpace.implies(configSpace).isTautology() :
+//                "selecting under broader condition (" + selectConfigSpace + ") than the configuration space described by One (" + configSpace + ")";
 
         return reduce(selectConfigSpace);
     }

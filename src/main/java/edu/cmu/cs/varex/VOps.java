@@ -610,6 +610,8 @@ public class VOps {
      * If a conditional exception is detected, we wrap it into a VException with its context and throw it.
      */
     public static void checkAndThrow(V<? extends Throwable> vT, FeatureExpr ctx) {
+        if (ctx.isContradiction())
+            return;
         V<? extends Throwable> selected = vT.select(ctx);
         assert selected instanceof One : "Is a CHOICE possible here?";
         FeatureExpr expCtx = selected.getConfigSpace();
