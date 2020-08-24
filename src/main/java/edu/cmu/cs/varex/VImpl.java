@@ -343,7 +343,7 @@ public class VImpl<T> implements V<T>, Serializable {
         }
     }
 
-    public <U> VImpl<T> merge(Function<T, U> conversion) {
+    public <U> V<T> merge(Function<T, U> conversion) {
         HashMap<U, T> cache = new HashMap<>();
         HashMap<T, FeatureExpr> merged = new HashMap<>();
         for (Map.Entry<T, FeatureExpr> entry : values.entrySet()) {
@@ -359,7 +359,12 @@ public class VImpl<T> implements V<T>, Serializable {
             }
         }
 //        System.err.println("shrinking value map from " + values.size() + " to " + merged.size());
-        return new VImpl<>(merged);
+        if (merged.size() < 2) {
+            HashMap.Entry<T, FeatureExpr> entry = merged.entrySet().iterator().next();
+            return V.one(entry.getValue(), entry.getKey());
+        } else {
+            return new VImpl<>(merged);
+        }
     }
 
     /**
