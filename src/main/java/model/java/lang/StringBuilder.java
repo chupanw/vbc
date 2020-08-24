@@ -5,6 +5,9 @@ import edu.cmu.cs.varex.ArrayOps;
 import edu.cmu.cs.varex.V;
 import edu.cmu.cs.varex.VImpl;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 /**
  * StringBuilder might be used in two scenarios.
  *
@@ -67,17 +70,18 @@ public class StringBuilder implements Appendable {
     }
 
     public V<?> append__Ljava_lang_Object__Lmodel_java_lang_StringBuilder(V<?> vO, FeatureExpr ctx) {
-        vActual = vO.sflatMap(ctx, (fe, o) -> {
-            if (o instanceof model.java.lang.StringBuilder) {
-                V<?> strings = ((model.java.lang.StringBuilder) o).toString____Ljava_lang_String(fe);
-                return strings.sflatMap(fe, (fe2, s) -> {
+        vO.sforeach(ctx, (fe, o) -> {
+            try {
+                Method m = o.getClass().getMethod("toString____Ljava_lang_String", FeatureExpr.class);
+                V<?> strings = (V<?>) m.invoke(o, fe);
+                strings.sforeach(fe, (fe2, s) -> {
                     split(fe2);
-                    return (V<java.lang.StringBuilder>) vActual.smap(fe2, (fe3, sb) -> sb.append(s));
+                    vActual.sforeach(fe2, (fe3, sb) -> sb.append(s));
                 });
-            }
-            else {
+            } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+                java.lang.System.err.println("Falling back to unlifted toString()");
                 split(fe);
-                return vActual.smap(fe, (fe2, sb) -> sb.append(o));
+                vActual.sforeach(fe, (fe2, sb) -> sb.append(o));
             }
         });
         merge();
