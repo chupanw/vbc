@@ -393,7 +393,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
-       |popsize = 100
+       |popsize = 1000
        |editMode = pre_compute
        |generations = 20
        |regenPaths = true
