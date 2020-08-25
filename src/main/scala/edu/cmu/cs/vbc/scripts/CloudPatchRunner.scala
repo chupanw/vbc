@@ -389,14 +389,15 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
   override def relevantTestFilePathString =
     mkPathString(projects4VarexC, "RelevantTests", project + ".txt")
   override def mongoCollectionName: String = project.split("-")(0).toLowerCase()
-  override def numMut = Three
+  override def numMut = Eight
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
-       |popsize = ${ScriptConfig.popSize}
+       |popsize = 100
        |editMode = pre_compute
-       |generations = 50
+       |generations = 20
        |regenPaths = true
+       |continue = true
        |seed = ${seed}
        |classTestFolder = target/test-classes
        |workingDir = ${mkPathString(projects4GenProg, project)}
@@ -423,6 +424,17 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
        |""".stripMargin
 
   start()
+}
+
+object MathBatch extends App {
+  for (i <- 1 to 84) {
+    try {
+      MathCloudPatchGenerator.main(Array(args(0), args(1), args(2), s"Math-${i}b"))
+    }
+    catch {
+      case _: AssertionError => System.err.println(s"Math-${i}b failed...")
+    }
+  }
 }
 
 object MathCloudPatchRunner extends App with CloudPatchRunner {

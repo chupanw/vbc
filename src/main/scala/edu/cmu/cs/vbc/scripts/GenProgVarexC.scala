@@ -81,9 +81,9 @@ trait PatchRunner {
     val jar          = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
     val jvmOps       = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
     val retCode      = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
+    assert(retCode == 0, "Error running GenProg")
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
     copyMutatedCode(getLastVariant(variantsPath))
-    assert(retCode == 0, "Error running GenProg")
   }
 
   def mkPath(elems: String*): Path         = FileSystems.getDefault.getPath(elems.head, elems.tail: _*)
