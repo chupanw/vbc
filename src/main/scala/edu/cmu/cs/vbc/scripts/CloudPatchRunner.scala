@@ -68,6 +68,12 @@ trait CloudPatchGenerator extends PatchRunner {
     step3_1_SetupMongoAndKafka()
   }
 
+  def recoverFromMeta(): Unit = {
+    val variantsPath = mkPath(projects4GenProg, project, "tmp")
+    copyMutatedCode(getLastVariant(variantsPath))
+    step3_1_SetupMongoAndKafka()
+  }
+
   /**
     * Called by the patch generator
     */
@@ -393,7 +399,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
-       |popsize = 1000
+       |popsize = 5000
        |editMode = pre_compute
        |generations = 20
        |regenPaths = true
@@ -424,6 +430,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
        |""".stripMargin
 
   start()
+//  recoverFromMeta()
 }
 
 object MathBatch extends App {

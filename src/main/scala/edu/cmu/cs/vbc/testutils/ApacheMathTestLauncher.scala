@@ -10,6 +10,17 @@ object ApacheMathLauncher extends TestLauncher {
 
 class ApacheMathProject(args: Array[String]) extends Project(args) {
   override def getRelevantTestFilePath: String = mkPath(project, "RelevantTests", version + ".txt").toFile.getAbsolutePath
+
+  override val libJars: Array[String] = getLibJars
+
+  def getLibJars: Array[String] = {
+    val libPath = mkPath(project, version, "lib")
+    libPath.toFile.listFiles().
+      filter(_.getName.endsWith(".jar")).
+      filterNot(_.getName.contains("varexc")).
+      filterNot(x => x.getName.contains("junit") && !x.getName.contains("recompiled")).
+      map(_.getAbsolutePath)
+  }
 }
 
 object ApacheMathBugs {
