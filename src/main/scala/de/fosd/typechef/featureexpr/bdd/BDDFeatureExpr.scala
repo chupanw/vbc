@@ -3,8 +3,8 @@ package de.fosd.typechef.featureexpr.bdd
 import java.util
 
 import de.fosd.typechef.featureexpr.{FeatureExpr, SingleFeatureExpr}
-import edu.cmu.cs.varex.mtbdd.{MTBDD, MTBDDFactory}
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory.boolOps
+import edu.cmu.cs.varex.mtbdd.{MTBDD, MTBDDFactory}
 
 import scala.jdk.CollectionConverters._
 
@@ -26,6 +26,7 @@ class BDDFeatureExpr(val bdd: MTBDD[Boolean]) extends FeatureExpr {
   override def getOneSolution(): String = bdd.oneSat
   override def getAllSolutionsSorted: util.List[String] = bdd.allSatSorted.asJava
   override def getAllSolutionsSortedScala: List[String] = bdd.allSatSorted
+  override def getRelevantOptions: List[String] = bdd.getRelevantOptions
 
   /* Unimplemented */
   def getSatisfiableAssignment(o1: Any, o2: Any, preferDisabledFeatures: Boolean): Option[(List[SingleFeatureExpr], List[SingleFeatureExpr])] = ???

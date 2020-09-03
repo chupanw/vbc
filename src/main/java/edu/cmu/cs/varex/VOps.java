@@ -701,6 +701,7 @@ public class VOps {
         for (int i = 0; i < parameters.length; i++) {
             sb.append(encodeParameter(parameters[i]) + "_");
         }
+        sb.append("_");
         String prefix = sb.toString();
         Method[] allMethods = clazz.getDeclaredMethods();
         Method res = null;
@@ -1054,13 +1055,13 @@ public class VOps {
             // need to make sure getOneSolution returns the minimal solution
             if (ctx.getOneSolution().equals("{}")) {
                 // {} should not time out
-                VERuntime.resetBlockCount(false);
+                VERuntime.resetBlockCount(false, ctx);
                 return;
             }
             Error e = new PotentialInfiniteLoopError("Max block exceeded, potential infinite loop");
             if (VERuntime.shouldPostpone(ctx)) {
                 VERuntime.postponeException(e, ctx);
-                VERuntime.resetBlockCount(true);
+                VERuntime.resetBlockCount(true, ctx);
             } else {
                 VERuntime.throwExceptionCtx(ctx);
                 throw new VException(e, ctx);
@@ -1082,7 +1083,7 @@ public class VOps {
                 Error e = new PotentialStackOverflowError("Max stack depth of " + Settings.maxStackDepth() + " reached");
                 if (VERuntime.shouldPostpone(ctx)) {
                     VERuntime.postponeException(e, ctx);
-                    VERuntime.resetBlockCount(true);
+                    VERuntime.resetBlockCount(true, ctx);
                 } else {
                     VERuntime.throwExceptionCtx(ctx);
                     throw new VException(e, ctx);

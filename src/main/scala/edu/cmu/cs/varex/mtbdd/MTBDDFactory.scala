@@ -347,6 +347,17 @@ object MTBDDFactory {
       res.map(_.mkString("{", "&", "}"))
     }
 
+    def getRelevantOptions: List[String] = {
+      def go(r: MTBDD[Boolean], enabled: Queue[Int]): List[List[String]] = if (enabled.size > Settings.maxInteractionDegree) Nil else r match {
+        case v: Value[Boolean] =>
+          if (v.value) List(enabled.map(lookupVarName).toList) else Nil
+        case n: Node[Boolean] =>
+          go(n.low, enabled) ::: go(n.high, enabled enqueue n.v)
+      }
+      val res = go(s, Queue())
+      res.flatten.distinct
+    }
+
     def allSatSorted: List[String] = {
       def go(r: MTBDD[Boolean], enabled: Queue[Int], currentV: Int): List[List[String]] = if (enabled.size > Settings.maxInteractionDegree) Nil else r match {
         case v: Value[Boolean] =>

@@ -131,9 +131,23 @@ object VERuntime {
 
   def getBlockCount: Long = curBlockCount
 
-  def resetBlockCount(warn: Boolean): Unit = {
+  private val terminatedVariantCount = collection.mutable.HashMap[String, Int]()
+  def resetBlockCount(warn: Boolean, ctx: FeatureExpr): Unit = {
     curBlockCount = 0
-    if (warn) println("Resetting block count")
+    val options = ctx.getRelevantOptions
+    val optionsStr = " under " + options.mkString("[", ",", "]")
+    options.foreach(x => terminatedVariantCount.put(x, terminatedVariantCount.getOrElse(x, 0) + 1))
+    val sorted = terminatedVariantCount.toList.sortBy(_._2)
+    if (sorted.nonEmpty && sorted.last._2 > 10) {
+      val last = sorted.last
+      val single = FeatureExprFactory.createDefinedExternal(last._1)
+      val e = new RuntimeException("Disabling likely expensive option " + last._1)
+      postponeException(e, single)
+      terminatedVariantCount.remove(last._1)
+    }
+    if (warn) {
+      println(s"Resetting block count" + optionsStr + s"\t${sorted.reverse.take(5)}")
+    }
   }
 
   def genMethodKey(m: Method): String =
@@ -154,7 +168,7 @@ object VERuntime {
     val value = Math.max(maxBlockPerTest.getOrElse(key, 0L), cnt)
     maxBlockPerTest.put(key, value)
     println("Setting max block to " + numFormatter.format(value))
-    resetBlockCount(false)
+    resetBlockCount(warn = false, FeatureExprFactory.True)
   }
 
   /**
@@ -179,6 +193,7 @@ object VERuntime {
     this.savedRestart = 0
     this.curStackDepth = 0
     this.expectedException = expectedException
+    this.terminatedVariantCount.clear()
 
     /** Block counting */
     this.entryMethod = entryMethod

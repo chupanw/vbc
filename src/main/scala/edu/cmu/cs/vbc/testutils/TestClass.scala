@@ -106,7 +106,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
 
   def getOrderedTestCases: List[Method] = {
     // DEBUG
-//    val tests       = getTestCases.sortBy(_.getName).filter(_.getName.startsWith("testIssue297"))
+//    val tests       = getTestCases.sortBy(_.getName).filter(_.getName.startsWith("testMath828Cycle"))
     val tests       = getTestCases.sortBy(_.getName)
     val prioritized = tests.filter(t => failingTests.exists(f => t.getName.startsWith(f + "__")))
     (prioritized ::: tests).distinct
@@ -130,8 +130,9 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     }
   }
 
-  def printlnAndLog(msg: String): Unit = {
-    println(msg)
+  def printlnAndLog(msg: String, err: Boolean = false): Unit = {
+    if (err) System.err.println(msg)
+    else println(msg)
     logger.debug(msg + "\n")
   }
 
@@ -267,7 +268,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
     } catch {
       case e: InvocationTargetException =>
         e.getCause match {
-          case ve: VException => if (!verifyException(ve.e, x)) printlnAndLog(ve.e.toString)
+          case ve: VException => if (!verifyException(ve.e, x)) printlnAndLog(ve.e.toString, err = true)
           case _              => e.printStackTrace()
         }
       case e: Throwable => e.printStackTrace()
