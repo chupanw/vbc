@@ -148,7 +148,7 @@ abstract class Project(args: Array[String]) {
   def parseRelevantTests(file: String): (List[String], List[TestString]) = {
     val f = fromFile(file)
     val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
-    val testClasses = validLines.filterNot(_.startsWith("*"))
+    val testClasses = validLines.filterNot(_.startsWith("*")).filter(_.startsWith("+")).map(_.substring(1).trim)
     val failingTests =
       validLines.filter(_.startsWith("*")).map(x => TestString(x.substring(1).trim))
     // prioritize test classes that have failing tests
