@@ -549,6 +549,22 @@ case class InstrIREM() extends BinOpInstruction {
   override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackAndSetLift(s, env)
 }
 
+/** Remainder float
+  *
+  * ..., value1(float), value2(float) -> ..., result(float)
+  */
+case class InstrFREM() extends BinOpInstruction {
+  override def toByteCode(mv: MethodVisitor, env: MethodEnv, block: Block): Unit = mv.visitInsn(FREM)
+
+  override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    loadCurrentCtx(mv, env, block)
+    mv.visitMethodInsn(INVOKESTATIC, Owner.getVOps, MethodName("frem"), MethodDesc(s"($vclasstype$vclasstype$fexprclasstype)$vclasstype"), false)
+    updateBlockCtxIfNotThrowingException(mv, env, block)
+  }
+
+  override def updateStack(s: VBCFrame, env: VMethodEnv): (VBCFrame, Set[Instruction]) = updateStackAndSetLift(s, env)
+}
+
 /** Boolean XOR int
   *
   * ..., value1, value2 -> ..., result

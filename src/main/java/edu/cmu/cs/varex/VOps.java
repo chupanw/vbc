@@ -204,6 +204,13 @@ public class VOps {
         }));
     }
 
+    // arithmetic exception
+    public static V<? extends Float> frem(V<? extends Float> value1, V<? extends Float> value2, FeatureExpr ctx) {
+        return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, (fe2, v2) -> {
+            return v1.floatValue() % v2.floatValue();
+        }));
+    }
+
     // no runtime exception
     public static V<? extends Double> drem(V<? extends Double> value1, V<? extends Double> value2, FeatureExpr ctx) {
         return value1.sflatMap(ctx, (fe, v1) -> value2.smap(fe, v2 -> v1.doubleValue() % v2.doubleValue()));
