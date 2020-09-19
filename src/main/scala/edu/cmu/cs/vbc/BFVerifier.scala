@@ -1,6 +1,6 @@
 package edu.cmu.cs.vbc
 
-import java.io.File
+import java.io.{File, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
@@ -39,6 +39,9 @@ abstract class BFVerifier {
       remainSolutions = testClass.runTests()
     })
     println(remainSolutions)
+    val solutionsWriter = new FileWriter("/tmp/solutions-bf.txt")
+    solutionsWriter.write(remainSolutions.toString())
+    solutionsWriter.close()
   }
 
   def minimize(solutions: List[List[String]]): List[List[String]] = {

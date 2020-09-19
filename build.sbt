@@ -83,15 +83,17 @@ dockerRepository := Some("chupanw")
 defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value + "/docker"
 // VarexC:
 dockerEntrypoint := Seq(
-  "timeout", "-k", "60", "2.5h",
-  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-cloud-patch-runner",
+//  "timeout", "-k", "60", "2.5h",
+  "/home/" + (daemonUser in Docker).value + "/docker/bin/math-cloud-patch-runner",
   "-J-Xmx16g",
+  "-J-Xss10m",
   "-Dvarexc.fastMode=true",
   "-Dvarexc.earlyFail=true",
   "-Dvarexc.maxInteractionDegree=3",
   "-Dvarexc.enableStackTraceCheck=true",
   "-Dvarexc.blockCount.enablePerTestBlockCount=true",
-  "-Dvarexc.blockCount.maxBlockCount=-1"
+  "-Dvarexc.blockCount.maxBlockCount=-1",
+  "-Dvarexc.maxStackDepth=300"
 )
 
 // GenProg:

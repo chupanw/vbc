@@ -5,8 +5,8 @@ import java.nio.file.{FileSystems, Files, Path, StandardCopyOption}
 
 import edu.cmu.cs.varex.VCache
 import edu.cmu.cs.varex.mtbdd.MTBDDFactory
-import edu.cmu.cs.vbc.VBCClassLoader
 import edu.cmu.cs.vbc.testutils.{ApacheMathBugs, ApacheMathLauncher, IntroClassLauncher, VTestStat}
+import edu.cmu.cs.vbc.{BFApacheMathVefier, VBCClassLoader}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.sys.process._
@@ -34,6 +34,7 @@ trait PatchRunner {
     (if (project.endsWith("/")) project.init else project).replace('/', '-')
   }
   def launch(args: Array[String]): Unit
+  def bfLaunch(args: Array[String]): Unit
   def compileCMD: Seq[String]
   def template(project: String, seed: Long): String
 
@@ -132,6 +133,7 @@ object IntroClassPatchRunner extends App with PatchRunner {
   override def projects4VarexC: String           = args(2)
   override def project: String                   = args(3)
   override def launch(args: Array[String]): Unit = IntroClassLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit = {}
 
   override def compileCMD = Seq("mvn", "-DskipTests=true", "package")
 
@@ -180,6 +182,7 @@ object MathPatchRunner extends App with PatchRunner {
   override def projects4VarexC: String           = args(2)
   override def project: String                   = args(3)
   override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit = BFApacheMathVefier.main(args)
   override def compileCMD                        = Seq("ant", "compile.tests")
   override def template(project: String, seed: Long): String =
     s"""

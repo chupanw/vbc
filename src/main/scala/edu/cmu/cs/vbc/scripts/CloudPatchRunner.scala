@@ -11,6 +11,7 @@ import com.amazonaws.services.sqs.model.{ReceiveMessageRequest, SendMessageReque
 import com.mongodb.client.gridfs.GridFSBuckets
 import com.mongodb.client.model.{Filters, Updates}
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
+import edu.cmu.cs.vbc.BFApacheMathVefier
 import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassCloudLauncher, VTestStat}
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipArchiveInputStream, ZipArchiveOutputStream}
 import org.apache.commons.compress.utils.IOUtils
@@ -51,6 +52,7 @@ trait CloudPatchGenerator extends PatchRunner {
   def genprogConfigPathString = mkPathString("/tmp", "tmp.config")
 
   override def launch(args: Array[String]): Unit = notAvailable("launch")
+  override def bfLaunch(args: Array[String]): Unit = notAvailable("bfLaunch")
   override def compileCMD: Seq[String]           = notAvailable("compileCMD")
 
   def edits(): String = {
@@ -258,8 +260,10 @@ trait CloudPatchRunner extends PatchRunner {
     val startTime = new Date()
     if (isGenProg)
       launch(Array(collectionName, projectName))
-    else
+    else {
       launch(Array("/tmp", projectName))
+      bfLaunch(Array("/tmp", projectName))
+    }
     val endTime = new Date()
 
     val startTimeUpdate = Updates.set("executionStartTime", startTime)
@@ -272,8 +276,8 @@ trait CloudPatchRunner extends PatchRunner {
     val logObjectId = uploadFile(db, logPathString, s"$projectName-log.txt")
     val logUpdate       = Updates.set("log", logObjectId)
 
-    val solutionsPathString = if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt") else mkPathString("/tmp", "solutions.txt")
-    val canFix = if (isGenProg) new File(solutionsPathString).length() > 0 else VTestStat.hasOverallSolution
+    val solutionsPathString = if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt") else mkPathString("/tmp", "solutions-bf.txt")
+    val canFix = if (isGenProg) new File(solutionsPathString).length() > 0 else VTestStat.hasOverallSolution  // todo: use BF verifier results instead
     val canFixUpdate    = Updates.set("canFix", canFix)
     val solutionsUpdate =
       if (canFix) {
@@ -434,7 +438,8 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
 }
 
 object MathBatch extends App {
-  for (i <- 1 to 84) {
+  val range = if (args.length == 4) List(args(3).toInt) else (args(3).toInt to args(4).toInt).toList
+  for (i <- range) {
     try {
       MathCloudPatchGenerator.main(Array(args(0), args(1), args(2), s"Math-${i}b"))
     }
@@ -446,13 +451,15 @@ object MathBatch extends App {
 
 object MathCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
-  override def compileCMD                        = Seq("ant", "compile.tests")
+  override def bfLaunch(args: Array[String]): Unit = BFApacheMathVefier.main(args)
+  override def compileCMD                        = Seq("ant", "clean", "compile.tests")
 
   run()
 }
 
 object IntroClassCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit = IntroClassCloudLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit = {}
   override def compileCMD = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   run()

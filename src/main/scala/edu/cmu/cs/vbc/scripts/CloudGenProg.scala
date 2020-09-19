@@ -89,6 +89,7 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
       attempt += 1
     }
   }
+  override def bfLaunch(args: Array[String]): Unit = {}
 
   override def compileCMD: Seq[String] = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
