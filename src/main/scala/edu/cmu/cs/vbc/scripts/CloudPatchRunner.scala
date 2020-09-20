@@ -438,7 +438,8 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
 }
 
 object MathBatch extends App {
-  val range = if (args.length == 4) List(args(3).toInt) else (args(3).toInt to args(4).toInt).toList
+  println(s"mongoURI: ${System.getProperty("mongoURI")}")
+  val range = (args(3).toInt to args(4).toInt).toList
   for (i <- range) {
     try {
       MathCloudPatchGenerator.main(Array(args(0), args(1), args(2), s"Math-${i}b"))
