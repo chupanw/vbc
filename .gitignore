@@ -15,3 +15,9 @@ coverage.path.pos
 FaultyStmtsAndWeights.txt
 jacoco.exec
 testcache.ser
+
+.bloop/
+.metals/
+**/metals.sbt
+
+.vscode/
