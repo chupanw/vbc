@@ -4,6 +4,8 @@ import java.io.{File, FileWriter}
 import java.net.URLClassLoader
 import java.nio.file.{FileSystems, Files, StandardCopyOption}
 
+import scala.reflect.io.Directory
+
 /**
   * To setup a project
   *   1. Record project name and main class name in the programs field  (automatic, see [[ProjectLister]])
@@ -18,7 +20,7 @@ object SubjectSetup extends App {
   val base    = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava/dataset/"
   val baseVBC = s"/$osBase/chupanw/Projects/Data/PatchStudy/IntroClassJava-VarexC/dataset/"
 
-  val projects = Nil
+  val projects = Syllables.runnable
 
   /**
     * Unless we have a better way to get passing tests
@@ -67,10 +69,11 @@ object SubjectSetup extends App {
       for (p <- projects) {
         println(s"Project: $p")
         current = p
-        generatePosNeg(p)
-        createRelevantTests(p)
-        setupVBC(p)
-        println()
+        initProject(p)
+//        generatePosNeg(p)
+//        createRelevantTests(p)
+//        setupVBC(p)
+//        println()
       }
     } catch {
       case a: AssertionError => a.printStackTrace(); failed = current :: failed
@@ -80,6 +83,22 @@ object SubjectSetup extends App {
     println(failed)
     println("Skipped: ")
     println(skipped)
+  }
+
+  def initProject(project: String): Unit = {
+    def mkPath(elems: String*): java.nio.file.Path = java.nio.file.FileSystems.getDefault.getPath(elems.head, elems.tail:_*)
+    val projectPath = mkPath(base, project)
+    val varexcProjectPath = mkPath(baseVBC, project)
+    scala.sys.process.Process(Seq("mvn", "clean"), projectPath.toFile).lazyLines.foreach(println)
+    try {
+      scala.sys.process.Process(Seq("mvn", "test"), projectPath.toFile).lazyLines.foreach(println)
+    } catch {
+      case _: Throwable => // expected test fail
+    }
+    scala.sys.process.Process(Seq("mvn", "clean"), varexcProjectPath.toFile).lazyLines.foreach(println)
+    val tmpFolder = mkPath(projectPath.toFile.getAbsolutePath, "tmp").toFile
+    if (tmpFolder.exists() || tmpFolder.isDirectory)
+      new Directory(tmpFolder).deleteRecursively()
   }
 
   def generatePosNeg(project: String): Unit = {
@@ -216,7 +235,7 @@ object MathSetup extends App {
 //  compileProjects()
 //  extractPosNegTests()
 //  genTargetClasses()
-  setupCompileScript()
+//  setupCompileScript()
 //  restoreAntBuild()
 //  modifyAntBuild()
 
@@ -268,14 +287,15 @@ object MathSetup extends App {
 
   def extractPosNegTests(): Unit = {
     val projects = listProjects(genprogFolder)
-    for (p <- projects) {
+    for (p <- projects.filter(x => x.getName.contains("-115b"))) {
       val relevantTestsPath = s"$varexcFolder/RelevantTests/${p.getName}.txt"
-      val relTestClasses    = io.Source.fromFile(relevantTestsPath).getLines().toList
-      val allTestsPath      = s"$genprogFolder/${p.getName}/target/test-classes/"
-      val allClassesPath    = s"$genprogFolder/${p.getName}/target/classes/"
+      val relTestClasses    = io.Source.fromFile(relevantTestsPath).getLines().toList.filterNot(_.startsWith("*"))
+      val allTestsPath      = s"$genprogFolder${p.getName}/build/test/"
+      val allClassesPath    = s"$genprogFolder${p.getName}/build/classes/"
+      val rhinoLib = s"$genprogFolder${p.getName}/build/lib/rhino.jar"
       val classLoader = new URLClassLoader(
-        Array(allClassesPath, allTestsPath).map(new File(_).toURI.toURL))
-      val outputDir = s"$genprogFolder/${p.getName}/"
+        Array(allClassesPath, allTestsPath, rhinoLib).map(new File(_).toURI.toURL))
+      val outputDir = s"$genprogFolder${p.getName}/"
 
       val neg = genNeg(p)
       val pos = genPos(classLoader, relTestClasses, neg)
@@ -283,15 +303,15 @@ object MathSetup extends App {
       val posFile = new FileWriter(new File(outputDir + "pos.tests"))
       posFile.write(pos.mkString("\n"))
 
-      val negFile = new FileWriter(new File(outputDir + "neg.tests"))
-      val relTestFile = new FileWriter(new File(s"$varexcFolder/RelevantTests/${p.getName}.txt"),
-                                       true) // used for prioritizing test execution
-      negFile.write(neg.mkString("\n"))
-      relTestFile.write(neg.map(x => "*" + x).mkString("\n"))
+//      val negFile = new FileWriter(new File(outputDir + "neg.tests"))
+//      val relTestFile = new FileWriter(new File(s"$varexcFolder/RelevantTests/${p.getName}.txt"),
+//                                       true) // used for prioritizing test execution
+//      negFile.write(neg.mkString("\n"))
+//      relTestFile.write(neg.map(x => "*" + x).mkString("\n"))
 
       posFile.close()
-      negFile.close()
-      relTestFile.close()
+//      negFile.close()
+//      relTestFile.close()
     }
   }
 
@@ -306,7 +326,7 @@ object MathSetup extends App {
       val tests =
         cls.getMethods.filter(m => m.isAnnotationPresent(classOf[org.junit.Test])).map(_.getName)
       if (tests.isEmpty) {
-        val junit3Tests = cls.getMethods.filter(m => m.getName.startsWith("test")).map(_.getName)
+        val junit3Tests = cls.getMethods.filter(m => m.getName.startsWith("test") && m.getParameterCount == 0).map(_.getName)
         junit3Tests.map(t => x + "::" + t)
       } else {
         tests.map(t => x + "::" + t)

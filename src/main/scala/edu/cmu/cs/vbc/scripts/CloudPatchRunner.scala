@@ -57,7 +57,7 @@ trait CloudPatchGenerator extends PatchRunner {
 
   def edits(): String = {
     if (numMut == Three) "append;delete;replace;"
-    else if (numMut == Eight) "append;delete;replace;aor;ror;lcr;uoi;abs;"
+    else if (numMut == Eight) "append;delete;replace;aor;ror;lcr;uoi,0.5;abs,0.5;"
     else throw new RuntimeException("Unexpected number of mutations")
   }
 
@@ -91,7 +91,7 @@ trait CloudPatchGenerator extends PatchRunner {
 
   def connectMongo(): (MongoDatabase, MongoCollection[Document], MongoCollection[Document]) = {
     val mongoClient = MongoClients.create(mongoURI)
-    val varexpDB    = mongoClient.getDatabase("varexp")
+    val varexpDB    = mongoClient.getDatabase("varexpatch")
     (varexpDB, varexpDB.getCollection(mongoCollectionName + s"-$VarexC"), varexpDB.getCollection(mongoCollectionName + s"-$GenProg"))
   }
 
@@ -302,7 +302,7 @@ trait CloudPatchRunner extends PatchRunner {
 
   def connectMongo(collectionName: String): (MongoDatabase, MongoCollection[Document]) = {
     val mongoClient = MongoClients.create(mongoURI)
-    val varexpDB    = mongoClient.getDatabase("varexp")
+    val varexpDB    = mongoClient.getDatabase("varexpatch")
     (varexpDB, varexpDB.getCollection(collectionName))
   }
 

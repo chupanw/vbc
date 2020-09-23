@@ -53,17 +53,18 @@ object IntroClassCloudPatchGenerator extends App with CloudPatchGenerator {
 
 }
 
-object Batch extends App {
-  for (p <- Median.runnable) {
-    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
+object IntroClassBatch extends App {
+  println("Input kind (median, smallest, grade, digits, checksum, syllables): ")
+  val kind = scala.io.StdIn.readLine().trim.toLowerCase()
+  val projects = kind match {
+    case "median" => Median.runnable
+    case "smallest" => Smallest.runnable
+    case "grade" => Grade.runnable
+    case "digits" => Digits.runnable
+    case "checksum" => Checksum.runnable
+    case "syllables" => Syllables.runnable
   }
-  for (p <- Smallest.runnable) {
-    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
-  }
-  for (p <- Grade.runnable) {
-    IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
-  }
-  for (p <- Digits.runnable) {
+  for (p <- projects) {
     IntroClassCloudPatchGenerator.main(Array(args(0), args(1), args(2), p))
   }
 }
