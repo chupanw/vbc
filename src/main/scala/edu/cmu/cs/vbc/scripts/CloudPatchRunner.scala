@@ -219,6 +219,7 @@ trait CloudPatchGenerator extends PatchRunner {
       val fis = new FileInputStream(f)
       IOUtils.copy(fis, archive)
       archive.closeArchiveEntry()
+      fis.close()
     }
   }
 
