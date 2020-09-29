@@ -57,7 +57,8 @@ abstract class TestLauncher {
       breakable {
         for (x <- p.testClasses) {
           val failing = p.failingTests.filter(f => f.className == x).map(_.testName)
-          val testClass = new TestClass(testLoader.loadClass(x), failing)
+          val excludeTests = p.excludeTests.filter(f => f.className == x).map(_.testName)
+          val testClass = new TestClass(testLoader.loadClass(x), failing, excludeTests)
           val hasSolutionSoFar = testClass.runTests(isFastMode = true)
           if (!hasSolutionSoFar) break
         }
@@ -74,7 +75,8 @@ abstract class TestLauncher {
 
     p.testClasses.foreach { x =>
       val failing = p.failingTests.filter(f => f.className == x).map(_.testName)
-      val testClass = new TestClass(testLoader.loadClass(x), failing)
+      val excludeTests = p.excludeTests.filter(f => f.className == x).map(_.testName)
+      val testClass = new TestClass(testLoader.loadClass(x), failing, excludeTests)
       testClass.runTests(isFastMode = false)
     }
 
@@ -126,7 +128,7 @@ abstract class Project(args: Array[String]) {
   val libJars: Array[String] = Array()
 
   val relevantTestFile: String = getRelevantTestFilePath
-  val (testClasses, failingTests) = parseRelevantTests(relevantTestFile)
+  val (testClasses, failingTests, excludeTests) = parseRelevantTests(relevantTestFile)
 
   def getRelevantTestFilePath: String
 
@@ -145,14 +147,15 @@ abstract class Project(args: Array[String]) {
     * @param file Full path to the RelevantTests file.
     * @return A list of test classes, and optionally a list of previously failing test cases (empty List if not specified)
     */
-  def parseRelevantTests(file: String): (List[String], List[TestString]) = {
+  def parseRelevantTests(file: String): (List[String], List[TestString], List[TestString]) = {
     val f = fromFile(file)
     val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
     val testClasses = validLines.filterNot(_.startsWith("*")).filter(_.startsWith("+")).map(_.substring(1).trim)
+    val excludeTests = validLines.filter(_.startsWith("-")).map(x => TestString(x.substring(1).trim))
     val failingTests =
       validLines.filter(_.startsWith("*")).map(x => TestString(x.substring(1).trim))
     // prioritize test classes that have failing tests
     val orderedTestClasses = (failingTests.map(_.className) ::: testClasses).distinct
-    (orderedTestClasses, failingTests)
+    (orderedTestClasses, failingTests, excludeTests)
   }
 }

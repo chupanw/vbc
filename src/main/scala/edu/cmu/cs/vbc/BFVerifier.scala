@@ -6,6 +6,7 @@ import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
 
 import edu.cmu.cs.vbc.testutils.{Project, TestString}
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
@@ -154,7 +155,10 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
         before.map(_.invoke(testObject))
         x.invoke(testObject)
         after.map(_.invoke(testObject))
-        List(s)
+        if (getExpectedException(x).nonEmpty && getExpectedException(x).get != classOf[Test.None])
+          Nil
+        else
+          List(s)
       } catch {
         case t: InvocationTargetException =>
           if (verifyException(t.getCause, x))
@@ -317,15 +321,11 @@ class BFApacheMathProject(args: Array[String]) extends Project(args) {
   /**
     * Execute test classes that have no marks, excluding failing test classes
     */
-  override def parseRelevantTests(file: String): (List[String], List[TestString]) = {
+  override def parseRelevantTests(file: String): (List[String], List[TestString], List[TestString]) = {
     val f = fromFile(file)
-    val validLines = f.getLines().toList.filterNot(_.startsWith("//")).filterNot(_.startsWith("+"))
-    val testClasses = validLines.filterNot(_.startsWith("*"))
-    val failingTests =
-      validLines.filter(_.startsWith("*")).map(x => TestString(x.substring(1).trim)).map(_.className)
-    // prioritize test classes that have failing tests
-    val pendingTestClasses = testClasses.diff(failingTests)
-    (pendingTestClasses, Nil)
+    val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
+    val testClasses = validLines.filterNot(l => l.startsWith("*") || l.startsWith("-"))
+    (testClasses, Nil, Nil)
   }
 }
 

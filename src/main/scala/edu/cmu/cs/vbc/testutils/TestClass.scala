@@ -7,6 +7,7 @@ import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory}
 import edu.cmu.cs.varex.{One, V}
 import edu.cmu.cs.vbc.VException
 import edu.cmu.cs.vbc.config.{Settings, VERuntime}
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.{Parameter, Parameters}
@@ -26,7 +27,7 @@ import org.slf4j.LoggerFactory
   *   setUp
   *   tearDown
   */
-class TestClass(c: Class[_], failingTests: List[String] = Nil) {
+class TestClass(c: Class[_], failingTests: List[String] = Nil, excludeTests: List[String] = Nil) {
 
 //  require(checkAnnotations, s"Unsupported annotation in $c")
 
@@ -93,20 +94,19 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       throw new RuntimeException(s"More than one method have the name: $name")
   }
 
-  //todo: also search for superclasses
-  def getTestCases: List[Method] =
-    if (isJUnit3)
-      c.getMethods.toList.filter(x => x.getName.startsWith("test") && x.getParameterCount == 1)
-    else {
-      val allTests = c.getMethods.toList.filter { x =>
-        x.isAnnotationPresent(classOf[org.junit.Test])
+  def getTestCases: List[Method] = {
+    val allTests = {
+      if (isJUnit3)
+        c.getMethods.toList.filter(x => x.getName.startsWith("test") && x.getParameterCount == 1)
+      else {
+        val allTests = c.getMethods.toList.filter { x => x.isAnnotationPresent(classOf[org.junit.Test]) }
+        allTests.filterNot(x => x.isAnnotationPresent(classOf[org.junit.Ignore]))
       }
-      allTests.filterNot(x => x.isAnnotationPresent(classOf[org.junit.Ignore]))
     }
+    allTests.filterNot(x => excludeTests.exists(y => x.getName.startsWith(y + "__")))
+  }
 
   def getOrderedTestCases: List[Method] = {
-    // DEBUG
-//    val tests       = getTestCases.sortBy(_.getName).filter(_.getName.startsWith("testMath828Cycle"))
     val tests       = getTestCases.sortBy(_.getName)
     val prioritized = tests.filter(t => failingTests.exists(f => t.getName.startsWith(f + "__")))
     (prioritized ::: tests).distinct
@@ -294,7 +294,12 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil) {
       after.map(_.invoke(testObject, context))
       System.gc()
       val succeedingContext = VERuntime.getExploredContext(context)
-      VTestStat.succeed(className, x.getName, succeedingContext)
+      if (getExpectedException(x).nonEmpty && getExpectedException(x).get != classOf[Test.None]) {
+        VTestStat.fail(className, x.getName)
+        printlnAndLog("Expecting exception, but didn't catch anything", err = true)
+      } else {
+        VTestStat.succeed(className, x.getName, succeedingContext)
+      }
       if (VERuntime.skippedExceptionContext.isSatisfiable()) VTestStat.fail(className, x.getName)
       val exploredSoFar =
         succeedingContext.or(exploredContext).or(VERuntime.skippedExceptionContext)
