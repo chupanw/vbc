@@ -9,6 +9,7 @@ import edu.cmu.cs.vbc.{VBCClassLoader, VException}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * Global configurations for VarexC
@@ -135,18 +136,21 @@ object VERuntime {
   def resetBlockCount(warn: Boolean, ctx: FeatureExpr): Unit = {
     curBlockCount = 0
     val options = ctx.getRelevantOptions
-    val optionsStr = " under " + options.mkString("[", ",", "]")
+    val discardedOpts = new ListBuffer[String]()
     options.foreach(x => terminatedVariantCount.put(x, terminatedVariantCount.getOrElse(x, 0) + 1))
-    val sorted = terminatedVariantCount.toList.sortBy(_._2)
-    if (sorted.nonEmpty && sorted.last._2 > 10) {
+    val sorted = new mutable.ListBuffer[(String, Int)]()
+    sorted.addAll(terminatedVariantCount.toList.sortBy(_._2))
+    while (sorted.nonEmpty && sorted.last._2 > 10) {
       val last = sorted.last
       val single = FeatureExprFactory.createDefinedExternal(last._1)
       val e = new RuntimeException("Disabling likely expensive option " + last._1)
+      discardedOpts.append(last._1)
       postponeException(e, single)
       terminatedVariantCount.remove(last._1)
+      sorted.remove(sorted.size - 1)
     }
-    if (warn) {
-      println(s"Resetting block count" + optionsStr + s"\t${sorted.reverse.take(5)}")
+    if (warn && discardedOpts.nonEmpty) {
+      println(s"Discarding likely expensive options: $discardedOpts")
     }
   }
 
