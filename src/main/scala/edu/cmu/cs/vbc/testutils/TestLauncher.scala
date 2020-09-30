@@ -40,7 +40,9 @@ abstract class TestLauncher {
         reuseLifted = reuseLifted)
       setClassLoader(blockCountTestLoader)
       p.testClasses.foreach { x =>
-        new TestClass(blockCountTestLoader.loadClass(x)).countBlockForAllTests()
+        val failing = p.failingTests.filter(f => f.className == x).map(_.testName)
+        val excludeTests = p.excludeTests.filter(f => f.className == x).map(_.testName)
+        new TestClass(blockCountTestLoader.loadClass(x), failing, excludeTests).countBlockForAllTests()
       }
       VTestStat.clear()
     }
