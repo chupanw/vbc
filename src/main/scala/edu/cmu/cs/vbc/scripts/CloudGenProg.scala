@@ -79,12 +79,12 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
     val startTime = System.currentTimeMillis()
     while (attempt < 20) {  // at most 20 different seeds
       val template = genTemplate(collectionName, projectName, System.currentTimeMillis())
-      val writer = new FileWriter(new File(mkPathString("/tmp", projectName, "tmp.config")))
+      val writer = new FileWriter(new File(mkPathString(System.getProperty("java.io.tmpdir"), projectName, "tmp.config")))
       writer.write(template)
       writer.close()
-      val testCacheFile = new File(mkPathString("/tmp", projectName, "testcache.ser"))
+      val testCacheFile = new File(mkPathString(System.getProperty("java.io.tmpdir"), projectName, "testcache.ser"))
       if (testCacheFile.exists()) testCacheFile.delete()
-      Process(genprogCMD, cwd = mkPath("/tmp", projectName).toFile).lazyLines.foreach(printlnAndLog)
+      Process(genprogCMD, cwd = mkPath(System.getProperty("java.io.tmpdir"), projectName).toFile).lazyLines.foreach(printlnAndLog)
       val duration = System.currentTimeMillis() - startTime
       if (duration >= twoHoursInMS) return
       attempt += 1

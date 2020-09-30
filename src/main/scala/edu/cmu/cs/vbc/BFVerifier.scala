@@ -4,6 +4,7 @@ import java.io.{File, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
+import java.nio.file.FileSystems
 
 import edu.cmu.cs.vbc.testutils.{Project, TestString}
 import org.junit.Test
@@ -23,7 +24,8 @@ import scala.io.Source.fromFile
 abstract class BFVerifier {
 
   def getSolutions(): List[List[String]] = {
-    val line = fromFile("/tmp/solutions.txt").getLines().toList.head
+    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt")
+    val line = fromFile(tmpDirPath.toFile).getLines().toList.head
     val split = line.split(',').toList
     split.map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').toList)
   }
@@ -40,7 +42,8 @@ abstract class BFVerifier {
       remainSolutions = testClass.runTests()
     })
     println(remainSolutions)
-    val solutionsWriter = new FileWriter("/tmp/solutions-bf.txt")
+    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
+    val solutionsWriter = new FileWriter(tmpDirPath.toFile)
     solutionsWriter.write(remainSolutions.toString())
     solutionsWriter.close()
   }

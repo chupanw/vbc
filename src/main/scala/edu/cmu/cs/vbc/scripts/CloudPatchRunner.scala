@@ -47,9 +47,9 @@ trait CloudPatchGenerator extends PatchRunner {
   def relevantTestFilePathString: String
   def mongoCollectionName: String // e.g., median-8op-genprog, math-3op-varexc
 
-  def varexcSetupZipPathString  = mkPathString("/tmp", s"$projectName.zip")
-  def genprogSetupZipPathString = mkPathString("/tmp", s"$projectName-genprog.zip")
-  def genprogConfigPathString = mkPathString("/tmp", "tmp.config")
+  def varexcSetupZipPathString  = mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName.zip")
+  def genprogSetupZipPathString = mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName-genprog.zip")
+  def genprogConfigPathString = mkPathString(System.getProperty("java.io.tmpdir"), "tmp.config")
 
   override def launch(args: Array[String]): Unit = notAvailable("launch")
   override def bfLaunch(args: Array[String]): Unit = notAvailable("bfLaunch")

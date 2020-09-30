@@ -12,7 +12,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.sys.process._
 
 object ScriptConfig {
-  val tmpConfigPath    = "/tmp/tmp.config"
+  val tmpConfigPath    = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "tmp.config").toFile.getAbsolutePath
   val maxAttempts: Int = 1
   val popSize          = 300
   val timeout: Long    = 3600 // in seconds

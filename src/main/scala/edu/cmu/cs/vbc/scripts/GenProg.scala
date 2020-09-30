@@ -1,12 +1,13 @@
 package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
+import java.nio.file.FileSystems
 
 import org.slf4j.LoggerFactory
 
 object GenProg extends App {
 
-  val tmpConfigPath = "/tmp/tmp.config"
+  val tmpConfigPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "tmp.config").toFile.getAbsolutePath
   val maxAttempts: Int = 10
   val osBase = args(0) // "Users" for the Mac and "home" for the Linux
   /**

@@ -1,6 +1,7 @@
 package edu.cmu.cs.vbc.testutils
 
 import java.io.{File, FileWriter}
+import java.nio.file.FileSystems
 
 import de.fosd.typechef.featureexpr.bdd.BDDFeatureModel
 import de.fosd.typechef.featureexpr.{FeatureExpr, FeatureExprFactory, SingleFeatureExpr}
@@ -87,7 +88,7 @@ object VTestStat {
       val allLowDegreeSolutions = fe.getAllSolutionsScala
       val nSolutions = allLowDegreeSolutions.size
       printlnAndLog(s"All test cases can pass if any of the $nSolutions is met: ${allLowDegreeSolutions.take(100)}")
-      val solutionsWriter = new FileWriter("/tmp/solutions.txt")
+      val solutionsWriter = new FileWriter(FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt").toFile)
       solutionsWriter.write(allLowDegreeSolutions.toString())
       solutionsWriter.close()
     } else
