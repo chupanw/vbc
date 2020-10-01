@@ -139,6 +139,7 @@ object VERuntime {
   private val terminatedVariantCount = collection.mutable.HashMap[String, Int]()
   def resetBlockCount(warn: Boolean, ctx: FeatureExpr): Unit = {
     curBlockCount = 0
+    println("block count reset")
     val options = ctx.getRelevantOptions
     val discardedOpts = new ListBuffer[String]()
     options.foreach(x => terminatedVariantCount.put(x, terminatedVariantCount.getOrElse(x, 0) + 1))

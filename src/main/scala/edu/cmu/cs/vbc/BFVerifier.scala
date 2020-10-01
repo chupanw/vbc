@@ -32,14 +32,21 @@ abstract class BFVerifier {
 
   def genProject(args: Array[String]): Project
 
-  def run(args: Array[String]): Unit = {
+  def run(args: Array[String], profiler: Boolean = false): Unit = {
+    run(minimize(getSolutions()), args, profiler)
+  }
+
+  def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): Unit = {
     val p: Project = genProject(args)
     val testLoader = new BFTestLoader(p.mainClassPath, p.testClassPath, p.libJars)
-    var remainSolutions = minimize(getSolutions())
+    var remainSolutions = solutions
     val globalOptionsClass = testLoader.loadClass("varexc.GlobalOptions")
     p.testClasses.foreach(x => {
-      val testClass = new BFTestClass(testLoader.loadClass(x), globalOptionsClass, remainSolutions)
+      val testClass = new BFTestClass(testLoader.loadClass(x), globalOptionsClass, remainSolutions, profiler)
       remainSolutions = testClass.runTests()
+      if (profiler) {
+        println(testClass.timer.toList.sortBy(_._2).reverse)
+      }
     })
     println(remainSolutions)
     val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
@@ -59,6 +66,29 @@ abstract class BFVerifier {
       }
     }
     go(solutions.sortBy(_.size), collection.mutable.ListBuffer[List[String]]())
+  }
+
+  def profile(args: Array[String], degree: Int): Unit = {
+    val p: Project = genProject(args)
+    val testLoader = new BFTestLoader(p.mainClassPath, p.testClassPath, p.libJars)
+    val globalOptionsClass = testLoader.loadClass("varexc.GlobalOptions")
+    val options = globalOptionsClass.getFields.toList.filter(f => f.getAnnotations.nonEmpty).map(_.getName)
+    val solutions = genSolutions(options, degree)
+    run(solutions, args, true)
+  }
+
+  def genSolutions(options: List[String], degree: Int): List[List[String]] = {
+    if (options.size == degree)
+      List(options)
+    else {
+      degree match {
+        case 1 => options.map(List(_))
+        case n =>
+          val head = options.head
+          val withHead = genSolutions(options.tail, n - 1).map(head :: _)
+          withHead ::: genSolutions(options.tail, degree)
+      }
+    }
   }
 }
 
@@ -98,10 +128,11 @@ class BFTestLoader(mainClasspath: String,
 
 
 
-class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: List[List[String]]) {
+class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: List[List[String]], profiler: Boolean) {
   val isJUnit3: Boolean = isSubclassOfTestCase(c)
   val isParameterized: Boolean = isParameterizedTest(c)
   val logger = LoggerFactory.getLogger("varexc")
+  val timer: collection.mutable.HashMap[List[String], Long] = collection.mutable.HashMap[List[String], Long]()
 
   def isSubclassOfTestCase(c: Class[_]): Boolean = {
     if (c.getName == "java.lang.Object") false
@@ -149,10 +180,15 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
     printlnAndLog(s"[INFO] Verifying $className.${x.getName}\t remaining solutions: ${pendingSolutions.size}")
     val testObject = createObject(params)
     pendingSolutions.flatMap { s =>
+      var start = 0L
       for (v <- s) {
         val f = globalOptionsClass.getDeclaredField(v)
         f.setAccessible(true)
         f.setBoolean(null, true)
+      }
+      if (profiler) {
+        println("profiling " + s)
+        start = System.currentTimeMillis()
       }
       try {
         before.map(_.invoke(testObject))
@@ -168,7 +204,7 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
             List(s)
           else {
             printlnAndLog(s"Wrong patch: $s")
-            printlnAndLog(t.toString + "\n" + t.getStackTrace.mkString("\t", "\n\t", "\n"))
+            printlnAndLog(t.getCause.toString + "\n" + t.getCause.getStackTrace.take(3).mkString("\t", "\n\t", "\n"))
             Nil
           }
         case e =>
@@ -179,6 +215,10 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
           val f = globalOptionsClass.getDeclaredField(v)
           f.setAccessible(true)
           f.setBoolean(null, false)
+        }
+        if (profiler) {
+          val duration = System.currentTimeMillis() - start
+          timer.put(s, timer.getOrElse(s, 0L) + duration)
         }
       }
     }
@@ -343,5 +383,6 @@ class BFApacheMathProject(args: Array[String]) extends Project(args) {
 object BFApacheMathVefier extends BFVerifier with App {
   override def genProject(args: Array[String]) = new BFApacheMathProject(args)
 
-  run(args)
+//  run(args)
+  profile(args, 2)
 }
