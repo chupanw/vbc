@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 /**
   * Global configurations for VarexC
@@ -32,6 +33,9 @@ object Settings {
 
   // execute `java -XX:+PrintFlagsFinal -version` and look for MaxJavaStackTraceDepth
   val maxStackDepth: Int = config.getInt("varexc.maxStackDepth")
+  val seed: Long = config.getLong("varexc.seed")
+  val sampleOptionsRate: Double = config.getDouble("varexc.sampleOptionsRate")
+  val rand = new Random(seed)
 
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression

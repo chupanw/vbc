@@ -3,6 +3,7 @@ package edu.cmu.cs.vbc.vbytecode.instructions
 import edu.cmu.cs.vbc.OpcodePrint
 import edu.cmu.cs.vbc.analysis.VBCFrame.UpdatedFrame
 import edu.cmu.cs.vbc.analysis.{VBCFrame, V_TYPE}
+import edu.cmu.cs.vbc.config.Settings
 import edu.cmu.cs.vbc.utils.LiftUtils
 import edu.cmu.cs.vbc.vbytecode._
 import org.objectweb.asm.Opcodes._
@@ -119,7 +120,7 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
 
     if (env.method.name == "___clinit___") {
       env.clazz.fields.filter(f => f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
-        createChoice(f.name, mv, env, block)
+        createChoice(f, mv, env, block)
         mv.visitFieldInsn(PUTSTATIC, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
       })
       env.clazz.fields.filter(f => f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
@@ -130,7 +131,7 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
     else {
       env.clazz.fields.filter(f => !f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
         mv.visitVarInsn(ALOAD, 0)
-        createChoice(f.name, mv, env, block)
+        createChoice(f, mv, env, block)
         mv.visitFieldInsn(PUTFIELD, env.clazz.name, f.name, "Ledu/cmu/cs/varex/V;")
       })
       env.clazz.fields.filter(f => !f.isStatic && !f.hasConditionalAnnotation()).foreach(f => {
@@ -174,8 +175,17 @@ case object InstrINIT_CONDITIONAL_FIELDS {
 
   import LiftUtils._
 
-  def createChoice(fName: String, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    mv.visitLdcInsn(fName)
+  def createChoice(f: VBCFieldNode, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    if (Settings.sampleOptionsRate >= 0.0 && Settings.sampleOptionsRate <= 1.0) {
+      if (Settings.rand.nextDouble() > Settings.sampleOptionsRate) {
+        createOne(f, mv, env, block)
+        return
+      }
+      else {
+        println(s"Option: ${f.name}")
+      }
+    }
+    mv.visitLdcInsn(f.name)
     mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "createDefinedExternal", "(Ljava/lang/String;)Lde/fosd/typechef/featureexpr/SingleFeatureExpr;", false)
     mv.visitInsn(ICONST_1)
     mv.visitMethodInsn(INVOKESTATIC, Owner.getInt, "valueOf", s"(I)${Owner.getInt.getTypeDesc}", false)
