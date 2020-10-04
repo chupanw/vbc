@@ -79,7 +79,7 @@ public class StringBuilder implements Appendable {
                     vActual.sforeach(fe2, (fe3, sb) -> sb.append(s));
                 });
             } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-                java.lang.System.err.println("Falling back to unlifted toString()");
+//                java.lang.System.err.println("Falling back to unlifted toString()");
                 split(fe);
                 vActual.sforeach(fe, (fe2, sb) -> sb.append(o));
             }
