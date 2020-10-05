@@ -117,6 +117,14 @@ case class InstrINIT_CONDITIONAL_FIELDS() extends Instruction {
   }
 
   override def toVByteCode(mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
+    val optionNames = env.clazz.fields.filter(f => f.hasConditionalAnnotation()).map(_.name)
+    if (optionNames.nonEmpty && Settings.selectedOptions.isEmpty) {
+      if (Settings.maxOptions > 0)
+        Settings.selectedOptions.addAll(Settings.rand.shuffle(optionNames).take(Settings.maxOptions))
+      else 
+        Settings.selectedOptions.addAll(optionNames)
+      println("Using options: " + Settings.selectedOptions)
+    }
 
     if (env.method.name == "___clinit___") {
       env.clazz.fields.filter(f => f.isStatic && f.hasConditionalAnnotation()).foreach(f => {
@@ -176,14 +184,9 @@ case object InstrINIT_CONDITIONAL_FIELDS {
   import LiftUtils._
 
   def createChoice(f: VBCFieldNode, mv: MethodVisitor, env: VMethodEnv, block: Block): Unit = {
-    if (Settings.sampleOptionsRate >= 0.0 && Settings.sampleOptionsRate <= 1.0) {
-      if (Settings.rand.nextDouble() > Settings.sampleOptionsRate) {
-        createOne(f, mv, env, block)
-        return
-      }
-      else {
-        println(s"Option: ${f.name}")
-      }
+    if (!Settings.selectedOptions.contains(f.name)) {
+      createOne(f, mv, env, block)
+      return
     }
     mv.visitLdcInsn(f.name)
     mv.visitMethodInsn(INVOKESTATIC, fexprfactoryClassName, "createDefinedExternal", "(Ljava/lang/String;)Lde/fosd/typechef/featureexpr/SingleFeatureExpr;", false)

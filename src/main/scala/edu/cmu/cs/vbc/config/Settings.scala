@@ -34,8 +34,9 @@ object Settings {
   // execute `java -XX:+PrintFlagsFinal -version` and look for MaxJavaStackTraceDepth
   val maxStackDepth: Int = config.getInt("varexc.maxStackDepth")
   val seed: Long = config.getLong("varexc.seed")
-  val sampleOptionsRate: Double = config.getDouble("varexc.sampleOptionsRate")
+  val maxOptions: Int = config.getInt("varexc.maxOptions")
   val rand = new Random(seed)
+  val selectedOptions: mutable.Set[String] = mutable.Set[String]()
 
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
