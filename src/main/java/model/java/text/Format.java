@@ -15,6 +15,8 @@ public abstract class Format {
     Format(V<?> vA) {
         vActual = vA;
     }
+    // in case SUT classes extend the Format class
+    public Format(FeatureExpr ctx) {}
 
     Format(){}
 
