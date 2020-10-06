@@ -37,6 +37,7 @@ object Settings {
   val maxOptions: Int = config.getInt("varexc.maxOptions")
   val rand = new Random(seed)
   val selectedOptions: mutable.Set[String] = mutable.Set[String]()
+  val maxResetPerOption: Int = config.getInt("varexc.maxResetPerOption")
 
   /**
     * Interaction degree defined as minimum number of individual options that must be enable to satisfy a feature expression
@@ -146,7 +147,7 @@ object VERuntime {
     options.foreach(x => terminatedVariantCount.put(x, terminatedVariantCount.getOrElse(x, 0) + 1))
     val sorted = new mutable.ListBuffer[(String, Int)]()
     sorted.addAll(terminatedVariantCount.toList.sortBy(_._2))
-    while (sorted.nonEmpty && sorted.last._2 > 10) {
+    while (sorted.nonEmpty && sorted.last._2 > Settings.maxResetPerOption) {
       val last = sorted.last
       val single = FeatureExprFactory.createDefinedExternal(last._1)
       val e = new RuntimeException("Disabling likely expensive option " + last._1)
