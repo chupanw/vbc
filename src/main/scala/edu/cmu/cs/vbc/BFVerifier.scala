@@ -5,6 +5,7 @@ import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
+import java.util.concurrent.{Executors, TimeUnit}
 
 import edu.cmu.cs.vbc.testutils.{Project, TestString}
 import org.junit.Test
@@ -32,8 +33,12 @@ abstract class BFVerifier {
 
   def genProject(args: Array[String]): Project
 
-  def run(args: Array[String], profiler: Boolean = false): Unit = {
-    run(minimize(getSolutions()), args, profiler)
+  def run(args: Array[String], shouldSystemExit: Boolean, profiler: Boolean = false): Unit = {
+//    run(minimize(getSolutions()), args, profiler)
+    run(getSolutions(), args, profiler)
+    if (shouldSystemExit) {
+      System.exit(0)
+    }
   }
 
   def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): Unit = {
@@ -75,6 +80,7 @@ abstract class BFVerifier {
     val options = globalOptionsClass.getFields.toList.filter(f => f.getAnnotations.nonEmpty).map(_.getName)
     val solutions = genSolutions(options, degree)
     run(solutions, args, true)
+    System.exit(0)
   }
 
   def genSolutions(options: List[String], degree: Int): List[List[String]] = {
@@ -178,48 +184,68 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
 
   def execute(params: Option[Array[_]], x: Method, pendingSolutions: List[List[String]]): List[List[String]] = {
     printlnAndLog(s"[INFO] Verifying $className.${x.getName}\t remaining solutions: ${pendingSolutions.size}")
-    val testObject = createObject(params)
     pendingSolutions.flatMap { s =>
-      var start = 0L
+      val scheduler = Executors.newScheduledThreadPool(1)
+      val executor = Executors.newFixedThreadPool(1)
+      var res:List[List[String]] = Nil
+      val test = executor.submit(new Runnable {
+        override def run(): Unit = res = executeSingle(params, x, s)
+      })
+      val monitor = scheduler.schedule(new Runnable {
+        override def run(): Unit = {
+          println("timeout after 1 min: " + s)
+          test.cancel(true)
+        }
+      }, 1, TimeUnit.MINUTES)
+      while (!test.isCancelled && !test.isDone) {
+        Thread.sleep(1)
+      }
+      monitor.cancel(true)
+      res
+    }
+  }
+
+  def executeSingle(params: Option[Array[_]], x: Method, s: List[String]): List[List[String]] = {
+    val testObject = createObject(params)
+    var start = 0L
+    for (v <- s) {
+      val f = globalOptionsClass.getDeclaredField(v)
+      f.setAccessible(true)
+      f.setBoolean(null, true)
+    }
+    if (profiler) {
+      println("profiling " + s)
+      start = System.currentTimeMillis()
+    }
+    try {
+      before.map(_.invoke(testObject))
+      x.invoke(testObject)
+      after.map(_.invoke(testObject))
+      if (getExpectedException(x).nonEmpty && getExpectedException(x).get != classOf[Test.None])
+        Nil
+      else
+        List(s)
+    } catch {
+      case t: InvocationTargetException =>
+        if (verifyException(t.getCause, x))
+          List(s)
+        else {
+          printlnAndLog(s"Wrong patch: $s")
+          printlnAndLog(t.getCause.toString + "\n" + t.getCause.getStackTrace.take(3).mkString("\t", "\n\t", "\n"))
+          Nil
+        }
+      case e =>
+        throw new RuntimeException(
+          s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
+    } finally {
       for (v <- s) {
         val f = globalOptionsClass.getDeclaredField(v)
         f.setAccessible(true)
-        f.setBoolean(null, true)
+        f.setBoolean(null, false)
       }
       if (profiler) {
-        println("profiling " + s)
-        start = System.currentTimeMillis()
-      }
-      try {
-        before.map(_.invoke(testObject))
-        x.invoke(testObject)
-        after.map(_.invoke(testObject))
-        if (getExpectedException(x).nonEmpty && getExpectedException(x).get != classOf[Test.None])
-          Nil
-        else
-          List(s)
-      } catch {
-        case t: InvocationTargetException =>
-          if (verifyException(t.getCause, x))
-            List(s)
-          else {
-            printlnAndLog(s"Wrong patch: $s")
-            printlnAndLog(t.getCause.toString + "\n" + t.getCause.getStackTrace.take(3).mkString("\t", "\n\t", "\n"))
-            Nil
-          }
-        case e =>
-          throw new RuntimeException(
-            s"Expecting InvocationTargetException, but found ${e.printStackTrace()}")
-      } finally {
-        for (v <- s) {
-          val f = globalOptionsClass.getDeclaredField(v)
-          f.setAccessible(true)
-          f.setBoolean(null, false)
-        }
-        if (profiler) {
-          val duration = System.currentTimeMillis() - start
-          timer.put(s, timer.getOrElse(s, 0L) + duration)
-        }
+        val duration = System.currentTimeMillis() - start
+        timer.put(s, timer.getOrElse(s, 0L) + duration)
       }
     }
   }
@@ -383,6 +409,6 @@ class BFApacheMathProject(args: Array[String]) extends Project(args) {
 object BFApacheMathVefier extends BFVerifier with App {
   override def genProject(args: Array[String]) = new BFApacheMathProject(args)
 
-//  run(args)
-  profile(args, 2)
+  run(args, true)
+//  profile(args, 2)
 }
