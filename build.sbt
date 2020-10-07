@@ -83,7 +83,7 @@ dockerRepository := Some("chupanw")
 defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value + "/docker"
 // VarexC:
 dockerEntrypoint := Seq(
-//  "timeout", "-k", "60", "2.5h",
+  "timeout", "-k", "60", "4h",
   "/home/" + (daemonUser in Docker).value + "/docker/bin/math-cloud-patch-runner",
   "-J-Xmx16g",
   "-J-Xss10m",
