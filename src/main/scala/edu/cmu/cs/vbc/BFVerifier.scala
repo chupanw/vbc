@@ -22,8 +22,11 @@ abstract class BFVerifier {
   def getSolutions(): List[List[String]] = {
     val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt")
     val line = fromFile(tmpDirPath.toFile).getLines().toList.head
-    val split = line.split(',').toList
-    split.map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').toList)
+    if (line == "List()") Nil
+    else {
+      val split = line.split(',').toList
+      split.map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').map(_.trim).toList)
+    }
   }
 
   def genProject(args: Array[String]): Project

@@ -84,16 +84,17 @@ object VTestStat {
   def printAllSolutions(fe: FeatureExpr): Unit = {
     val hasLDSolution = fe.isSatisfiable() && !V.isDegreeTooHigh(fe)
     hasOverallSolution = hasLDSolution
+    val allLowDegreeSolutions = fe.getAllSolutionsScala
     if (hasLDSolution) {
-      val allLowDegreeSolutions = fe.getAllSolutionsScala
       val nSolutions = allLowDegreeSolutions.size
       printlnAndLog(s"All test cases can pass if any of the $nSolutions is met: ${allLowDegreeSolutions.take(100)}")
-      val solutionsWriter = new FileWriter(FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt").toFile)
-      solutionsWriter.write(allLowDegreeSolutions.toString())
-      solutionsWriter.close()
-    } else
+    } else {
       printlnAndLog(
         s"To pass all test cases, no solution within ${Settings.maxInteractionDegree} mutations")
+    }
+    val solutionsWriter = new FileWriter(FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt").toFile)
+    solutionsWriter.write(allLowDegreeSolutions.toString())
+    solutionsWriter.close()
   }
 }
 
