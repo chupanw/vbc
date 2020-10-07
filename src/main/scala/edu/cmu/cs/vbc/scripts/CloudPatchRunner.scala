@@ -418,7 +418,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
          "lib",
          "junit-4.12.jar")}:${mkPathString(genprogPath, "lib", "junittestrunner.jar")}:
        |sanity = yes
-       |sourceDir = src/main/java
+       |sourceDir = ${if (project.substring(5).init.toInt >= 85) "src/java" else "src/main/java"}
        |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
        |negativeTests = ${mkPathString(projects4GenProg, project, "neg.tests")}
        |jacocoPath = ${mkPathString(genprogPath, "lib", "jacocoagent.jar")}

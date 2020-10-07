@@ -93,7 +93,8 @@ trait PatchRunner {
   def copyMutatedCode(variantFolder: Path /*e.g., tmp/variant999/ */ ): Unit = {
     def copy(absolute: Path): Unit = {
       val relative = mkPath(projects4GenProg).resolve(variantFolder).relativize(absolute)
-      val dst      = mkPath(projects4VarexC, project, "src/main/java").resolve(relative)
+      val srcDir = if (project.startsWith("Math") && project.substring(5).init.toInt >= 85) "src/java" else "src/main/java"
+      val dst      = mkPath(projects4VarexC, project, srcDir).resolve(relative)
       val folder   = dst.getParent.toFile
       if (!folder.exists()) folder.mkdirs()
       logger.info(s"Copying ${absolute} to ${dst}")

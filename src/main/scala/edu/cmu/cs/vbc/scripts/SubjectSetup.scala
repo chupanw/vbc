@@ -235,7 +235,7 @@ object MathSetup extends App {
 //  compileProjects()
 //  extractPosNegTests()
 //  genTargetClasses()
-//  setupCompileScript()
+  setupCompileScript()
 //  restoreAntBuild()
 //  modifyAntBuild()
 
@@ -345,10 +345,17 @@ object MathSetup extends App {
 
   def setupCompileScript(): Unit = {
     val projects = listProjects(genprogFolder)
-    for (p <- projects) {
+    for (p <- projects if shouldKeep(p)) {
       println(s"Setting up compile script in ${p.getAbsolutePath}")
       Process(Seq("ln", "-s", "-f", compileScriptPath, "compile.py"), cwd = Some(p)).lazyLines
         .foreach(println)
+    }
+
+    def shouldKeep(f: File): Boolean = {
+      if (f.getName.startsWith("Math-")) {
+        f.getName.substring(5).init.toInt >= 85
+      }
+      else false
     }
   }
 
