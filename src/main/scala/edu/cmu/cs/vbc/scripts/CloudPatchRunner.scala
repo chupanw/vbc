@@ -56,7 +56,7 @@ trait CloudPatchGenerator extends PatchRunner {
 
   override def launch(args: Array[String]): Unit   = notAvailable("launch")
   override def bfLaunch(args: Array[String]): Unit = notAvailable("bfLaunch")
-  override def compileCMD: Seq[String]             = notAvailable("compileCMD")
+  override def compileCMD(projectName: String): Seq[String]             = notAvailable("compileCMD")
 
   def edits(): String = {
     if (numMut == Three) "append;delete;replace;"
@@ -282,7 +282,7 @@ trait CloudPatchRunner extends PatchRunner {
     val projectName = downloadSetupFromMongo(db, collection, attemptObjectId)
     unzip(projectName)
     val destProject = mkPath("/tmp", projectName)
-    Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(printlnAndLog)
+    Process(compileCMD(projectName), cwd = destProject.toFile).lazyLines.foreach(printlnAndLog)
     val startTime = new Date()
     if (isGenProg)
       launch(Array(collectionName, projectName))
@@ -502,7 +502,11 @@ object MathBatch extends App {
 object MathCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit   = ApacheMathLauncher.main(args)
   override def bfLaunch(args: Array[String]): Unit = BFApacheMathVerifierNotTerminate.main(args)
-  override def compileCMD                          = Seq("ant", "clean", "compile.tests")
+  override def compileCMD(projectName: String): Seq[String]                          = {
+    val id = projectName.substring(5).init.toInt
+    if (id >= 92 && id != 99) Seq("ant", "clean", "compile-tests")
+    else Seq("ant", "clean", "compile.tests")
+  }
 
   run()
 }
@@ -510,7 +514,7 @@ object MathCloudPatchRunner extends App with CloudPatchRunner {
 object IntroClassCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit   = IntroClassCloudLauncher.main(args)
   override def bfLaunch(args: Array[String]): Unit = {}
-  override def compileCMD =
+  override def compileCMD(projectName: String): Seq[String] =
     Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   run()

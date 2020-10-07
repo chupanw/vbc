@@ -92,7 +92,7 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
   }
   override def bfLaunch(args: Array[String]): Unit = {}
 
-  override def compileCMD: Seq[String] = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
+  override def compileCMD(projectName: String): Seq[String] = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   /**
     * Generate a template that works in Docker

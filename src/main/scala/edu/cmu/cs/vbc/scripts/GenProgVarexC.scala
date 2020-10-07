@@ -12,7 +12,10 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.sys.process._
 
 object ScriptConfig {
-  val tmpConfigPath    = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "tmp.config").toFile.getAbsolutePath
+  val tmpConfigPath = FileSystems.getDefault
+    .getPath(System.getProperty("java.io.tmpdir"), "tmp.config")
+    .toFile
+    .getAbsolutePath
   val maxAttempts: Int = 1
   val popSize          = 300
   val timeout: Long    = 3600 // in seconds
@@ -35,10 +38,10 @@ trait PatchRunner {
   }
   def launch(args: Array[String]): Unit
   def bfLaunch(args: Array[String]): Unit
-  def compileCMD: Seq[String]
+  def compileCMD(projectName: String): Seq[String]
   def template(project: String, seed: Long): String
 
-  protected val seed: Long = System.currentTimeMillis()
+  protected val seed: Long            = System.currentTimeMillis()
   protected def genProgConfig: String = template(project, seed)
 
   val logger: Logger = LoggerFactory.getLogger("varexc")
@@ -79,9 +82,9 @@ trait PatchRunner {
   def step3_RunGenProg(): Unit = {
     val serCache = new File("testcache.ser")
     assert(!serCache.exists() || serCache.delete())
-    val jar          = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
-    val jvmOps       = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
-    val retCode      = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
+    val jar     = mkPathString(genprogPath, "target/uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
+    val jvmOps  = s"-ea -Dlog4j.configuration=${genprogPath}src/log4j.properties"
+    val retCode = s"java $jvmOps -jar $jar ${ScriptConfig.tmpConfigPath}".!
     assert(retCode == 0, "Error running GenProg")
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
     copyMutatedCode(getLastVariant(variantsPath))
@@ -93,9 +96,11 @@ trait PatchRunner {
   def copyMutatedCode(variantFolder: Path /*e.g., tmp/variant999/ */ ): Unit = {
     def copy(absolute: Path): Unit = {
       val relative = mkPath(projects4GenProg).resolve(variantFolder).relativize(absolute)
-      val srcDir = if (project.startsWith("Math") && project.substring(5).init.toInt >= 85) "src/java" else "src/main/java"
-      val dst      = mkPath(projects4VarexC, project, srcDir).resolve(relative)
-      val folder   = dst.getParent.toFile
+      val srcDir =
+        if (project.startsWith("Math") && project.substring(5).init.toInt >= 85) "src/java"
+        else "src/main/java"
+      val dst    = mkPath(projects4VarexC, project, srcDir).resolve(relative)
+      val folder = dst.getParent.toFile
       if (!folder.exists()) folder.mkdirs()
       logger.info(s"Copying ${absolute} to ${dst}")
       Files.copy(absolute, dst, StandardCopyOption.REPLACE_EXISTING)
@@ -120,23 +125,24 @@ trait PatchRunner {
 
   def step4_RunVarexC(): Boolean = {
     val destProject = mkPath(projects4VarexC, project)
-    Process(compileCMD, cwd = destProject.toFile).lazyLines.foreach(println)
+    Process(compileCMD(project), cwd = destProject.toFile).lazyLines.foreach(println)
     launch(Array(projects4VarexC, project))
     VTestStat.hasOverallSolution
-}
+  }
 
-  def notAvailable(fieldName: String): Nothing = throw new RuntimeException(s"The $fieldName field should not be used")
+  def notAvailable(fieldName: String): Nothing =
+    throw new RuntimeException(s"The $fieldName field should not be used")
 }
 
 object IntroClassPatchRunner extends App with PatchRunner {
-  override def genprogPath: String               = args(0)
-  override def projects4GenProg: String          = args(1)
-  override def projects4VarexC: String           = args(2)
-  override def project: String                   = args(3)
-  override def launch(args: Array[String]): Unit = IntroClassLauncher.main(args)
+  override def genprogPath: String                 = args(0)
+  override def projects4GenProg: String            = args(1)
+  override def projects4VarexC: String             = args(2)
+  override def project: String                     = args(3)
+  override def launch(args: Array[String]): Unit   = IntroClassLauncher.main(args)
   override def bfLaunch(args: Array[String]): Unit = {}
 
-  override def compileCMD = Seq("mvn", "-DskipTests=true", "package")
+  override def compileCMD(projectName: String) = Seq("mvn", "-DskipTests=true", "package")
 
   go(1)
 
@@ -178,13 +184,13 @@ object IntroClassPatchRunner extends App with PatchRunner {
 }
 
 object MathPatchRunner extends App with PatchRunner {
-  override def genprogPath: String               = args(0)
-  override def projects4GenProg: String          = args(1)
-  override def projects4VarexC: String           = args(2)
-  override def project: String                   = args(3)
-  override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
-  override def bfLaunch(args: Array[String]): Unit = BFApacheMathVefier.main(args)
-  override def compileCMD                        = Seq("ant", "compile.tests")
+  override def genprogPath: String                          = args(0)
+  override def projects4GenProg: String                     = args(1)
+  override def projects4VarexC: String                      = args(2)
+  override def project: String                              = args(3)
+  override def launch(args: Array[String]): Unit            = ApacheMathLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit          = BFApacheMathVefier.main(args)
+  override def compileCMD(projectName: String): Seq[String] = Seq("ant", "compile.tests")
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
