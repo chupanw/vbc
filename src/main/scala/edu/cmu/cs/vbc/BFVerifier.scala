@@ -16,13 +16,8 @@ import org.slf4j.LoggerFactory
 
 import scala.io.Source.fromFile
 
-/**
-  * TODO:
-  *   update canFix (coordinate with VarexC)
-  *   update MongoDB solutions
-  *   set up proper logging
-  */
 abstract class BFVerifier {
+  val logger = LoggerFactory.getLogger("varexc")
 
   def getSolutions(): List[List[String]] = {
     val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt")
@@ -50,10 +45,10 @@ abstract class BFVerifier {
       val testClass = new BFTestClass(testLoader.loadClass(x), globalOptionsClass, remainSolutions, profiler)
       remainSolutions = testClass.runTests()
       if (profiler) {
-        println(testClass.timer.toList.sortBy(_._2).reverse)
+        printlnAndLog(testClass.timer.toList.sortBy(_._2).reverse.toString())
       }
     })
-    println(remainSolutions)
+    printlnAndLog(remainSolutions.toString())
     val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
     val solutionsWriter = new FileWriter(tmpDirPath.toFile)
     solutionsWriter.write(remainSolutions.toString())
@@ -95,6 +90,11 @@ abstract class BFVerifier {
           withHead ::: genSolutions(options.tail, degree)
       }
     }
+  }
+
+  def printlnAndLog(msg: String): Unit = {
+    println(msg)
+    logger.debug(msg + "\n")
   }
 }
 
@@ -193,7 +193,7 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
       })
       val monitor = scheduler.schedule(new Runnable {
         override def run(): Unit = {
-          println("timeout after 1 min: " + s)
+          printlnAndLog("timeout after 1 min: " + s)
           test.cancel(true)
         }
       }, 1, TimeUnit.MINUTES)
@@ -411,4 +411,13 @@ object BFApacheMathVefier extends BFVerifier with App {
 
   run(args, true)
 //  profile(args, 2)
+}
+
+/**
+  * not terminating, used in Docker so that we have time to finish uploading results to MongoDB
+  */
+object BFApacheMathVerifierNotTerminate extends BFVerifier with App {
+  override def genProject(args: Array[String]): Project = new BFApacheMathProject(args)
+
+  run(args, false)
 }

@@ -93,7 +93,7 @@ dockerEntrypoint := Seq(
   "-Dvarexc.enableStackTraceCheck=true",
   "-Dvarexc.blockCount.enablePerTestBlockCount=true",
   "-Dvarexc.blockCount.maxBlockCount=-1",
-  "-Dvarexc.maxStackDepth=300"
+  "-Dvarexc.maxStackDepth=600",
 )
 
 // GenProg:

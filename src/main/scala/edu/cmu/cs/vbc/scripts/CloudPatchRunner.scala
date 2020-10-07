@@ -11,14 +11,15 @@ import com.amazonaws.services.sqs.model.{ReceiveMessageRequest, SendMessageReque
 import com.mongodb.client.gridfs.GridFSBuckets
 import com.mongodb.client.model.{Filters, Updates}
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
-import edu.cmu.cs.vbc.BFApacheMathVefier
-import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassCloudLauncher, VTestStat}
+import edu.cmu.cs.vbc.BFApacheMathVerifierNotTerminate
+import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassCloudLauncher}
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipArchiveInputStream, ZipArchiveOutputStream}
 import org.apache.commons.compress.utils.IOUtils
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.slf4j.LoggerFactory
 
+import scala.io.Source.fromFile
 import scala.sys.process.Process
 
 trait CloudPatchGenerator extends PatchRunner {
@@ -38,22 +39,24 @@ trait CloudPatchGenerator extends PatchRunner {
     override def toString: String = "8mut"
   }
 
-  val sqsURIVarexC: String   = System.getProperty("sqsURIVarexC")
+  val sqsURIVarexC: String  = System.getProperty("sqsURIVarexC")
   val sqsURIGenProg: String = System.getProperty("sqsURIGenProg")
-  val mongoURI: String = System.getProperty("mongoURI")
+  val mongoURI: String      = System.getProperty("mongoURI")
 
   // Needs to be configured
   def numMut: NumMutations
   def relevantTestFilePathString: String
   def mongoCollectionName: String // e.g., median-8op-genprog, math-3op-varexc
 
-  def varexcSetupZipPathString  = mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName.zip")
-  def genprogSetupZipPathString = mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName-genprog.zip")
+  def varexcSetupZipPathString =
+    mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName.zip")
+  def genprogSetupZipPathString =
+    mkPathString(System.getProperty("java.io.tmpdir"), s"$projectName-genprog.zip")
   def genprogConfigPathString = mkPathString(System.getProperty("java.io.tmpdir"), "tmp.config")
 
-  override def launch(args: Array[String]): Unit = notAvailable("launch")
+  override def launch(args: Array[String]): Unit   = notAvailable("launch")
   override def bfLaunch(args: Array[String]): Unit = notAvailable("bfLaunch")
-  override def compileCMD: Seq[String]           = notAvailable("compileCMD")
+  override def compileCMD: Seq[String]             = notAvailable("compileCMD")
 
   def edits(): String = {
     if (numMut == Three) "append;delete;replace;"
@@ -92,7 +95,9 @@ trait CloudPatchGenerator extends PatchRunner {
   def connectMongo(): (MongoDatabase, MongoCollection[Document], MongoCollection[Document]) = {
     val mongoClient = MongoClients.create(mongoURI)
     val varexpDB    = mongoClient.getDatabase("varexpatch")
-    (varexpDB, varexpDB.getCollection(mongoCollectionName + s"-$VarexC"), varexpDB.getCollection(mongoCollectionName + s"-$GenProg"))
+    (varexpDB,
+     varexpDB.getCollection(mongoCollectionName + s"-$VarexC"),
+     varexpDB.getCollection(mongoCollectionName + s"-$GenProg"))
   }
 
   /**
@@ -108,6 +113,7 @@ trait CloudPatchGenerator extends PatchRunner {
     *   relevantTests: ObjectId (reference to a txt file)
     *   canFix: Boolean
     *   solutions: ObjectId (reference to a txt file)
+    *   ve_solutions: ObjectId (reference to a txt file)
     *   log: ObjectId (reference to a execution log file for debugging)
     *   executionStartTime: java.util.Date
     *   executionEndTime: java.util.Date
@@ -121,7 +127,7 @@ trait CloudPatchGenerator extends PatchRunner {
                                genprogConfigObjectId: ObjectId)
 
     def uploadFiles(db: MongoDatabase): UploadedObjects = {
-      val gridFSBucket      = GridFSBuckets.create(db)
+      val gridFSBucket = GridFSBuckets.create(db)
 
       println("Uploading relevant test file to MongoDB")
       val relevantTestsFile = new FileInputStream(new File(relevantTestFilePathString))
@@ -134,21 +140,25 @@ trait CloudPatchGenerator extends PatchRunner {
         gridFSBucket.uploadFromStream(s"$projectName.config", genprogConfigFile)
 
       println("Uploading GenProg setup to MongoDB")
-      val genprogSetupZip   = new FileInputStream(new File(genprogSetupZipPathString))
+      val genprogSetupZip = new FileInputStream(new File(genprogSetupZipPathString))
       val genprogSetupObjectId =
         gridFSBucket.uploadFromStream(s"$projectName-genprog.zip", genprogSetupZip)
 
       println("Uploading VarexC setup to MongoDB")
-      val varexcSetupZip    = new FileInputStream(new File(varexcSetupZipPathString))
-      val varexcSetupObjectId = gridFSBucket.uploadFromStream(s"$projectName-varexc.zip", varexcSetupZip)
+      val varexcSetupZip = new FileInputStream(new File(varexcSetupZipPathString))
+      val varexcSetupObjectId =
+        gridFSBucket.uploadFromStream(s"$projectName-varexc.zip", varexcSetupZip)
 
-      UploadedObjects(varexcSetupObjectId, genprogSetupObjectId, relevantTestObjectId, genprogConfigObjectId)
+      UploadedObjects(varexcSetupObjectId,
+                      genprogSetupObjectId,
+                      relevantTestObjectId,
+                      genprogConfigObjectId)
     }
 
     val (mongoDB, varexcCollection, genprogCollection) = connectMongo()
-    val uploadedObjects            = uploadFiles(mongoDB)
-    val varexcObjectId            = new ObjectId()
-    val genprogObjectId = new ObjectId()
+    val uploadedObjects                                = uploadFiles(mongoDB)
+    val varexcObjectId                                 = new ObjectId()
+    val genprogObjectId                                = new ObjectId()
 
     val varexcAttempt = new Document("_id", varexcObjectId)
     varexcAttempt
@@ -190,16 +200,31 @@ trait CloudPatchGenerator extends PatchRunner {
           }
         })
       if (approach == GenProg) {
-        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")), mkPath("hamcrest-core-1.3.jar"))
-        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junit-4.12.jar")), mkPath("junit-4.12.jar"))
-        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "junittestrunner.jar")), mkPath("junittestrunner.jar"))
-        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "varexc.jar")), mkPath("varexc.jar"))
-        zipEntry(archive, new File(mkPathString(genprogPath, "lib", "jacocoagent.jar")), mkPath("jacocoagent.jar"))
+        zipEntry(archive,
+                 new File(mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")),
+                 mkPath("hamcrest-core-1.3.jar"))
+        zipEntry(archive,
+                 new File(mkPathString(genprogPath, "lib", "junit-4.12.jar")),
+                 mkPath("junit-4.12.jar"))
+        zipEntry(archive,
+                 new File(mkPathString(genprogPath, "lib", "junittestrunner.jar")),
+                 mkPath("junittestrunner.jar"))
+        zipEntry(archive,
+                 new File(mkPathString(genprogPath, "lib", "varexc.jar")),
+                 mkPath("varexc.jar"))
+        zipEntry(archive,
+                 new File(mkPathString(genprogPath, "lib", "jacocoagent.jar")),
+                 mkPath("jacocoagent.jar"))
         zipEntry(archive, new File("coverage.path.neg"), mkPath("coverage.path.neg"))
         zipEntry(archive, new File("coverage.path.pos"), mkPath("coverage.path.pos"))
-        zipEntry(archive, new File("FaultyStmtsAndWeights.txt"), mkPath("FaultyStmtsAndWeights.txt"))
+        zipEntry(archive,
+                 new File("FaultyStmtsAndWeights.txt"),
+                 mkPath("FaultyStmtsAndWeights.txt"))
         zipEntry(archive, new File("jacoco.exec"), mkPath("jacoco.exec"))
-        zipEntry(archive, new File(mkPathString(genprogPath, "target", "uber-GenProg4Java-0.0.1-SNAPSHOT.jar")), mkPath("uber-GenProg4Java-0.0.1-SNAPSHOT.jar"))
+        zipEntry(
+          archive,
+          new File(mkPathString(genprogPath, "target", "uber-GenProg4Java-0.0.1-SNAPSHOT.jar")),
+          mkPath("uber-GenProg4Java-0.0.1-SNAPSHOT.jar"))
       }
       archive.finish()
     } catch {
@@ -252,7 +277,7 @@ trait CloudPatchRunner extends PatchRunner {
   def run(): Unit = {
     val (collectionName, attemptObjectId) = sqsReceive()
     val (db, collection)                  = connectMongo(collectionName)
-    val isGenProg = collectionName.endsWith("-genprog")
+    val isGenProg                         = collectionName.endsWith("-genprog")
     updateStatusTo("RUNNING", collection, attemptObjectId)
     val projectName = downloadSetupFromMongo(db, collection, attemptObjectId)
     unzip(projectName)
@@ -275,24 +300,49 @@ trait CloudPatchRunner extends PatchRunner {
       else mkPathString("/tmp", "varexc.log")
     LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext].stop()
     val logObjectId = uploadFile(db, logPathString, s"$projectName-log.txt")
-    val logUpdate       = Updates.set("log", logObjectId)
+    val logUpdate   = Updates.set("log", logObjectId)
 
-    val solutionsPathString = if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt") else mkPathString("/tmp", "solutions-bf.txt")
-    val canFix = if (isGenProg) new File(solutionsPathString).length() > 0 else VTestStat.hasOverallSolution  // todo: use BF verifier results instead
-    val canFixUpdate    = Updates.set("canFix", canFix)
+    val solutionsPathString =
+      if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt")
+      else mkPathString("/tmp", "solutions-bf.txt")
+    val canFix =
+      if (isGenProg) new File(solutionsPathString).length() > 0
+      else getSolutions(mkPath("/tmp", "solutions-bf.txt")).nonEmpty
+    val canFixUpdate = Updates.set("canFix", canFix)
     val solutionsUpdate =
       if (canFix) {
         val solutionsObjectId = uploadFile(db, solutionsPathString, s"$projectName-solutions.txt")
         Updates.set("solutions", solutionsObjectId)
-      }
-      else Updates.set("solutions", "none")
+      } else Updates.set("solutions", "none")
 
-    collection.updateOne(
-      Filters.eq(attemptObjectId),
-      Updates.combine(startTimeUpdate, endTimeUpdate, canFixUpdate, solutionsUpdate, logUpdate))
+    val combined =
+      if (!isGenProg) {
+        val veSolutionsObjectId =
+          uploadFile(db, mkPathString("/tmp", "solutions.txt"), s"$projectName-ve-solutions.txt")
+        val veSolutionsUpdate = Updates.set("ve_solutions", veSolutionsObjectId)
+        Updates.combine(startTimeUpdate,
+                        endTimeUpdate,
+                        canFixUpdate,
+                        solutionsUpdate,
+                        logUpdate,
+                        veSolutionsUpdate)
+      } else
+        Updates.combine(startTimeUpdate, endTimeUpdate, canFixUpdate, solutionsUpdate, logUpdate)
+
+    collection.updateOne(Filters.eq(attemptObjectId), combined)
     updateStatusTo("EXECUTED", collection, attemptObjectId)
+    System.exit(0) // BFVerifier might not terminate
   }
 
+  def getSolutions(p: Path): List[List[String]] = {
+    val line = fromFile(p.toFile).getLines().toList.head
+    if (line == "List()") Nil
+    else
+      line
+        .split(',')
+        .toList
+        .map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').map(_.trim).toList)
+  }
 
   def uploadFile(db: MongoDatabase, filePathString: String, uploadFileName: String): ObjectId = {
     val gridFSBucket = GridFSBuckets.create(db)
@@ -345,12 +395,11 @@ trait CloudPatchRunner extends PatchRunner {
     */
   def downloadSetupFromMongo(db: MongoDatabase,
                              collection: MongoCollection[Document],
-                             attemptObjectId: ObjectId
-                            ): String = {
-    val attempt               = collection.find(Filters.eq(attemptObjectId)).first()
-    val projectName               = attempt.get("bug").asInstanceOf[String]
-    val approach = attempt.get("approach").asInstanceOf[String]
-    val zipObjectId           =
+                             attemptObjectId: ObjectId): String = {
+    val attempt     = collection.find(Filters.eq(attemptObjectId)).first()
+    val projectName = attempt.get("bug").asInstanceOf[String]
+    val approach    = attempt.get("approach").asInstanceOf[String]
+    val zipObjectId =
       if (approach == "genprog")
         attempt.get("genprogSetup").asInstanceOf[ObjectId]
       else
@@ -400,7 +449,7 @@ object MathCloudPatchGenerator extends App with CloudPatchGenerator {
   override def relevantTestFilePathString =
     mkPathString(projects4VarexC, "RelevantTests", project + ".txt")
   override def mongoCollectionName: String = project.split("-")(0).toLowerCase()
-  override def numMut = Eight
+  override def numMut                      = Eight
   override def template(project: String, seed: Long): String =
     s"""
        |javaVM = /usr/bin/java
@@ -444,25 +493,25 @@ object MathBatch extends App {
   for (i <- range) {
     try {
       MathCloudPatchGenerator.main(Array(args(0), args(1), args(2), s"Math-${i}b"))
-    }
-    catch {
+    } catch {
       case _: AssertionError => System.err.println(s"Math-${i}b failed...")
     }
   }
 }
 
 object MathCloudPatchRunner extends App with CloudPatchRunner {
-  override def launch(args: Array[String]): Unit = ApacheMathLauncher.main(args)
-  override def bfLaunch(args: Array[String]): Unit = BFApacheMathVefier.main(args)
-  override def compileCMD                        = Seq("ant", "clean", "compile.tests")
+  override def launch(args: Array[String]): Unit   = ApacheMathLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit = BFApacheMathVerifierNotTerminate.main(args)
+  override def compileCMD                          = Seq("ant", "clean", "compile.tests")
 
   run()
 }
 
 object IntroClassCloudPatchRunner extends App with CloudPatchRunner {
-  override def launch(args: Array[String]): Unit = IntroClassCloudLauncher.main(args)
+  override def launch(args: Array[String]): Unit   = IntroClassCloudLauncher.main(args)
   override def bfLaunch(args: Array[String]): Unit = {}
-  override def compileCMD = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
+  override def compileCMD =
+    Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   run()
 }
