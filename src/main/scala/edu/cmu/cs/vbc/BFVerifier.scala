@@ -19,8 +19,8 @@ import scala.io.Source.fromFile
 abstract class BFVerifier {
   val logger = LoggerFactory.getLogger("varexc")
 
-  def getSolutions(): List[List[String]] = {
-    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt")
+  def getSolutions(resume: Boolean): List[List[String]] = {
+    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), if (resume) "solutions-bf-partial.txt" else "solutions.txt")
     val line = fromFile(tmpDirPath.toFile).getLines().toList.head
     if (line == "List()") Nil
     else {
@@ -31,31 +31,43 @@ abstract class BFVerifier {
 
   def genProject(args: Array[String]): Project
 
-  def run(args: Array[String], shouldSystemExit: Boolean, profiler: Boolean = false): Unit = {
+  def run(args: Array[String], resume: Boolean, profiler: Boolean = false): Unit = {
 //    run(minimize(getSolutions()), args, profiler)
-    run(getSolutions(), args, profiler)
-    if (shouldSystemExit) {
-      System.exit(0)
-    }
+    val giveUp = run(getSolutions(resume), args, profiler)
+    if (giveUp) System.exit(4) else System.exit(0)
   }
 
-  def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): Unit = {
+  def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): Boolean = {
     val p: Project = genProject(args)
     val testLoader = new BFTestLoader(p.mainClassPath, p.testClassPath, p.libJars)
     var remainSolutions = solutions
     val globalOptionsClass = testLoader.loadClass("varexc.GlobalOptions")
+    var giveUp = false
     p.testClasses.foreach(x => {
-      val testClass = new BFTestClass(testLoader.loadClass(x), globalOptionsClass, remainSolutions, profiler)
-      remainSolutions = testClass.runTests()
-      if (profiler) {
-        printlnAndLog(testClass.timer.toList.sortBy(_._2).reverse.toString())
+      if (!giveUp) {
+        val testClass = new BFTestClass(testLoader.loadClass(x), globalOptionsClass, remainSolutions, profiler)
+        val tuple = testClass.runTests()
+        remainSolutions = tuple._1
+        giveUp = tuple._2
+        if (profiler) {
+          printlnAndLog(testClass.timer.toList.sortBy(_._2).reverse.toString())
+        }
       }
     })
-    printlnAndLog(remainSolutions.toString())
-    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
-    val solutionsWriter = new FileWriter(tmpDirPath.toFile)
-    solutionsWriter.write(remainSolutions.toString())
-    solutionsWriter.close()
+    if (!giveUp) {
+      printlnAndLog(remainSolutions.toString())
+      val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
+      val solutionsWriter = new FileWriter(tmpDirPath.toFile)
+      solutionsWriter.write(remainSolutions.map(_.mkString("{", "&", "}")).toString())
+      solutionsWriter.close()
+    }
+    else {
+      val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf-partial.txt")
+      val solutionsWriter = new FileWriter(tmpDirPath.toFile)
+      solutionsWriter.write(remainSolutions.map(_.mkString("{", "&", "}")).toString())
+      solutionsWriter.close()
+    }
+    giveUp
   }
 
   def minimize(solutions: List[List[String]]): List[List[String]] = {
@@ -165,47 +177,60 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
       getMethodWithAnnotation(c, classOf[org.junit.After])
 
 
-  def runTests(): List[List[String]] = {
+  def runTests(): (List[List[String]], Boolean) = {
     val allTests = getTestCases
     if (allTests.isEmpty || isAbstract) {
-      return pendingSolutions
+      return (pendingSolutions, false)
     }
     require(checkAnnotations, s"Unsupported annotation in $c")
     var remainSolutions = pendingSolutions
     if (!isParameterized) {
       for (x <- allTests) {
-        remainSolutions = execute(None, x, remainSolutions)
+        val tuple = execute(None, x, remainSolutions)
+        remainSolutions = tuple._1
+        if (tuple._2) return (remainSolutions, true)  // timeout occurred, give up and skip the rest of the tests
       }
     } else {
       for (x <- getParameters;
            y <- allTests) {
-        execute(Some(x.asInstanceOf[Array[_]]), y, remainSolutions)
+        val tuple = execute(Some(x.asInstanceOf[Array[_]]), y, remainSolutions)
+        remainSolutions = tuple._1
+        if (tuple._2) return (remainSolutions, true)  // timeout, give up and skip the rest of the tests
       }
     }
-    remainSolutions
+    (remainSolutions, false)
   }
 
-  def execute(params: Option[Array[_]], x: Method, pendingSolutions: List[List[String]]): List[List[String]] = {
+  def execute(params: Option[Array[_]], x: Method, pendingSolutions: List[List[String]]): (List[List[String]], Boolean) = {
     printlnAndLog(s"[INFO] Verifying $className.${x.getName}\t remaining solutions: ${pendingSolutions.size}")
-    pendingSolutions.flatMap { s =>
-      val scheduler = Executors.newScheduledThreadPool(1)
-      val executor = Executors.newFixedThreadPool(1)
-      var res:List[List[String]] = Nil
-      val test = executor.submit(new Runnable {
-        override def run(): Unit = res = executeSingle(params, x, s)
-      })
-      val monitor = scheduler.schedule(new Runnable {
-        override def run(): Unit = {
-          printlnAndLog("timeout after 1 min: " + s)
-          test.cancel(true)
-        }
-      }, 1, TimeUnit.MINUTES)
-      while (!test.isCancelled && !test.isDone) {
-        Thread.sleep(1)
+    val scheduler = Executors.newScheduledThreadPool(1)
+    val executor = Executors.newFixedThreadPool(1)
+    var giveUp = false
+    val remaining = pendingSolutions.flatMap { s =>
+      if (giveUp) {
+        printlnAndLog("preserving " + s)
+        List(s)
       }
-      monitor.cancel(true)
-      res
+      else {
+        var res:List[List[String]] = Nil
+        val test = executor.submit(new Runnable {
+          override def run(): Unit = res = executeSingle(params, x, s)
+        })
+        val monitor = scheduler.schedule(new Runnable {
+          override def run(): Unit = {
+            printlnAndLog("timeout after 1 min: " + s)
+            giveUp = true
+            test.cancel(true)
+          }
+        }, 30, TimeUnit.SECONDS)
+        while (!test.isCancelled && !test.isDone) {
+          Thread.sleep(1)
+        }
+        monitor.cancel(true)
+        res
+      }
     }
+    (remaining, giveUp)
   }
 
   def executeSingle(params: Option[Array[_]], x: Method, s: List[String]): List[List[String]] = {
@@ -412,15 +437,17 @@ class BFApacheMathProject(args: Array[String]) extends Project(args) {
 object BFApacheMathVefier extends BFVerifier with App {
   override def genProject(args: Array[String]) = new BFApacheMathProject(args)
 
-  run(args, true)
+  run(args.take(2), args.last.toBoolean)
 //  profile(args, 2)
 }
 
 /**
   * not terminating, used in Docker so that we have time to finish uploading results to MongoDB
   */
-object BFApacheMathVerifierNotTerminate extends BFVerifier with App {
-  override def genProject(args: Array[String]): Project = new BFApacheMathProject(args)
-
-  run(args, false)
+object BFApacheMathVerifierNotTerminate extends App {
+  import scala.sys.process._
+  var normalExit: Boolean = Seq("/home/demiourgos728/docker/bin/bf-apache-math-vefier", args(0), args(1), "false").! == 0
+  while (!normalExit) {
+    normalExit = Seq("/home/demiourgos728/docker/bin/bf-apache-math-vefier", args(0), args(1), "true").! == 0
+  }
 }
