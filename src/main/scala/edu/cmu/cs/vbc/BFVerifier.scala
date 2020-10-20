@@ -32,8 +32,8 @@ abstract class BFVerifier {
   def genProject(args: Array[String]): Project
 
   def run(args: Array[String], resume: Boolean, profiler: Boolean = false): Unit = {
-//    run(minimize(getSolutions()), args, profiler)
-    val giveUp = run(getSolutions(resume), args, profiler)
+    val giveUp = run(if (!resume) minimize(getSolutions(resume)) else getSolutions(resume), args, profiler)
+//    val giveUp = run(getSolutions(resume), args, profiler)
     if (giveUp) System.exit(4) else System.exit(0)
   }
 
@@ -426,9 +426,36 @@ class BFApacheMathProject(args: Array[String]) extends Project(args) {
   }
 }
 
+class BFClosureProject(args: Array[String]) extends Project(args) {
+  override def getRelevantTestFilePath: String = mkPath(project, "RelevantTests", version + ".txt").toFile.getAbsolutePath
+
+  override val testClassPath: String = mkPath(project, version, "build", "test").toFile.getAbsolutePath
+  override val mainClassPath: String = mkPath(project, version, "build", "classes").toFile.getAbsolutePath
+  override val libJars: Array[String] = getLibJars :+ mkPath(project, version, "build", "lib", "rhino.jar").toFile.getAbsolutePath
+
+  def getLibJars: Array[String] = {
+    val libPath = mkPath(project, version, "lib")
+    libPath.toFile.listFiles().filter(_.getName.endsWith(".jar")).map(_.getAbsolutePath)
+  }
+
+  /**
+    * Execute test classes that have no marks, excluding failing test classes
+    */
+  override def parseRelevantTests(file: String): (List[String], List[TestString], List[TestString]) = {
+    val f = fromFile(file)
+    val validLines = f.getLines().toList.filterNot(_.startsWith("//"))
+    val testClasses = validLines.filterNot(l => l.startsWith("*") || l.startsWith("-"))
+    (testClasses, Nil, Nil)
+  }
+}
 
 
 
+object BFClosureVerifier extends BFVerifier with App {
+  override def genProject(args: Array[String]) = new BFClosureProject(args)
+
+  run(args.take(2), args.last.toBoolean)
+}
 
 
 
