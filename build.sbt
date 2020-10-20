@@ -25,6 +25,7 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0"
 libraryDependencies += "org.mongodb" % "mongodb-driver-sync" % "4.0.2"
 libraryDependencies += "org.apache.commons" % "commons-compress" % "1.20"
 libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.11.765"
+libraryDependencies += "commons-io" % "commons-io" % "2.8.0"
 
 parallelExecution in Test := false
 

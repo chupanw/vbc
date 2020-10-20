@@ -5,6 +5,9 @@ import java.net.URLClassLoader
 import java.nio.file.{FileSystems, Files, StandardCopyOption}
 
 import scala.reflect.io.Directory
+import java.nio.file.Path
+import org.apache.commons.io.FileUtils
+import ch.qos.logback.core.util.FileUtil
 
 /**
   * To setup a project
@@ -235,9 +238,13 @@ object MathSetup extends App {
 //  compileProjects()
 //  extractPosNegTests()
 //  genTargetClasses()
-  setupCompileScript()
+  // setupCompileScript()
 //  restoreAntBuild()
 //  modifyAntBuild()
+// addVarexCJartoBuild()
+// checkTargetClasses()
+// copyJars()
+// cleanupProjects()
 
   def listProjects(path: String): List[File] = {
     val folder = new File(path)
@@ -272,6 +279,26 @@ object MathSetup extends App {
     }
   }
 
+  def cleanupProjects(): Unit = {
+    val projects = listProjects(varexcFolder).sortBy(_.getName().split('-')(1).init.toInt)
+    for (p <- projects) {
+      println(s"Running ant clean in ${p.getAbsolutePath}")
+      Process(Seq("ant", "clean"), cwd = Some(p)).!!
+    }
+
+    val genprogProjects = listProjects(genprogFolder).sortBy(_.getName().split('-')(1).init.toInt)
+    for (p <- genprogProjects) {
+      println(s"Running ant clean in ${p.getAbsolutePath}")
+      Process(Seq("ant", "clean"), cwd = Some(p)).!!
+
+      val tmpDir = mkPath(p.getAbsolutePath(), "tmp").toFile()
+      if (tmpDir.exists()) {
+        println("deleting " + p.getAbsolutePath())
+        FileUtils.deleteDirectory(tmpDir)
+      }
+    }
+  }
+
   /**
     * For some reasons this can fail for some bugs if non-ASCII characters are used.
     *
@@ -280,25 +307,124 @@ object MathSetup extends App {
   def compileProjects(): Unit = {
     val projects = listProjects(genprogFolder)
     for (p <- projects) {
-      println(s"Running defects4j compile in ${p.getAbsolutePath}")
-      assert(Process(Seq("defects4j", "compile"), cwd = Some(p)).! == 0, "Compilation failed")
+      println(s"Running defects4j test in ${p.getAbsolutePath}")
+      Process(Seq("defects4j", "test"), cwd = Some(p)).!
     }
+  }
+
+  def copyJars(): Unit = {
+    val projects = listProjects(varexcFolder).sortBy(_.getName().split('-')(1).init.toInt)
+    for (p <- projects.filterNot(_.getName().endsWith("-1b"))) {
+      val args4jPath = mkPath("/home/chupanw/Projects/Data/PatchStudy/Closure-VarexC", "Closure-1b", "lib", "args4j.jar")
+      val args4jNPath = mkPath(p.getAbsolutePath(), "lib", "args4j.jar")
+      FileUtils.copyFile(args4jPath.toFile(), args4jNPath.toFile())
+
+      val guavaPath = mkPath("/home/chupanw/Projects/Data/PatchStudy/Closure-VarexC", "Closure-1b", "lib", "guava.jar")
+      val guavaNPath = mkPath(p.getAbsolutePath(), "lib", "guava.jar")
+      FileUtils.copyFile(guavaPath.toFile(), guavaNPath.toFile())
+
+      val junitPath = mkPath("/home/chupanw/Projects/Data/PatchStudy/Closure-VarexC", "Closure-1b", "lib", "junit.jar")
+      val junitNPath = mkPath(p.getAbsolutePath(), "lib", "junit.jar")
+      FileUtils.copyFile(junitPath.toFile(), junitNPath.toFile())
+    }
+  }
+
+  def mkPath(elems: String*): Path = FileSystems.getDefault().getPath(elems.head, elems.tail:_*)
+
+  def checkTargetClasses(): Unit = {
+    val projects = listProjects(genprogFolder).sortBy(_.getName().split('-')(1).init.toInt)
+    val modifiedClassesPath = FileSystems.getDefault().getPath("closure_modified_classes.txt")
+    val modifiedClasses: List[String] = io.Source.fromFile(modifiedClassesPath.toFile()).getLines().toList.map(l => l.trim())
+    for (p <- projects.filterNot(x => x.getName().endsWith("-3b"))) {
+      val targetClassesPath = FileSystems.getDefault().getPath(p.getAbsolutePath(), "targetClasses.txt")
+      val targetClasses: List[String] = io.Source.fromFile(targetClassesPath.toFile()).getLines().toList.map(l => l.trim())
+      if (modifiedClasses.intersect(targetClasses).nonEmpty) {
+        println(p.getName() + " " + modifiedClasses.intersect(targetClasses))
+        // val relPath = mkPath(genprogFolder).relativize(mkPath(p.getAbsolutePath()))
+
+        // println("\t" + "copying src")
+        // val varexcSourcePath = mkPath(varexcFolder, relPath.toString(), "src")
+        // val genprogSourcePath = mkPath(p.getAbsolutePath(), "src")
+        // FileUtils.copyDirectory(varexcSourcePath.toFile(), genprogSourcePath.toFile())
+
+        // println("\t" + "copying test")
+        // val varexcTestPath = mkPath(varexcFolder, relPath.toString(), "test")
+        // val genprogTestPath = mkPath(p.getAbsolutePath(), "test")
+        // FileUtils.copyDirectory(varexcTestPath.toFile(), genprogTestPath.toFile())
+
+        // val hasRhino = mkPath(p.getAbsolutePath(), "lib", "rhino").toFile().exists()
+        // if (hasRhino) {
+        //   println("\t" + "copying lib/rhino")
+        //   val varexcRhinoPath = mkPath(varexcFolder, relPath.toString(), "lib", "rhino")
+        //   val genprogRhinoPath = mkPath(p.getAbsolutePath(), "lib", "rhino")
+        //   FileUtils.copyDirectory(varexcRhinoPath.toFile(), genprogRhinoPath.toFile())
+        // } else {
+        //   println("\t" + "copying rhino.jar")
+        //   val varexcRhinoPath = mkPath(varexcFolder, relPath.toString(), "lib", "libtrunk_rhino_parser_jarjared.jar")
+        //   val genprogRhinoPath = mkPath(p.getAbsolutePath(), "lib", "libtrunk_rhino_parser_jarjared.jar")
+        //   FileUtils.copyFile(varexcRhinoPath.toFile(), genprogRhinoPath.toFile())
+        // }
+        
+        // Process(Seq("ant", "compile-tests"), cwd = Some(p)).!
+        // Process(Seq("defects4j", "test"), cwd = Some(p)).!
+        // println("\t git commit changes")
+        // if (hasRhino) 
+        //   Process(Seq("git", "add", "src", "test", "lib/rhino"), cwd = Some(p)).! 
+        // else 
+        //   Process(Seq("git", "add", "src", "test"), cwd = Some(p)).!
+        // Process(Seq("git", "commit", "-m", "VarexC"), cwd = Some(p)).!
+      }
+    }
+  }
+
+  def addVarexCJartoBuild(): Unit = {
+    val projects = listProjects(varexcFolder).sortBy(_.getName().split('-')(1).init.toInt)
+    var count = 0
+    for (p <- projects) {
+      val buildFile = FileSystems.getDefault().getPath(p.getAbsolutePath(), "build.xml")
+      val buildFileBackup = FileSystems.getDefault().getPath(p.getAbsolutePath(), "build.xml.bak")
+      if (!buildFileBackup.toFile.exists()) {
+        Files.copy(buildFile, buildFileBackup)
+      }
+      val buildLines = io.Source.fromFile(buildFile.toFile()).getLines().toList
+      if (!buildLines.exists(l => l.contains("varexc.jar"))) {
+        val id = buildLines.indexWhere(l => l.contains("include name=\"protobuf-java.jar\""))
+        if (id > 0) {
+          val (pre, post) = buildLines.splitAt(id)
+          val newBuildLines = pre ::: "<include name=\"varexc.jar\"/>" :: post
+          val writer = new FileWriter(buildFile.toFile())
+          writer.write(newBuildLines.mkString("\n"))
+          writer.close()
+          println("Processed: " + p.getName())
+          count += 1
+        } else {
+          if (buildLines.exists(l => l.contains("classpath.path")) && buildLines.exists(l => l.contains("*.jar"))) {
+            println(p.getName() + " ready")
+            count += 1
+          }
+        }
+      } else {
+        println(p.getName() + " ready")
+        count += 1
+      }
+    }
+    println("Count: " + count)
   }
 
   def extractPosNegTests(): Unit = {
     val projects = listProjects(genprogFolder)
-    for (p <- projects.filter(x => x.getName.contains("-115b"))) {
+    for (p <- projects.filter(_.getName().endsWith("-35b"))) {
       val relevantTestsPath = s"$varexcFolder/RelevantTests/${p.getName}.txt"
       val relTestClasses    = io.Source.fromFile(relevantTestsPath).getLines().toList.filterNot(_.startsWith("*"))
-      val allTestsPath      = s"$genprogFolder${p.getName}/build/test/"
-      val allClassesPath    = s"$genprogFolder${p.getName}/build/classes/"
-      val rhinoLib = s"$genprogFolder${p.getName}/build/lib/rhino.jar"
-      val classLoader = new URLClassLoader(
-        Array(allClassesPath, allTestsPath, rhinoLib).map(new File(_).toURI.toURL))
+      // val allTestsPath      = s"$genprogFolder${p.getName}/build/test/"
+      // val allClassesPath    = s"$genprogFolder${p.getName}/build/classes/"
+      // val rhinoLib = s"$genprogFolder${p.getName}/build/lib/rhino.jar"
+      // val classLoader = new URLClassLoader(
+        // Array(allClassesPath, allTestsPath, rhinoLib).map(new File(_).toURI.toURL))
       val outputDir = s"$genprogFolder${p.getName}/"
 
       val neg = genNeg(p)
-      val pos = genPos(classLoader, relTestClasses, neg)
+      val pos = genPos(p, relTestClasses, neg)
 
       val posFile = new FileWriter(new File(outputDir + "pos.tests"))
       posFile.write(pos.mkString("\n"))
@@ -318,6 +444,19 @@ object MathSetup extends App {
   def genNeg(project: File): List[String] = {
     println(s"Generating neg.tests for ${project.getAbsolutePath}")
     Process(Seq("defects4j", "export", "-p", "tests.trigger"), cwd = Some(project)).lineStream.toList
+  }
+
+  def genPos(project: File, relTests: List[String], neg: List[String]): List[String] = {
+    val allTestsPath: Path = FileSystems.getDefault.getPath(project.getAbsolutePath(), "all_tests")
+    val allTests = io.Source.fromFile(allTestsPath.toFile).getLines().toList.map(l => {
+      val split = l.split('(')
+      split(1).init + "::" + split(0)
+    })
+    val allRelTests = allTests.filter(l => {
+      val split = l.split("::")
+      relTests.contains(split(0))
+    })
+    allRelTests diff neg
   }
 
   def genPos(cl: ClassLoader, relTests: List[String], neg: List[String]): List[String] = {
@@ -345,7 +484,7 @@ object MathSetup extends App {
 
   def setupCompileScript(): Unit = {
     val projects = listProjects(genprogFolder)
-    for (p <- projects if shouldKeep(p)) {
+    for (p <- projects) {
       println(s"Setting up compile script in ${p.getAbsolutePath}")
       Process(Seq("ln", "-s", "-f", compileScriptPath, "compile.py"), cwd = Some(p)).lazyLines
         .foreach(println)

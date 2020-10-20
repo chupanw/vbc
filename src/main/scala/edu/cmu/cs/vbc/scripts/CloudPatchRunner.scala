@@ -60,7 +60,7 @@ trait CloudPatchGenerator extends PatchRunner {
 
   def edits(): String = {
     if (numMut == Three) "append;delete;replace;"
-    else if (numMut == Eight) "append;delete;replace;aor;ror;lcr;uoi,0.5;abs,0.5;"
+    else if (numMut == Eight) "append;delete;replace;aor;ror;lcr;uoi,0.1;abs,0.1;"
     else throw new RuntimeException("Unexpected number of mutations")
   }
 
@@ -69,25 +69,30 @@ trait CloudPatchGenerator extends PatchRunner {
     logger.info("Generating config file for GenProg")
     step2_GenerateGenProgConfigFile(seed)
     logger.info("Running GenProg...")
-    step3_RunGenProg()
-    step3_1_SetupMongoAndKafka()
+    var metaFail = false
+    try {
+      step3_RunGenProg()
+    } catch {
+      case _: Throwable => metaFail = true
+    }
+    step3_1_SetupMongoAndKafka(metaFail)
   }
 
   def recoverFromMeta(): Unit = {
     val variantsPath = mkPath(projects4GenProg, project, "tmp")
     copyMutatedCode(getLastVariant(variantsPath))
-    step3_1_SetupMongoAndKafka()
+    step3_1_SetupMongoAndKafka(metaFail = false)
   }
 
   /**
     * Called by the patch generator
     */
-  def step3_1_SetupMongoAndKafka(): Unit = {
+  def step3_1_SetupMongoAndKafka(metaFail: Boolean): Unit = {
     val projectFolder4GenProg = mkPath(projects4GenProg, project)
     zipSetup(projectFolder4GenProg, genprogSetupZipPathString, GenProg)
     val projectFolder4VarexC = mkPath(projects4VarexC, project)
     zipSetup(projectFolder4VarexC, varexcSetupZipPathString, VarexC)
-    val (varexcObjectId, genprogObjectId) = putInMongo()
+    val (varexcObjectId, genprogObjectId) = putInMongo(metaFail)
     sqsSend(sqsURIVarexC, mongoCollectionName + s"-$VarexC", varexcObjectId)
     sqsSend(sqsURIGenProg, mongoCollectionName + s"-$GenProg", genprogObjectId)
   }
@@ -119,7 +124,7 @@ trait CloudPatchGenerator extends PatchRunner {
     *   executionEndTime: java.util.Date
     * }
     */
-  def putInMongo(): (ObjectId, ObjectId) = {
+  def putInMongo(metaFail: Boolean): (ObjectId, ObjectId) = {
 
     case class UploadedObjects(varexcSetupZipObjectId: ObjectId,
                                genprogSetupZipObjectId: ObjectId,
@@ -170,6 +175,9 @@ trait CloudPatchGenerator extends PatchRunner {
       .append("varexcSetup", uploadedObjects.varexcSetupZipObjectId)
       .append("genprogSetup", uploadedObjects.genprogSetupZipObjectId)
       .append("relevantTests", uploadedObjects.relevantTestsObjectId)
+    if (metaFail) {
+      varexcAttempt.append("metaFail", true)
+    }
     varexcCollection.insertOne(varexcAttempt)
 
     val genprogAttempt = new Document("_id", genprogObjectId)
@@ -181,6 +189,9 @@ trait CloudPatchGenerator extends PatchRunner {
       .append("genprogConfig", uploadedObjects.genprogConfigObjectId)
       .append("genprogSetup", uploadedObjects.genprogSetupZipObjectId)
       .append("relevantTests", uploadedObjects.relevantTestsObjectId)
+    if (metaFail) {
+      genprogAttempt.append("metaFail", true)
+    }
     genprogCollection.insertOne(genprogAttempt)
 
     (varexcObjectId, genprogObjectId)
@@ -238,7 +249,7 @@ trait CloudPatchGenerator extends PatchRunner {
     }
 
     def zipEntry(archive: ZipArchiveOutputStream, f: File, relativePath: Path): Unit = {
-      println(s"Zipping file - ${relativePath.toFile.toString}")
+      // println(s"Zipping file - ${relativePath.toFile.toString}")
       val entry = new ZipArchiveEntry(f, relativePath.toFile.toString)
       archive.putArchiveEntry(entry)
       val fis = new FileInputStream(f)
@@ -425,7 +436,7 @@ trait CloudPatchRunner extends PatchRunner {
       var entry = archive.getNextZipEntry
       while (entry != null) {
         val fp = mkPath("/tmp", projectName, entry.getName)
-        println(s"Unzipping file - ${fp.toFile.toString}")
+        // println(s"Unzipping file - ${fp.toFile.toString}")
         val parent = fp.getParent
         if (parent != null) {
           Files.createDirectories(parent)
@@ -518,4 +529,89 @@ object IntroClassCloudPatchRunner extends App with CloudPatchRunner {
     Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
 
   run()
+}
+
+object ClosureCloudPatchGenerator extends App with CloudPatchGenerator {
+  override def genprogPath: String      = args(0)
+  override def projects4GenProg: String = args(1)
+  override def projects4VarexC: String  = args(2)
+  override def project: String          = args(3)
+  override def relevantTestFilePathString =
+    mkPathString(projects4VarexC, "RelevantTests", project + ".txt")
+  override def mongoCollectionName: String = project.split("-")(0).toLowerCase()
+  override def numMut                      = Eight
+  override def template(project: String, seed: Long): String =
+    s"""
+       |javaVM = /usr/bin/java
+       |popsize = 5000
+       |editMode = pre_compute
+       |generations = 20
+       |regenPaths = true
+       |continue = true
+       |seed = ${seed}
+       |classTestFolder = build/test
+       |workingDir = ${mkPathString(projects4GenProg, project)}
+       |outputDir = ${mkPathString(projects4GenProg, project, "tmp")}
+       |libs= ${getLibs()}
+       |sanity = no
+       |sourceDir = src
+       |positiveTests = ${mkPathString(projects4GenProg, project, "pos.tests")}
+       |negativeTests = ${mkPathString(projects4GenProg, project, "neg.tests")}
+       |jacocoPath = ${mkPathString(genprogPath, "lib", "jacocoagent.jar")}
+       |srcClassPath = ${mkPathString(projects4GenProg, project, "build", "classes")}
+       |classSourceFolder = ${mkPathString(projects4GenProg, project, "build", "classes")}
+       |testClassPath= ${mkPathString(projects4GenProg, project, "build", "test")}
+       |testGranularity = method
+       |targetClassName = ${mkPathString(projects4GenProg, project, "targetClasses.txt")}
+       |sourceVersion=1.8
+       |sample=0.1
+       |compileCommand=python3 ${mkPathString(projects4GenProg, project, "compile.py")}
+       |edits=${edits()}
+       |
+       |""".stripMargin
+
+
+  def getLibs(): String = {
+    val genprogLibs: List[String] = List(
+      s"${mkPathString(genprogPath, "lib", "hamcrest-core-1.3.jar")}",
+      s"${mkPathString(genprogPath, "lib", "junit-4.12.jar")}",
+      s"${mkPathString(genprogPath, "lib", "junittestrunner.jar")}"
+    )
+    val projectLibs = mkPath(projects4GenProg, project, "lib").toFile().listFiles().filter(_.getName().endsWith(".jar")).map(_.getAbsolutePath()).toList
+    val rhino = mkPathString(projects4GenProg, project, "build", "lib", "rhino.jar")
+    (genprogLibs ::: rhino :: projectLibs).mkString(":")
+  }
+  start()
+}
+
+object CloudPatchGeneratorSQS extends App {
+  assert(args.size == 3, "<genprogPath> <projects4GenProg> <projects4VarexC>")
+  assert(System.getProperty("sqsURIMeta") != null, "please specify sqs queue with -DsqsURIMeta")
+  assert(System.getProperty("sqsURIVarexC") != null, "please specify sqs queue with -DsqsURIVarexC")
+  assert(System.getProperty("sqsURIGenProg") != null, "please specify sqs queue with -DsqsURIGenProg")
+  assert(System.getProperty("mongoURI") != null, "please specify sqs queue with -DmongoURI")
+  val sqsURI = System.getProperty("sqsURIMeta")
+
+  val message = sqsReceive()
+  message.map(x => {
+    if (x.toLowerCase.startsWith("closure")) 
+      ClosureCloudPatchGenerator.main(args :+ x)
+  })
+
+  def sqsReceive(): Option[String] = {
+    val sqs      = AmazonSQSClientBuilder.defaultClient()
+    val request  = new ReceiveMessageRequest().withQueueUrl(sqsURI).withMaxNumberOfMessages(1)
+    val messages = sqs.receiveMessage(request).getMessages
+    if (messages.isEmpty) {
+      println("Couldn't get any message from AWS SQS")
+      System.exit(3)
+      None
+    } else {
+      val message = messages.get(0)
+      val body    = message.getBody
+      println(s"Processing message: $body")
+      sqs.deleteMessage(sqsURI, message.getReceiptHandle)
+      Some(body)
+    }
+  }
 }
