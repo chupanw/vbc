@@ -382,8 +382,8 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
     } else
       throw new RuntimeException(s"More than one method have the name: $name")
   }
-  def getTestCases: List[Method] =
-    if (isJUnit3)
+  def getTestCases: List[Method] = {
+    val tests = if (isJUnit3)
       c.getMethods.toList.filter(x => x.getName.startsWith("test") && x.getParameterCount == 0)
     else {
       val allTests = c.getMethods.toList.filter { x =>
@@ -391,6 +391,20 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
       }
       allTests.filterNot(x => x.isAnnotationPresent(classOf[org.junit.Ignore]))
     }
+    tests.filterNot(t => {
+      className.endsWith("CrossModuleMethodMotionTest") && t.getName.trim == "testTwoMethods" ||
+        className.endsWith("CrossModuleMethodMotionTest") && t.getName.trim == "testClosureVariableReads3" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject1" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject2" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject7" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject8" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject9" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject10" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject12" ||
+        className.endsWith("IntegrationTest") && t.getName.trim == "testPerfTracker"
+    })
+  }
+
   def isAbstract: Boolean = Modifier.isAbstract(c.getModifiers)
 }
 
