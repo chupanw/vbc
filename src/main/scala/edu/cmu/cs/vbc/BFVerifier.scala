@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
-import java.nio.file.FileSystems
+import java.nio.file.{FileSystems, Path}
 import java.util.concurrent.{Executors, TimeUnit}
 
 import edu.cmu.cs.vbc.testutils.{Project, TestString}
@@ -14,34 +14,88 @@ import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.io.Source.fromFile
 
 abstract class BFVerifier {
   val logger = LoggerFactory.getLogger("varexc")
 
-  def getSolutions(resume: Boolean): List[List[String]] = {
-    val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), if (resume) "solutions-bf-partial.txt" else "solutions.txt")
-    val line = fromFile(tmpDirPath.toFile).getLines().toList.head
-    if (line == "List()") Nil
+  def mkTmpPath(elems: String*): Path = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), elems:_*)
+
+  case class Solutions(valid: mutable.ListBuffer[List[String]], pending: mutable.ListBuffer[List[String]])
+  def getSolutions(resume: Boolean, mini: Boolean): Solutions = {
+    def lineToList(line: String): List[List[String]] = {
+      if (line == "List()") Nil
+      else {
+        val split = line.split(',').toList
+        split.map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').map(_.trim).toList)
+      }
+    }
+    if (resume) {
+      val validatedPath = mkTmpPath("solutions-bf-valid.txt")
+      val valid = mutable.ListBuffer[List[String]]()
+      valid.addAll(lineToList(fromFile(validatedPath.toFile).getLines().toList.head))
+
+      val pendingPath = mkTmpPath("solutions-bf-pending.txt")
+      val pending = mutable.ListBuffer[List[String]]()
+      pending.addAll(lineToList(fromFile(pendingPath.toFile).getLines().toList.head))
+
+      Solutions(valid, pending)
+    }
     else {
-      val split = line.split(',').toList
-      split.map(e => e.dropWhile(_ != '{').takeWhile(_ != '}').tail.split('&').map(_.trim).toList)
+      val solutionPath = mkTmpPath("solutions.txt")
+      val line = fromFile(solutionPath.toFile).getLines().toList.head
+      val pending = mutable.ListBuffer[List[String]]()
+      pending.addAll(if (mini) minimize(lineToList(line)) else lineToList(line))
+      Solutions(new collection.mutable.ListBuffer[List[String]](), pending)
     }
   }
 
   def genProject(args: Array[String]): Project
 
   def run(args: Array[String], resume: Boolean, profiler: Boolean = false): Unit = {
-    val giveUp = run(if (!resume) minimize(getSolutions(resume)) else getSolutions(resume), args, profiler)
-//    val giveUp = run(getSolutions(resume), args, profiler)
+    val solutions = getSolutions(resume, mini = true)
+    var giveUp = false
+    val nextPending = mutable.ListBuffer[List[String]]()
+    for (s <- solutions.pending) {
+      if (!giveUp) {
+        val singleSolutionResult = run(List(s), args, profiler)
+        giveUp = singleSolutionResult.giveUp
+        if (singleSolutionResult.valid.nonEmpty)
+          solutions.valid.addOne(singleSolutionResult.valid.head)
+      } else {
+        nextPending.addOne(s)
+      }
+    }
+    if (!giveUp) {
+      printlnAndLog(solutions.valid.toString())
+      val solutionPath = mkTmpPath("solutions-bf.txt")
+      val solutionsWriter = new FileWriter(solutionPath.toFile)
+      solutionsWriter.write(solutions.valid.toList.map(_.mkString("{", "&", "}")).toString())
+      solutionsWriter.close()
+    }
+    else {
+      val validPath = mkTmpPath("solutions-bf-valid.txt")
+      val validWriter = new FileWriter(validPath.toFile)
+      validWriter.write(solutions.valid.toList.map(_.mkString("{", "&", "}")).toString())
+      validWriter.close()
+
+      val pendingPath = mkTmpPath("solutions-bf-pending.txt")
+      val pendingWriter = new FileWriter(pendingPath.toFile)
+      pendingWriter.write(nextPending.toList.map(_.mkString("{", "&", "}")).toString())
+      pendingWriter.close()
+    }
     if (giveUp) System.exit(4) else System.exit(0)
   }
 
-  def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): Boolean = {
+  case class SingleSolutionResult(valid: List[List[String]], giveUp: Boolean)
+
+  def run(solutions: List[List[String]], args: Array[String], profiler: Boolean): SingleSolutionResult = {
+    printlnAndLog(s"[INFO] Verifying ${solutions.head}")
     val p: Project = genProject(args)
     val testLoader = new BFTestLoader(p.mainClassPath, p.testClassPath, p.libJars)
-    var remainSolutions = solutions
     val globalOptionsClass = testLoader.loadClass("varexc.GlobalOptions")
+    var remainSolutions = solutions
     var giveUp = false
     p.testClasses.foreach(x => {
       if (!giveUp) {
@@ -54,20 +108,7 @@ abstract class BFVerifier {
         }
       }
     })
-    if (!giveUp) {
-      printlnAndLog(remainSolutions.toString())
-      val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
-      val solutionsWriter = new FileWriter(tmpDirPath.toFile)
-      solutionsWriter.write(remainSolutions.map(_.mkString("{", "&", "}")).toString())
-      solutionsWriter.close()
-    }
-    else {
-      val tmpDirPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf-partial.txt")
-      val solutionsWriter = new FileWriter(tmpDirPath.toFile)
-      solutionsWriter.write(remainSolutions.map(_.mkString("{", "&", "}")).toString())
-      solutionsWriter.close()
-    }
-    giveUp
+    SingleSolutionResult(remainSolutions, giveUp)
   }
 
   def minimize(solutions: List[List[String]]): List[List[String]] = {
@@ -202,7 +243,6 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
   }
 
   def execute(params: Option[Array[_]], x: Method, pendingSolutions: List[List[String]]): (List[List[String]], Boolean) = {
-    printlnAndLog(s"[INFO] Verifying $className.${x.getName}\t remaining solutions: ${pendingSolutions.size}")
     val scheduler = Executors.newScheduledThreadPool(1)
     val executor = Executors.newFixedThreadPool(1)
     var giveUp = false
@@ -401,6 +441,7 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
         className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject9" ||
         className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject10" ||
         className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject12" ||
+        className.endsWith("InlineObjectLiteralsTest") && t.getName.trim == "testObject22" ||
         className.endsWith("IntegrationTest") && t.getName.trim == "testPerfTracker"
     })
   }
@@ -490,5 +531,13 @@ object BFApacheMathVerifierNotTerminate extends App {
   var normalExit: Boolean = Seq("/home/demiourgos728/docker/bin/bf-apache-math-vefier", args(0), args(1), "false").! == 0
   while (!normalExit) {
     normalExit = Seq("/home/demiourgos728/docker/bin/bf-apache-math-vefier", args(0), args(1), "true").! == 0
+  }
+}
+
+object BFClosureVerifierNotTerminate extends App {
+  import scala.sys.process._
+  var normalExit: Boolean = Seq("/home/demiourgos728/docker/bin/bf-closure-verifier", args(0), args(1), "false").! == 0
+  while (!normalExit) {
+    normalExit = Seq("/home/demiourgos728/docker/bin/bf-closure-verifier", args(0), args(1), "true").! == 0
   }
 }

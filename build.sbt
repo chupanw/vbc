@@ -85,7 +85,7 @@ defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value
 // VarexC:
 dockerEntrypoint := Seq(
   "timeout", "-k", "60", "6h",
-  "/home/" + (daemonUser in Docker).value + "/docker/bin/math-cloud-patch-runner",
+  "/home/" + (daemonUser in Docker).value + "/docker/bin/closure-cloud-patch-runner",
   "-J-Xmx16g",
   "-J-Xss10m",
   "-Dvarexc.fastMode=true",

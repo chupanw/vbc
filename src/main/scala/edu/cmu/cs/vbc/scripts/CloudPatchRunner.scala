@@ -11,8 +11,8 @@ import com.amazonaws.services.sqs.model.{ReceiveMessageRequest, SendMessageReque
 import com.mongodb.client.gridfs.GridFSBuckets
 import com.mongodb.client.model.{Filters, Updates}
 import com.mongodb.client.{MongoClients, MongoCollection, MongoDatabase}
-import edu.cmu.cs.vbc.BFApacheMathVerifierNotTerminate
-import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, IntroClassCloudLauncher}
+import edu.cmu.cs.vbc.{BFApacheMathVerifierNotTerminate, BFClosureVerifierNotTerminate}
+import edu.cmu.cs.vbc.testutils.{ApacheMathLauncher, ClosureTestLauncher, IntroClassCloudLauncher}
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipArchiveInputStream, ZipArchiveOutputStream}
 import org.apache.commons.compress.utils.IOUtils
 import org.bson.Document
@@ -517,6 +517,16 @@ object MathCloudPatchRunner extends App with CloudPatchRunner {
     val id = projectName.substring(5).init.toInt
     if (id >= 92 && id != 99) Seq("ant", "clean", "compile-tests")
     else Seq("ant", "clean", "compile.tests")
+  }
+
+  run()
+}
+
+object ClosureCloudPatchRunner extends App with CloudPatchRunner {
+  override def launch(args: Array[String]): Unit   = ClosureTestLauncher.main(args)
+  override def bfLaunch(args: Array[String]): Unit = BFClosureVerifierNotTerminate.main(args)
+  override def compileCMD(projectName: String): Seq[String]                          = {
+    Seq("ant", "clean", "compile-tests")
   }
 
   run()
