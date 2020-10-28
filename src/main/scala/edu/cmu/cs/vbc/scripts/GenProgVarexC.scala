@@ -97,7 +97,11 @@ trait PatchRunner {
     def copy(absolute: Path): Unit = {
       val relative = mkPath(projects4GenProg).resolve(variantFolder).relativize(absolute)
       val srcDir =
-        if (project.startsWith("Math") && project.substring(5).init.toInt >= 85) "src/java"
+        if (project.startsWith("Math")) {
+          if (project.substring(5).init.toInt >= 85) "src/java"
+          else "src/main/java"
+        }
+        else if (project.startsWith("Closure")) "src"
         else "src/main/java"
       val dst    = mkPath(projects4VarexC, project, srcDir).resolve(relative)
       val folder = dst.getParent.toFile
