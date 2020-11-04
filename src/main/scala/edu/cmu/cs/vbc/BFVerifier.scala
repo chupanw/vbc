@@ -243,6 +243,8 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
   }
 
   def execute(params: Option[Array[_]], x: Method, pendingSolutions: List[List[String]]): (List[List[String]], Boolean) = {
+    if (pendingSolutions.isEmpty)
+      return (Nil, false)
     val scheduler = Executors.newScheduledThreadPool(1)
     val executor = Executors.newFixedThreadPool(1)
     var giveUp = false
@@ -258,7 +260,7 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
         })
         val monitor = scheduler.schedule(new Runnable {
           override def run(): Unit = {
-            printlnAndLog("timeout after 1 min: " + s)
+            printlnAndLog("timeout after 30s: " + s)
             giveUp = true
             test.cancel(true)
           }
@@ -270,6 +272,8 @@ class BFTestClass(c: Class[_], globalOptionsClass: Class[_], pendingSolutions: L
         res
       }
     }
+    scheduler.shutdown()
+    executor.shutdown()
     (remaining, giveUp)
   }
 
