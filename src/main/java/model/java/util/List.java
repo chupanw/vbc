@@ -36,7 +36,7 @@ public interface List extends Collection {
 
     V<?> indexOf__Ljava_lang_Object__I(V<?> vObject, FeatureExpr ctx);
 
-    V<?> toArray__Array_Ljava_lang_Object__Array_Ljava_lang_Object(V<V[]> vObject, FeatureExpr ctx);
+//    V<?> toArray__Array_Ljava_lang_Object__Array_Ljava_lang_Object(V<V[]> vObject, FeatureExpr ctx);
 
     V<?> addAll__Lmodel_java_util_Collection__Z(V<?> vCollection, FeatureExpr ctx);
 

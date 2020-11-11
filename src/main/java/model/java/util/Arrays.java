@@ -76,6 +76,17 @@ public class Arrays {
         return null;    // dummy return value
     }
 
+    public static V<?> fill__Array_Ljava_lang_Object_Ljava_lang_Object__V(V<V[]> varray, V<?> vObj, FeatureExpr ctx) {
+        vObj.sforeach(ctx, (fe1, obj) -> {
+            varray.sforeach(fe1, (fe2, array) -> {
+                for (int i = 0; i < array.length; i++) {
+                    array[i] = V.choice(fe2, V.one(fe2, obj), array[i]);
+                }
+            });
+        });
+        return null;    // dummy return value
+    }
+
     public static <T> void sort(T[] array, model.java.util.Comparator comparator) {
         java.util.Arrays.sort(array, comparator::compare);
     }

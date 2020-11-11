@@ -14,6 +14,7 @@ public interface Collection extends java.util.Collection, Iterable {
     V<?> iterator____Lmodel_java_util_Iterator(FeatureExpr ctx);
     V<?> size____I(FeatureExpr ctx);
     V<?> toArray____Array_Ljava_lang_Object(FeatureExpr ctx);
+    V<?> toArray__Array_Ljava_lang_Object__Array_Ljava_lang_Object(V<V[]> vArray, FeatureExpr ctx);
     V<?> add__Ljava_lang_Object__Z(V<?> vObject, FeatureExpr ctx);
     V<?> addAll__Lmodel_java_util_Collection__Z(V<?> vCollection, FeatureExpr ctx);
     V<?> isEmpty____Z(FeatureExpr ctx);
