@@ -376,7 +376,7 @@ public class ArrayList implements List {
 
     @Override
     public V<?> hashCode____I(FeatureExpr ctx) {
-        throw new UnimplementedModelClassMethodException("hashCode");
+        return vActual.smap(ctx, (fe, l) -> l.hashCode());
     }
 
     @Override

@@ -61,6 +61,15 @@ public class Arrays {
         return null;    // dummy return value
     }
 
+    public static V<?> fill__Array_B_B__V(V<V[]> varray, V<Integer> vvalue, FeatureExpr ctx) {
+        vvalue.sforeach(ctx, value -> varray.sforeach(ctx, array -> {
+            for (int i = 0; i < array.length; i++) {
+                array[i] = V.choice(ctx, V.one(ctx, value), array[i]);
+            }
+        }));
+        return null;    // dummy return value
+    }
+
     public static V<?> fill__Array_Ljava_lang_Object_I_I_Ljava_lang_Object__V(V<V[]> varray, V<Integer> vFromIdx, V<Integer> vToIdx, V<?> vObj, FeatureExpr ctx) {
         vFromIdx.sforeach(ctx, (fe1, fromIdx) -> {
             vToIdx.sforeach(fe1, (fe2, toIdx) -> {
