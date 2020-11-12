@@ -441,8 +441,10 @@ trait CloudPatchRunner extends PatchRunner {
         if (parent != null) {
           Files.createDirectories(parent)
         }
-        IOUtils.copy(archive, new FileOutputStream(fp.toFile))
+        val fos = new FileOutputStream(fp.toFile)
+        IOUtils.copy(archive, fos)
         entry = archive.getNextZipEntry
+        fos.close()
       }
     } catch {
       case x: IOException =>
