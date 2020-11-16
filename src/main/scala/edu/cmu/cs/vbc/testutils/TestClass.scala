@@ -269,7 +269,7 @@ class TestClass(c: Class[_], failingTests: List[String] = Nil, excludeTests: Lis
     } catch {
       case e: InvocationTargetException =>
         e.getCause match {
-          case ve: VException => if (ve.e != null && !verifyException(ve.e, x)) printlnAndLog(ve.e.toString, err = true)
+          case ve: VException => if (ve.e != null && !verifyException(ve.e, x)) printlnAndLog(ve.e.getStackTrace.toList.take(50).map(_.toString).mkString("", "\n\t", ""), err = true)
           case _              => e.printStackTrace()
         }
       case e: Throwable => e.printStackTrace()
