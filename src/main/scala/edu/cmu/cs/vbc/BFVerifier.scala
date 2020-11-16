@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, InvocationTargetException, Method, Modifier}
 import java.net.URLClassLoader
-import java.nio.file.{FileSystems, Path}
+import java.nio.file.{FileSystems, Files, Path}
 import java.util.concurrent.{Executors, TimeUnit}
 
 import edu.cmu.cs.vbc.testutils.{Project, TestString}
@@ -544,4 +544,10 @@ object BFClosureVerifierNotTerminate extends App {
   while (!normalExit) {
     normalExit = Seq("/home/demiourgos728/docker/bin/bf-closure-verifier", args(0), args(1), "true").! == 0
   }
+}
+
+object BFIntroClassVerifier extends App {
+  val veSolutionsPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions.txt")
+  val bfSolutionsPath = FileSystems.getDefault.getPath(System.getProperty("java.io.tmpdir"), "solutions-bf.txt")
+  Files.copy(veSolutionsPath, bfSolutionsPath)
 }

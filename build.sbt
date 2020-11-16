@@ -83,9 +83,23 @@ dockerUpdateLatest := true
 dockerRepository := Some("chupanw")
 defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value + "/docker"
 // VarexC:
+//dockerEntrypoint := Seq(
+//  "timeout", "-k", "60", "6h",
+//  "/home/" + (daemonUser in Docker).value + "/docker/bin/closure-cloud-patch-runner",
+//  "-J-Xmx16g",
+//  "-J-Xss10m",
+//  "-Dvarexc.fastMode=true",
+//  "-Dvarexc.earlyFail=true",
+//  "-Dvarexc.maxInteractionDegree=3",
+//  "-Dvarexc.enableStackTraceCheck=true",
+//  "-Dvarexc.blockCount.enablePerTestBlockCount=true",
+//  "-Dvarexc.blockCount.maxBlockCount=-1",
+//  "-Dvarexc.maxStackDepth=600",
+//)
+
 dockerEntrypoint := Seq(
-  "timeout", "-k", "60", "6h",
-  "/home/" + (daemonUser in Docker).value + "/docker/bin/closure-cloud-patch-runner",
+  "timeout", "-k", "60", "3h",
+  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-cloud-patch-runner",
   "-J-Xmx16g",
   "-J-Xss10m",
   "-Dvarexc.fastMode=true",
