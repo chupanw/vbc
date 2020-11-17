@@ -317,7 +317,10 @@ trait CloudPatchRunner extends PatchRunner {
       if (isGenProg) mkPathString("/tmp", projectName, "solutions.txt")
       else mkPathString("/tmp", "solutions-bf.txt")
     val canFix =
-      if (isGenProg) new File(solutionsPathString).length() > 0
+      if (isGenProg) {
+        val genprogSolutions = getGenProgSolutions(solutionsPathString)
+        genprogSolutions.nonEmpty
+      }
       else getSolutions(mkPath("/tmp", "solutions-bf.txt")).nonEmpty
     val canFixUpdate = Updates.set("canFix", canFix)
     val solutionsUpdate =
@@ -343,6 +346,19 @@ trait CloudPatchRunner extends PatchRunner {
     collection.updateOne(Filters.eq(attemptObjectId), combined)
     updateStatusTo("EXECUTED", collection, attemptObjectId)
     System.exit(0) // BFVerifier might not terminate
+  }
+
+  def getGenProgSolutions(pathString: String): List[Set[String]] = {
+    val lines = fromFile(pathString).getLines().toList
+    val solutions = new scala.collection.mutable.ListBuffer[Set[String]]()
+    for (l <- lines) {
+      if (l.contains("{") && l.contains("}")) {
+        val sol = l.dropWhile(_ != '{').tail.takeWhile(_ != '}').split(',').map(_.trim).toSet
+        if (!solutions.contains(sol))
+          solutions.addOne(sol)
+      }
+    }
+    solutions.toList
   }
 
   def getSolutions(p: Path): List[List[String]] = {

@@ -1,6 +1,7 @@
 package edu.cmu.cs.vbc.scripts
 
 import java.io.{File, FileWriter}
+import java.nio.file.Path
 
 import scala.sys.process.Process
 
@@ -73,7 +74,12 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
   override def launch(args: Array[String]): Unit = {
     val collectionName = args(0)
     val projectName = args(1)
-    val twoHoursInMS: Long = 2 * 3600 * 1000 // two hours limit
+    val threeHoursInMS: Long = 3 * 3600 * 1000 // three hours limit
+    val genprogJarPath = mkPath(System.getProperty("java.io.tmpdir"), projectName, "uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
+    downloadJar(
+      "https://github.com/chupanw/genprog4java/blob/master/uber-GenProg4Java-0.0.1-SNAPSHOT.jar?raw=true",
+      genprogJarPath
+    )
     val genprogCMD = Seq("java", "-jar", "uber-GenProg4Java-0.0.1-SNAPSHOT.jar", "tmp.config")
     var attempt = 0
     val startTime = System.currentTimeMillis()
@@ -86,13 +92,19 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
       if (testCacheFile.exists()) testCacheFile.delete()
       Process(genprogCMD, cwd = mkPath(System.getProperty("java.io.tmpdir"), projectName).toFile).lazyLines.foreach(printlnAndLog)
       val duration = System.currentTimeMillis() - startTime
-      if (duration >= twoHoursInMS) return
+      if (duration >= threeHoursInMS) return
       attempt += 1
     }
   }
   override def bfLaunch(args: Array[String]): Unit = {}
 
   override def compileCMD(projectName: String): Seq[String] = Seq("mvn", "-DskipTests=true", "-Dmaven.repo.local=/tmp/.m2/repository", "package")
+
+  def downloadJar(url: String, path: Path): Unit = {
+    import sys.process._
+    import java.net.URL
+    (new URL(url) #> path.toFile).!!
+  }
 
   /**
     * Generate a template that works in Docker

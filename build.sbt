@@ -97,23 +97,23 @@ defaultLinuxInstallLocation in Docker := "/home/" + (daemonUser in Docker).value
 //  "-Dvarexc.maxStackDepth=600",
 //)
 
-dockerEntrypoint := Seq(
-  "timeout", "-k", "60", "3h",
-  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-cloud-patch-runner",
-  "-J-Xmx16g",
-  "-J-Xss10m",
-  "-Dvarexc.fastMode=true",
-  "-Dvarexc.earlyFail=true",
-  "-Dvarexc.maxInteractionDegree=3",
-  "-Dvarexc.enableStackTraceCheck=true",
-  "-Dvarexc.blockCount.enablePerTestBlockCount=true",
-  "-Dvarexc.blockCount.maxBlockCount=-1",
-  "-Dvarexc.maxStackDepth=600",
-)
+//dockerEntrypoint := Seq(
+//  "timeout", "-k", "60", "3h",
+//  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-cloud-patch-runner",
+//  "-J-Xmx16g",
+//  "-J-Xss10m",
+//  "-Dvarexc.fastMode=true",
+//  "-Dvarexc.earlyFail=true",
+//  "-Dvarexc.maxInteractionDegree=3",
+//  "-Dvarexc.enableStackTraceCheck=true",
+//  "-Dvarexc.blockCount.enablePerTestBlockCount=true",
+//  "-Dvarexc.blockCount.maxBlockCount=-1",
+//  "-Dvarexc.maxStackDepth=600",
+//)
 
 // GenProg:
-//dockerEntrypoint := Seq(
+dockerEntrypoint := Seq(
 //  "timeout", "-k", "60", "3h",  // should terminate before this limit, leaving some time to upload files
-//  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-gen-prog-cloud-patch-runner",
-//  "-J-Xmx16g",
-//)
+  "/home/" + (daemonUser in Docker).value + "/docker/bin/intro-class-gen-prog-cloud-patch-runner",
+  "-J-Xmx16g"
+)
