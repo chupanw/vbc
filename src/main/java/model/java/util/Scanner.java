@@ -54,6 +54,20 @@ public class Scanner {
         return ret;
     }
 
+    public V<? extends String> nextLine____Ljava_lang_String(FeatureExpr ctx) {
+        V<? extends MyPair> pairs = vActual.smap(ctx, (fe, actual) -> {
+            java.util.Scanner scanner = new java.util.Scanner(actual);
+            String ret = scanner.nextLine();
+            int index = readPositionField(scanner);
+            String res = actual.substring(index);
+            return new MyPair(ret, res);
+        });
+        V<? extends String> res = pairs.smap(ctx, (fe, pair) -> pair.res);
+        vActual = V.choice(ctx, res, vActual);
+        V<? extends String> ret = pairs.smap(ctx, (fe, pair) -> pair.ret);
+        return ret;
+    }
+
     public V<? extends String> next____Ljava_lang_String(FeatureExpr ctx) {
         V<? extends MyPair> pairs = vActual.smap(ctx, (fe, actual) -> {
             java.util.Scanner scanner = new java.util.Scanner(actual);
