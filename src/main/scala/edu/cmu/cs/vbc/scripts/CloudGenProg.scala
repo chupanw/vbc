@@ -146,3 +146,97 @@ object IntroClassGenProgCloudPatchRunner extends App with CloudPatchRunner {
 
   run()
 }
+
+object ClosureGenProgCloudPatchRunner extends App with CloudPatchRunner {
+  override def launch(args: Array[String]): Unit = {
+    val collectionName = args(0)
+    val projectName = args(1)
+    val sixHoursInMS: Long = 6 * 3600 * 1000 // six hours limit
+    val genprogJarPath = mkPath(System.getProperty("java.io.tmpdir"), projectName, "uber-GenProg4Java-0.0.1-SNAPSHOT.jar")
+    downloadJar(
+      "https://github.com/chupanw/genprog4java/blob/master/uber-GenProg4Java-0.0.1-SNAPSHOT.jar?raw=true",
+      genprogJarPath
+    )
+    val genprogCMD = Seq("java", "-jar", "uber-GenProg4Java-0.0.1-SNAPSHOT.jar", "tmp.config")
+    var attempt = 0
+    val startTime = System.currentTimeMillis()
+    while (attempt < 40) {  // at most 20 different seeds
+      val template = genTemplate(collectionName, projectName, System.currentTimeMillis(), attempt)
+      val writer = new FileWriter(new File(mkPathString(System.getProperty("java.io.tmpdir"), projectName, "tmp.config")))
+      writer.write(template)
+      writer.close()
+      val testCacheFile = new File(mkPathString(System.getProperty("java.io.tmpdir"), projectName, "testcache.ser"))
+      if (testCacheFile.exists()) testCacheFile.delete()
+      Process(genprogCMD, cwd = mkPath(System.getProperty("java.io.tmpdir"), projectName).toFile).lazyLines.foreach(printlnAndLog)
+      val duration = System.currentTimeMillis() - startTime
+      if (duration >= sixHoursInMS) return
+      attempt += 1
+    }
+  }
+  override def bfLaunch(args: Array[String]): Unit = {}
+
+  override def compileCMD(projectName: String): Seq[String] = Seq("ant", "clean", "compile-tests")
+
+  def downloadJar(url: String, path: Path): Unit = {
+    import sys.process._
+    import java.net.URL
+    (new URL(url) #> path.toFile).!!
+  }
+
+  /**
+    * Generate a template that works in Docker
+    */
+  def genTemplate(collectionName: String, projectName: String, seed: Long, iteration: Int): String = {
+    val tmpdir = System.getProperty("java.io.tmpdir")
+    s"""
+       |javaVM = /usr/bin/java
+       |popsize = 40
+       |editMode = existing
+       |generations = 20
+       |regenPaths = ${if (iteration == 0) true else false}
+       |continue = true
+       |seed = ${seed}
+       |classTestFolder = build/test
+       |workingDir = ${mkPathString(tmpdir, projectName)}
+       |outputDir = ${mkPathString(tmpdir, projectName, "tmp")}
+       |libs= ${getLibs(projectName)}
+       |sanity = no
+       |sourceDir = src
+       |positiveTests = ${mkPathString(tmpdir, projectName, "pos.tests")}
+       |negativeTests = ${mkPathString(tmpdir, projectName, "neg.tests")}
+       |jacocoPath = ${mkPathString(tmpdir, projectName, "jacocoagent.jar")}
+       |srcClassPath = ${mkPathString(tmpdir, projectName, "build", "classes")}
+       |classSourceFolder = ${mkPathString(tmpdir, projectName, "build", "classes")}
+       |testClassPath= ${mkPathString(tmpdir, projectName, "build", "test")}
+       |testGranularity = method
+       |targetClassName = ${mkPathString(tmpdir, projectName, "targetClasses.txt")}
+       |sourceVersion=1.8
+       |sample=0.1
+       |compileCommand=python3 ${mkPathString(tmpdir, projectName, "compile.py")}
+       |edits=append;delete;replace;aor;ror;lcr;uoi,0.1;abs,0.1;
+       |
+       |""".stripMargin
+  }
+
+  def getLibs(projectName: String): String = {
+    val tmpDir = System.getProperty("java.io.tmpdir")
+    val genprogLibs: List[String] = List(
+      s"${mkPathString(tmpDir, projectName, "hamcrest-core-1.3.jar")}",
+      s"${mkPathString(tmpDir, projectName, "junit-4.12.jar")}",
+      s"${mkPathString(tmpDir, projectName, "junittestrunner.jar")}",
+      s"${mkPathString(tmpDir, projectName, "jacocoagent.jar")}",
+      s"${mkPathString(tmpDir, projectName, "varexc.jar")}"
+    )
+    var projectLibs = mkPath(tmpDir, projectName, "lib").toFile().listFiles().filter(_.getName().endsWith(".jar")).map(_.getAbsolutePath()).toList
+    if (projectLibs.exists(l => l.contains("args4j_deploy.jar")) && projectLibs.exists(l => l.contains("args4j.jar"))) {
+      projectLibs = projectLibs.filter(l => !l.contains("args4j.jar"))
+    }
+    if (projectLibs.exists(l => l.contains("google_common_deploy.jar")) && projectLibs.exists(l => l.contains("guava.jar"))) {
+      projectLibs = projectLibs.filter(l => !l.contains("guava.jar"))
+    }
+    val rhino = mkPathString(tmpDir, projectName, "build", "lib", "rhino.jar")
+    (genprogLibs ::: rhino :: projectLibs).mkString(":")
+  }
+
+  run()
+}
