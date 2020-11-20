@@ -231,6 +231,8 @@ object VERuntime {
             .getMightHandle(handler.get.getClassName, handler.get.getMethodName)}")
       } else if (expectedException.exists(_.isInstance(e))) {
         println(s"Restart needed for <${e.getClass.getName}> as it is expected by the test case")
+      } else if (e.getStackTrace == null || e.getStackTrace.length == 0) {
+        println(s"Restart needed for <${e.getClass.getName}> because the stack trace is null")
       } else {
         savedRestart += 1
         skippedExceptionContext = skippedExceptionContext or ctx
@@ -240,7 +242,14 @@ object VERuntime {
   }
 
   def throwExceptionCtx(ctx: FeatureExpr): Unit = {
-    thrownExceptionContext = ctx
+    if (thrownExceptionContext.isContradiction())
+      thrownExceptionContext = ctx
+    else {
+      if (ctx.implies(thrownExceptionContext).isTautology()) {
+        thrownExceptionContext = ctx
+        println("thrown exception context updated again")
+      }
+    }
   }
 
   def shouldPostpone(currentCtx: FeatureExpr): Boolean = {
@@ -253,7 +262,8 @@ object VERuntime {
     (hasPostponedExp, hasThrownExp) match {
       case (false, false) => startingCtx
       case (true, false)  => startingCtx.and(postponedExceptionContext.not())
-      case (_, true)      => startingCtx.and(thrownExceptionContext)
+      case (false, true)      => startingCtx.and(thrownExceptionContext)
+      case (true, true) => startingCtx.and(postponedExceptionContext.not()).and(thrownExceptionContext)
     }
   }
 
